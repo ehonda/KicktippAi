@@ -15,7 +15,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Saving_prediction_with_resolved_context_round_trips_the_exact_manifest()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
+        var match = CreateCanonicalBundesligaMatch();
         var config = PredictionModelConfig.Create("gpt-5");
         var manifest = CreateManifest(match, "ehonda-dev-buli-2627");
 
@@ -124,8 +124,9 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
 
         await repository.SaveRepredictionWithResolvedContextAsync(rescheduledCancelledMatch, new Prediction(2, 1), config, "{}", 0.01,
             "test-community", names, 0, 1, manifest);
-        await Assert.That(await repository.GetCancelledMatchRepredictionIndexAsync(
-            storedMatch.HomeTeam, storedMatch.AwayTeam, config, "test-community")).IsEqualTo(1);
+        await Assert.That(await ((IBundesligaSeasonTypedCancelledMatchPredictionRepository)repository)
+            .GetCurrentCancelledMatchRepredictionIndexAsync(
+                storedMatch, config, "test-community")).IsEqualTo(1);
         await Assert.That(() => repository.SaveRepredictionWithResolvedContextAsync(rescheduledCancelledMatch, new Prediction(3, 1), config,
                 "{}", 0.01, "test-community", names, 1, 1, manifest))
             .Throws<InvalidOperationException>();
@@ -146,6 +147,10 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
             AwayTeam = match.AwayTeam,
             StartsAt = Timestamp.FromDateTime(match.StartsAt.ToInstant().ToDateTimeUtc()),
             Matchday = match.Matchday,
+            KicktippFixtureId = match.KicktippFixtureId,
+            KicktippRoundName = match.KicktippRoundName,
+            ResultBasis = match.ResultBasis?.ToSerializedValue(),
+            BundesligaSeasonSubcompetition = match.BundesligaSeasonSubcompetition?.ToSerializedValue(),
             HomeGoals = 1,
             AwayGoals = 0,
             CreatedAt = now,
@@ -174,10 +179,8 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
         var config = PredictionModelConfig.Create("gpt-5");
         await SeedManifestlessHistoricalPredictionAsync(match, config, "historical-normal");
 
-        var metadata = await repository.GetPredictionMetadataAsync(match, config, "test-community");
-
-        await Assert.That(metadata).IsNotNull();
-        await Assert.That(metadata!.ResolvedContextManifest).IsNull();
+        await Assert.That(await repository.GetPredictionMetadataAsync(match, config, "test-community")).IsNull();
+        await Assert.That(await repository.GetAllPredictionsAsync(config, "test-community")).Count().IsEqualTo(1);
     }
 
     [Test]
@@ -188,11 +191,14 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
         var config = PredictionModelConfig.Create("gpt-5");
         await SeedManifestlessHistoricalPredictionAsync(match, config, "historical-cancelled");
 
-        var metadata = await repository.GetCancelledMatchPredictionMetadataAsync(
+        var legacyMetadata = await repository.GetCancelledMatchPredictionMetadataAsync(
             match.HomeTeam, match.AwayTeam, config, "test-community");
-
-        await Assert.That(metadata).IsNotNull();
-        await Assert.That(metadata!.ResolvedContextManifest).IsNull();
+        await Assert.That(legacyMetadata).IsNotNull();
+        await Assert.That(legacyMetadata!.ResolvedContextManifest).IsNull();
+        await Assert.That(await ((IBundesligaSeasonTypedCancelledMatchPredictionRepository)repository)
+            .GetCurrentCancelledMatchPredictionMetadataAsync(
+                match, config, "test-community")).IsNull();
+        await Assert.That(await repository.GetAllPredictionsAsync(config, "test-community")).Count().IsEqualTo(1);
     }
 
     [Test]
@@ -208,6 +214,9 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
         await Assert.That(() => repository.GetCancelledMatchPredictionMetadataAsync(
                 match.HomeTeam, match.AwayTeam, config, "test-community"))
             .Throws<InvalidDataException>();
+        await Assert.That(await ((IBundesligaSeasonTypedCancelledMatchPredictionRepository)repository)
+            .GetCurrentCancelledMatchPredictionMetadataAsync(
+                match, config, "test-community")).IsNull();
     }
 
     [Test]
@@ -216,8 +225,8 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
         var (repository, match, config, manifest, reference) = await SavePredictionForDirectManifestMutationAsync();
         await reference.UpdateAsync("resolvedContextManifest", "{\"competition\":\"bundesliga-2026-27\"}");
 
-        await Assert.That(() => repository.GetPredictionMetadataAsync(match, config, manifest.CommunityContext))
-            .Throws<InvalidDataException>();
+        await Assert.That(await repository.GetPredictionMetadataAsync(
+            match, config, manifest.CommunityContext)).IsNull();
     }
 
     [Test]
@@ -235,12 +244,18 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
             "}");
         await reference.UpdateAsync("resolvedContextManifest", reordered);
 
-        await Assert.That(() => repository.GetPredictionMetadataAsync(match, config, manifest.CommunityContext))
-            .Throws<InvalidDataException>();
+        await Assert.That(await repository.GetPredictionMetadataAsync(
+            match, config, manifest.CommunityContext)).IsNull();
     }
 
     private static Match CreateCanonicalBundesligaMatch(bool isCancelled = false) =>
-        CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1, isCancelled: isCancelled);
+        CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1, isCancelled: isCancelled) with
+        {
+            KicktippFixtureId = "fixture-bayern-dortmund",
+            KicktippRoundName = "Bundesliga exact round",
+            ResultBasis = ResultBasis.RegularTime90Minutes,
+            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga
+        };
 
     private static ResolvedMatchContextManifest CreateManifest(Match match, string communityContext) =>
         ResolvedMatchContextManifest.Create(

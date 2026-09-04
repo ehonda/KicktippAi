@@ -2,15 +2,27 @@
 
 - Status: In progress; recovery runtime is frozen, target-primary completion remains an atomic future PR
 - Priority: P1 — deadline-critical
-- Depends on: [P0-21](p0-21-production-activation.md)
+- Depends on: [P0-21](p0-21-production-activation.md),
+  [P1-13](p1-13-global-bundesliga-prediction-authority.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md), [ADR-0064](../decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md), [ADR-0065](../decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
 
 - Orchestration readiness: The completed checkboxes are historical integrated
   evidence. The resumed recovery's frozen artifacts are the
   [P1 execution packet](../p1-execution-packet.md) and
   [production recovery design](../designs/p1-10-production-recovery-and-atomic-delivery.md).
   They govern recovery only; they do not mark the target-primary route done.
+  ADR-0063 records that the full branch was constructed from D by the dedicated
+  C-then-B inverses. Its A-equivalence is preservation, not merge readiness:
+  this draft branch remains live-broken until ordinary fixture typing and every
+  remaining P1-10 and Owner gate passes.
+  ADR-0064 admits only E's portable fixture-test normalization; it does not
+  change ADR-0062 recovery runtime, ADR-0063 construction, or any Owner gate.
+  ADR-0065 and P1-13 now own the season-wide typed prediction-authority,
+  per-community seed/copy-binding, exact-ID API, isolated-storage, and atomic-
+  cutover foundation. This task consumes that foundation while retaining all
+  Schadensfresse-specific rules, context/prompt composition, replacement, and
+  activation ownership.
 
 ## Trigger and live evidence
 
@@ -87,6 +99,29 @@ observing them is read-only reconciliation, not additional authority.
 
 ## Implementation slices
 
+### Global typed-authority prerequisite
+
+- [ ] Complete and independently accept P1-13 R1-R5a before treating any
+      P1-10 current read/save/reprediction/copy/verify/post path as merge-ready.
+      P1-10 must use the shared Posting Community, Prediction-source
+      Community, Community Context, Stable Local Item Key, Snapshot Hash,
+      Copy Binding, Generation Provenance, and Authority Epoch contracts; it
+      must not implement a target-only compatibility firewall.
+      **Prediction-source Community**: The community under which the
+      candidate prediction was generated and stored. It equals the Posting
+      Community for self-contained generation; for an accepted copy it may
+      differ and is identified by the Copy Binding.
+- [ ] Keep P1-10's real Schadensfresse seeds/bindings, typed staging, and
+      atomic activation in P1-13 R5b's all-community evidence/cutover gate.
+      P1-10 still owns the exact target replacement set, prompt promotion,
+      calls/cost, force/reprediction, UTC cutoff, and primary activation.
+- [ ] Accept only a scheduled instant derived from exact ID-bearing fixture
+      evidence and the same-ID structured detail `Termin`. Any cancelled,
+      empty, inherited, sentinel, duplicate, unparsable, or conflicting item
+      fails the complete selected operation before current read or downstream
+      call; a same-ID reschedule keeps the Stable Local Item Key but requires a
+      new additive seed generation and Snapshot Hash.
+
 ### 0. Historical schedule quarantine (temporarily superseded on recovery main)
 
 - [x] Before the next nominal `2026-08-30T09:07:00Z` occurrence, remove
@@ -151,11 +186,15 @@ observing them is read-only reconciliation, not additional authority.
       rejecting untyped legacy Bundesliga rows as current.
 - [ ] Route Bundesliga through target-owned context and ADR-0052's production
       match v3/bonus v1 identities. Add explicit DFB-Pokal match, CL match, and
-      CL bonus prompt/context routes under ADR-0058's names; never use the
-      Bundesliga routes as a temporary fallback.
-- [ ] Prepare checked-in DFB/CL prompt mirrors and tests now, but keep live
-      routes fail closed until their immutable hosted versions, hashes, and
-      `production` promotion receive review and are recorded.
+      CL bonus route IDs/contracts and fail-closed context dispatch under
+      ADR-0058's names; never use the Bundesliga routes as a temporary
+      fallback.
+- [ ] In R4b add only DFB/CL route IDs/contracts, fail-closed dispatch, and
+      synthetic tests. Do not add prompt bodies or mirrors, assert an
+      unverified hash, or imply fallback. A later slice may add a checked-in
+      mirror and equality test only after evidence records the exact hosted
+      name, numbered immutable version, normalized readback hash, and required
+      `production` membership; then prove normalized mirror/readback equality.
 - [ ] Implement the exact three ADR-0058 rules-only profiles: sole allowlisted
       `community-rules-schadensfresse.md`, current validated repo publication,
       24-hour authenticated rules freshness, one-document/2048-token budget,
@@ -183,6 +222,10 @@ observing them is read-only reconciliation, not additional authority.
       untyped legacy rows, cross-partition subcompetition, context allowlist or
       budget violations, stale rules evidence, and any attempted `pes-squad`
       copy/fallback.
+- [ ] Add hostile scheduled-instant tests for a cancelled first row, a
+      cancelled row after a valid row, fixture/detail conflict, and same-ID
+      reschedule. Each invalid selected inventory must prove atomic
+      no-current-read/no-prompt-or-service-or-model-call/no-mutation/no-POST.
 - [ ] Add persistence, freshness, provenance, command, workflow-contract, and
       schedule tests proving target-owned primary generation while preserving
       the outer lane's cadence/concurrency/failure/monitoring/no-bonus contract.

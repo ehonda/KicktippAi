@@ -1,4 +1,5 @@
 *.sh text eol=lf
+community-rules/schadensfresse.md text eol=lf
 community-rules/ehonda-dev-buli-2627.md text eol=crlf
 community-rules/relaxdays-tippt.md text eol=crlf
 data/bundesliga-2026-27/club-elo-launch-seed.csv text eol=crlf

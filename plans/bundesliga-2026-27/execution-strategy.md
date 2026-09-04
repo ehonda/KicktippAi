@@ -5,7 +5,8 @@
 - Implementation state: P0-01 through P0-25 are complete. The failing P1-10
   runtime is preserved for an atomic future PR; recovery `main` temporarily
   restores the eight-pair source-copy lane under ADR-0062 through
-  `2026-09-08T12:00:00Z`.
+  `2026-09-08T12:00:00Z`. P1-13 R0 freezes the new season-wide typed
+  prediction-authority prerequisite; implementation remains draft-only.
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -100,6 +101,52 @@ prediction mutation; generation and current observations remain distinct.
 The binding refresh proves only rules/profile/seed/document identity; reuse
 separately compares the current typed invocation and exact pinned prompt/model
 configuration with the prediction's immutable provenance.
+
+## P1-13 global typed-authority boundary — 2026-08-31
+
+The Owner selected literal season-wide typing rather than a target-scoped
+compatibility firewall. [ADR-0065](decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
+makes [P1-13](tasks/p1-13-global-bundesliga-prediction-authority.md) the owner
+of complete community-local fixture/question identity, immutable per-community
+seed generations and exact copy bindings, typed current/save/reprediction/copy
+APIs, complete generation provenance, exact-ID Kicktipp POST/readback,
+physically isolated typed staging, and the all-community authority cutover.
+
+Matchday, RandomMatch, VerifyMatchday, Bonus, and VerifyBonus must classify
+their complete selected inventory before current database selection or
+prompt/service/model/POST work. Historical/context and audit/cost APIs remain
+explicitly non-authoritative. Team/time, team-only, question-text, prefix,
+latest, partition-only, and default lookups cannot satisfy a current operation.
+
+The match scheduled instant comes only from exact ID-bearing fixture evidence
+plus the same-ID structured detail `Termin`. Cancelled/empty evidence,
+inherited prior-row state, `Instant.MinValue` or another sentinel,
+missing/duplicate/unparsable detail, and fixture/detail conflict reject the
+complete selected operation atomically before current read or downstream call.
+A same-ID reschedule preserves the Stable Local Item Key but rotates the
+Snapshot Hash in a new additive seed generation; the prior snapshot is not
+current.
+
+Physical/query isolation also governs audit and cost. R2b owns separate
+configured reads and explicitly authority-labelled non-current DTOs for one
+physical authority at a time. A later shared slice may combine, sort, and total
+only after independent retrieval while preserving labels and per-authority
+subtotals. No repository method/query/enumeration/current lookup/fallback/copy/
+reprediction spans authorities.
+
+R4b may add DFB/CL route IDs/contracts, fail-closed dispatch, and synthetic
+tests only. Prompt bodies, mirrors, hash assertions, and implied fallback are
+blocked until a later evidence slice records the exact hosted name, numbered
+immutable version, normalized readback hash, and required `production`
+membership, then proves normalized mirror/readback equality.
+
+P1-10 now depends on P1-13 but retains every Schadensfresse-specific rules,
+context, prompt-route, DFB/CL composition, replacement, call/cost, cutoff, and
+activation decision. Recovery `main`, the draft PR, ADR-0062 sunset/fallback,
+and every existing external authority gate remain unchanged. R0 is tracked
+specification only; R1-R5a are repository-only and synthetic. Real seeds,
+production typed staging, and cutover remain later Owner gates under the
+[P1-13 execution packet](p1-13-execution-packet.md).
 
 ## Agent roles and task loop
 
@@ -199,9 +246,10 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Capacity | Admit at most two linked task worktrees and use a separate heavy-operation lease; the checked-in resource policy and live snapshot may reduce concurrency before any new worktree or heavy operation |
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
 | Prediction topology | Independent primary `pes-squad`; relaxdays and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; recovery `main` temporarily uses target-context Schadensfresse copy from `pes-squad` in the eight-pair lane, while P1-10's target-primary route remains PR-only |
+| Prediction authority | ADR-0065 requires complete Posting Community-local item identity and Snapshot Hashes for every Bundesliga current operation; scheduled instants require exact ID-bearing fixture plus same-ID `Termin` evidence; immutable seed/copy bindings and Generation Provenance live in one isolated Authority Epoch; separately configured audit/cost reads expose labelled non-current DTOs only; cutover is all-community and cannot be implied by Git merge |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
 | Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write. ADR-0052 prepares a false-by-default workflow input enabled for pes/relaxdays/schadens before normal profile collection; arena preserves its verified enriched head; recurring automation stays P1-05 |
-| Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
+| Prompts | Accepted hosted Bundesliga match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; their evidenced checked-in local mirrors remain the ordinary outage fallback; DFB/CL has no mirror or fallback until the separate exact hosted-evidence/equality gate passes |
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
 | P0-23 candidate evidence | Complete under ADR-0049 and the Owner's execution-time amendments: eight original paired runs completed, Luna/`max` is incomplete after two transient capacity failures and an explicit p1 stop, and post-hoc Sol/`xhigh` is exploratory; this is evidence, not production selection |
 | Context | Bundesliga retains explicit live allowlists; schadensfresse DFB/CL uses ADR-0058's Accepted target-rules-only profiles with exact typed inputs and no Bundesliga context leakage, ADR-0059 binds publication to the structured v1 rules record, and ADR-0060 separates immutable generation provenance from the exact-key current rules attestation used for reuse |
@@ -237,6 +285,7 @@ These are not ambiguities agents may decide on their own:
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | P1-04 after launch | Continue the accepted dated seed and last-known-good behavior until resolved |
 | Exact production schedules, spacing, rollback trigger, and activation | ADR-0062 temporarily restores ADR-0054/0055's eight-pair copy lane while preserving ADR-0053's operating contract | Observe the recovered natural lane; final P1-10 primary activation remains separately reviewed and owner-controlled |
 | `schadensfresse` primary routing | P1-10 atomic PR must replace/terminate temporary copy mode by `2026-09-08T12:00:00Z`; P1-08 is superseded | Implement typed identities and Accepted rules-only DFB/CL profiles on the future PR; do not treat recovery copy as primary activation |
+| Global typed prediction-authority cutover | ADR-0065 resolves repository architecture; real identity seeds/bindings, production staging, POST, and cutover remain behind existing Owner evidence/replace/call/cost/force/cutoff/activation/rollback gates | Complete and independently review P1-13 R0-R5a with synthetic/local evidence; no partial community or match/bonus cutover |
 
 ADR-0052 settled final model selection from the completed experiments and
 whole-season estimates. New-season outcomes did not exist at selection time,
@@ -257,7 +306,9 @@ manual-only contracts; do not infer bonus or mixed-competition schedule
 authority. The frozen [P1 recovery execution packet](p1-execution-packet.md)
 and [P1-10 production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md)
 require an atomic P1-10 PR to replace or terminate copy mode by
-`2026-09-08T12:00:00Z`. P1-10 continues to own every `schadensfresse`
-Bundesliga/DFB/CL match and bonus route, fully absorbs P1-08, and retains later
-owner-controlled prompt/replacement/cost/force/cutoff/activation gates. P1-04
-owns any unattended Club Elo network refresh decision.
+`2026-09-08T12:00:00Z`. The frozen [P1-13 execution packet](p1-13-execution-packet.md)
+owns the shared typed prediction-authority and cutover prerequisite. P1-10
+continues to own every `schadensfresse` Bundesliga/DFB/CL match and bonus
+composition/activation route, fully absorbs P1-08, and retains later owner-
+controlled prompt/replacement/cost/force/cutoff/activation gates. P1-04 owns
+any unattended Club Elo network refresh decision.

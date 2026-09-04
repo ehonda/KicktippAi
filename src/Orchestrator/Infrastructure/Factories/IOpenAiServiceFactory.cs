@@ -42,6 +42,13 @@ public interface IOpenAiServiceFactory
         PredictionServiceOptions options,
         IInstructionsTemplateProvider templateProvider);
 
+    /// <summary>Creates an explicit, unwired prediction service with atomic observed-call evidence.</summary>
+    IObservedPredictionService CreateObservedPredictionService(
+        EHonda.KicktippAi.Core.PredictionModelConfig modelConfig,
+        PredictionServiceOptions options,
+        IInstructionsTemplateProvider legacyTemplateProvider,
+        IObservedInstructionsTemplateProvider observedTemplateProvider);
+
     /// <summary>
     /// Creates or retrieves the shared token usage tracker.
     /// </summary>

@@ -1,7 +1,6 @@
 using TestUtilities;
 using TUnit.Core;
 using EHonda.KicktippAi.Core;
-using EHonda.Optional.Core;
 using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
@@ -37,59 +36,6 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
 
         // Assert
         await Assert.That(retrieved).IsEqualTo(prediction);
-    }
-
-    [Test]
-    public async Task Ordinary_Bundesliga_2026_27_fixture_without_typed_primary_fields_can_be_saved_and_read()
-    {
-        // Arrange
-        var repository = CreateRepository(competition: Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
-        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
-        var config = PredictionModelConfig.Create("gpt-5.6");
-        var manifest = ResolvedMatchContextManifest.Create(
-            CompetitionIds.Bundesliga2026_27,
-            "pes-squad",
-            MatchContextDocumentCatalog.ForMatch(match, "pes-squad", CompetitionIds.Bundesliga2026_27)
-                .RequiredDocumentNames.Select((name, index) => new ResolvedMatchContextDocument(
-                    name, index + 1, "Context", DocumentPublicationContract.ComputeContentSha256(name))),
-            new string('a', DocumentPublicationContract.Sha256HexLength),
-            new string('b', DocumentPublicationContract.Sha256HexLength));
-
-        // Act
-        await repository.SavePredictionWithResolvedContextAsync(
-            match,
-            prediction,
-            config,
-            "100",
-            0.01,
-            manifest.CommunityContext,
-            manifest.Documents.Select(document => document.Name),
-            manifest);
-
-        var retrievedPrediction = await repository.GetPredictionAsync(
-            match,
-            config,
-            manifest.CommunityContext);
-        var metadata = await repository.GetPredictionMetadataAsync(
-            match,
-            config,
-            manifest.CommunityContext);
-
-        // Assert
-        await Assert.That(retrievedPrediction).IsEqualTo(prediction);
-        await Assert.That(metadata).IsNotNull();
-        await Assert.That(metadata!.Prediction).IsEqualTo(prediction);
-        await Assert.That(metadata.ContextDocumentNames)
-            .IsEquivalentTo(manifest.Documents.Select(document => document.Name));
-        await Assert.That(metadata.ResolvedContextManifest).IsNotNull();
-        await Assert.That(metadata.ResolvedContextManifest!.Competition).IsEqualTo(manifest.Competition);
-        await Assert.That(metadata.ResolvedContextManifest.CommunityContext).IsEqualTo(manifest.CommunityContext);
-        await Assert.That(metadata.ResolvedContextManifest.RosterPublicationSnapshotId)
-            .IsEqualTo(manifest.RosterPublicationSnapshotId);
-        await Assert.That(metadata.ResolvedContextManifest.ClubEloPublicationSnapshotId)
-            .IsEqualTo(manifest.ClubEloPublicationSnapshotId);
-        await Assert.That(metadata.ResolvedContextManifest.Documents).IsEquivalentTo(manifest.Documents);
     }
 
     [Test]

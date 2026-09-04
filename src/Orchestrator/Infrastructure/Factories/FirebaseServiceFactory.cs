@@ -73,12 +73,41 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
     }
 
     /// <inheritdoc />
+    public IResolvedTypedContextPublicationBindingRepository CreateResolvedTypedContextPublicationBindingRepository()
+    {
+        var logger = _loggerFactory.CreateLogger<FirebaseResolvedTypedContextPublicationBindingRepository>();
+        return new FirebaseResolvedTypedContextPublicationBindingRepository(FirestoreDb, logger);
+    }
+
+    /// <inheritdoc />
     public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         var logger = _loggerFactory.CreateLogger<FirebaseMatchOutcomeRepository>();
         return new FirebaseMatchOutcomeRepository(FirestoreDb, logger, competition);
     }
+
+    /// <inheritdoc />
+    public IBundesligaTypedPredictionAuthorityRepository CreateBundesligaTypedPredictionAuthorityRepository() =>
+        new FirebaseBundesligaTypedPredictionAuthorityRepository(
+            FirestoreDb,
+            FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch);
+
+    /// <inheritdoc />
+    public ILegacyFirebaseMatchPredictionAuditCostReader CreateLegacyBundesligaMatchAuditCostReader() =>
+        new FirebaseLegacyMatchPredictionAuditCostReader(FirestoreDb);
+
+    /// <inheritdoc />
+    public ILegacyFirebaseBonusPredictionAuditCostReader CreateLegacyBundesligaBonusAuditCostReader() =>
+        new FirebaseLegacyBonusPredictionAuditCostReader(FirestoreDb);
+
+    /// <inheritdoc />
+    public ITypedFirebaseMatchPredictionAuditCostReader CreateTypedBundesligaMatchAuditCostReader() =>
+        new FirebaseTypedMatchPredictionAuditCostReader(FirestoreDb);
+
+    /// <inheritdoc />
+    public ITypedFirebaseBonusPredictionAuditCostReader CreateTypedBundesligaBonusAuditCostReader() =>
+        new FirebaseTypedBonusPredictionAuditCostReader(FirestoreDb);
 
     private FirestoreDb InitializeFirestoreDb()
     {

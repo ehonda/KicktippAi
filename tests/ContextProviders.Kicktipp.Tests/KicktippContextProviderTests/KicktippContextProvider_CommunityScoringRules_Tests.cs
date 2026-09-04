@@ -84,23 +84,18 @@ public class KicktippContextProvider_CommunityScoringRules_Tests : KicktippConte
     }
 
     [Test]
-    public async Task Schadensfresse_Bundesliga_rules_use_target_identity_and_match_pes_squad()
+    public async Task Schadensfresse_Bundesliga_rules_use_its_target_owned_v1_identity()
     {
         using var rulesFileProvider = (PhysicalFileProvider)CommunityRulesFileProvider.Create();
         var schadensfresseProvider = CreateProvider(
             communityRulesFileProvider: Option.Some<IFileProvider>(rulesFileProvider),
             community: "schadensfresse",
             communityContext: "schadensfresse");
-        var pesProvider = CreateProvider(
-            communityRulesFileProvider: Option.Some<IFileProvider>(rulesFileProvider),
-            community: "pes-squad",
-            communityContext: "pes-squad");
-
         var rules = await schadensfresseProvider.CommunityScoringRules();
-        var pesRules = await pesProvider.CommunityScoringRules();
 
         await Assert.That(rules.Name).IsEqualTo("community-rules-schadensfresse.md");
-        await Assert.That(rules.Content.ReplaceLineEndings("\n"))
-            .IsEqualTo(pesRules.Content.ReplaceLineEndings("\n"));
+        await Assert.That(rules.Content).Contains("schadensfresse-live-rules-v1")
+            .And.Contains("| win | 2 | 3 | 5 |")
+            .And.Contains("| draw | 3 | null | 5 |");
     }
 }

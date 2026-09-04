@@ -18,6 +18,9 @@ public interface IKicktippClientFactory
     /// <returns>A configured Kicktipp client instance.</returns>
     IKicktippClient CreateClient();
 
+    /// <summary>Creates the dedicated Bundesliga typed-only Kicktipp capability.</summary>
+    IBundesligaTypedKicktippClient CreateBundesligaTypedPredictionClient();
+
     /// <summary>
     /// Creates an authenticated HTTP client for direct HTTP requests to Kicktipp.
     /// </summary>

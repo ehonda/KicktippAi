@@ -3,7 +3,10 @@
 - Status: Frozen recovery packet for the resumed 2026-08-31 orchestration
 - Scope: Recover the production-live lane to the P1-10 pre-runtime baseline,
   then preserve the completed P1-10 implementation for an atomic draft PR.
-- Authority: [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Authorities: [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)
+  owns recovery runtime; [ADR-0063](decisions/0063-construct-p1-10-full-branch-after-recovery.md)
+  owns branch construction; [ADR-0064](decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md)
+  permits E's test-harness exception only.
 
 ## Current state and boundary
 
@@ -29,12 +32,22 @@ PR history. The recovery's temporary copy route sunsets at
    `d515726`, `b0fd6b6`, `86cb5a5`, `2b91958`, `1fb6957`, `a084263`,
    `18ba841`, and `ae8fc46`.
 4. Validate and independently exact-SHA review A+B, then push them to `main`.
-5. Create `codex/01a054ee-p1-10-full` from recovered `main`, revert B on that
-   branch, push it, and open a draft PR. Complete P1-10 atomically there.
+5. ADR-0063 supersedes this stale step: construct
+   `codex/01a054ee-p1-10-full` from D
+   (`d47c1b2b8f47b2755d9c382c46b830876efccbaf`, green CI `33393738486`) by
+   reverting C (`22a0c6d`) first as `0e4f3a9`, then B (`68af9e1`) as
+   `dc29899`; preserve D. Push and open only a draft PR after the ADR-0063
+   preservation and exact-head gates pass.
 
-This topology is non-rewriting: no reset, force push, rebase, or history
-rewrite. A later regression in the completed PR is recovered by reverting its
-merge to the ADR-0062 baseline.
+ADR-0064 adds E (`798fb89`, parent `300ae2d`) only: its sole extractor-test
+path uses `.ReplaceLineEndings("\n")` for harness portability. The final
+branch comparison is `.github/`/`community-rules/`/`data/`/`src/` exactly A or
+`71637cc`; `tests/` exactly A or `71637cc` except D+E; and A-to-tip planning
+only ADR-0063, ADR-0064, README, task, packet, and design.
+
+This topology is non-rewriting: no reset, force push, rebase, squash, or
+history rewrite. A later regression in the completed PR is recovered by
+reverting its merge to the ADR-0062 baseline.
 
 `ae8fc46`, `18ba841`, `a084263`, and `1fb6957` touch
 `plans/bundesliga-2026-27/tasks/p1-10-schadensfresse-primary-community.md`.
@@ -86,3 +99,13 @@ decisions remain owner-controlled.
 Natural runs caused by the restored declarative schedule can perform only the
 already-authorized ADR-0053/0054/0055 operations. Observation is read-only
 reconciliation; it grants no direct/manual or expanded operational authority.
+
+## Successor implementation boundary
+
+This packet remains the unchanged recovery and branch-preservation contract.
+[ADR-0065](decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
+and the [P1-13 execution packet](p1-13-execution-packet.md) now own the
+season-wide typed identity, exact-ID current API, isolated staging, and atomic
+cutover prerequisite for P1-10. P1-10 retains Schadensfresse-specific
+rules/context/prompt composition and activation. The successor creates no
+recovery authority, sunset extension, partial cutover, or evidence rewrite.

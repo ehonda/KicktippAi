@@ -1,7 +1,10 @@
 # P1-10 production recovery and atomic delivery design
 
 - Status: Frozen recovery design, not completion evidence
-- Authority: [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Authorities: [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+  owns recovery runtime; [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md)
+  owns construction; [ADR-0064](../decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md)
+  permits E's test-harness exception only.
 - Baseline: `3a2ba35529b262327a3ec08e6bde47b186c8e5b2`
 
 ## Seam map
@@ -54,11 +57,32 @@ have been inspected.
 
 ## Atomic completion path
 
-Commit A adds the recovery metadata. Commit B is the explicit aggregate revert
-set named in ADR-0062. After A+B is reviewed and pushed to `main`, branch
-`codex/01a054ee-p1-10-full` from recovered main and revert B on that branch so
-the full P1-10 implementation appears as a branch-unique, reviewable diff.
+Commit A adds the recovery metadata and B is the explicit aggregate revert set
+named in ADR-0062. ADR-0063 replaces the stale branch step: branch from D
+(`d47c1b2`), revert recovery-only C (`22a0c6d`) first as `0e4f3a9`, then B
+(`68af9e1`) as `dc29899`, and retain D's telemetry patch. This C-before-B
+order avoids modify/delete while restoring the archival P1-10 tree for a
+reviewable draft PR; it is preservation, not merge readiness. The draft stays
+live-broken until ordinary fixture typing and all P1-10/Owner gates pass.
+
+ADR-0064 admits E (`798fb89`, parent `300ae2d`) as the sole additional test
+exception: `.ReplaceLineEndings("\n")` in the rules-extractor test makes its
+fixture read portable without changing fixture bytes, runtime, rules, or any
+operational authority. Final preservation compares runtime paths exactly with
+A/original `71637cc`, tests with D+E only, and planning with the six allowed
+paths; ADR-0063 remains byte-identical and Accepted.
+
 The PR must replace or terminate temporary copy mode atomically by
 `2026-09-08T12:00:00Z`; otherwise re-quarantine Schadensfresse and keep seven
 unaffected pairs. A later regression reverts the P1-10 merge to the recovery
 baseline.
+
+## Successor design boundary
+
+This recovery design remains authoritative for recovery topology, branch
+preservation, sunset, fallback, and rollback only. [ADR-0065](../decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
+and the [P1-13 design](p1-13-global-typed-prediction-authority-and-cutover.md)
+own the global typed prediction-authority and isolated all-community cutover
+foundation that P1-10 must consume. P1-10 retains target-specific
+Schadensfresse composition and activation; neither successor rewrites the
+recovery evidence or permits a partial cutover.

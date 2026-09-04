@@ -92,6 +92,26 @@ public static class ServiceCollectionExtensions
             return new FirebasePredictionRepository(firestoreDb, logger, competition);
         });
 
+        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            services.AddScoped<IBundesligaTypedPredictionAuthorityRepository>(serviceProvider =>
+                new FirebaseBundesligaTypedPredictionAuthorityRepository(
+                    serviceProvider.GetRequiredService<FirestoreDb>(),
+                    FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch));
+            services.AddScoped<ILegacyFirebaseMatchPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseLegacyMatchPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+            services.AddScoped<ILegacyFirebaseBonusPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseLegacyBonusPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+            services.AddScoped<ITypedFirebaseMatchPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseTypedMatchPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+            services.AddScoped<ITypedFirebaseBonusPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseTypedBonusPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+        }
+
         // Register the KPI repository
         services.AddScoped<IKpiRepository>(serviceProvider =>
         {
@@ -113,6 +133,13 @@ public static class ServiceCollectionExtensions
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
             var logger = serviceProvider.GetRequiredService<ILogger<FirebaseDocumentPublicationRepository>>();
             return new FirebaseDocumentPublicationRepository(firestoreDb, logger, competition);
+        });
+
+        services.AddScoped<IResolvedTypedContextPublicationBindingRepository>(serviceProvider =>
+        {
+            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+            var logger = serviceProvider.GetRequiredService<ILogger<FirebaseResolvedTypedContextPublicationBindingRepository>>();
+            return new FirebaseResolvedTypedContextPublicationBindingRepository(firestoreDb, logger);
         });
 
         services.AddScoped<IMatchOutcomeRepository>(serviceProvider =>

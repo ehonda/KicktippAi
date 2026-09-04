@@ -8,7 +8,8 @@ internal enum LangfusePromptKind
     Bonus
 }
 
-internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplateProvider, IPromptTemplateTelemetryMetadataProvider
+internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplateProvider,
+    IPromptTemplateTelemetryMetadataProvider, IObservedInstructionsTemplateProvider
 {
     private readonly ILangfusePublicApiClient _client;
     private readonly string _promptName;
@@ -93,6 +94,60 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         var prompt = ResolvePrompt(includeJustification: false);
         Volatile.Write(ref _lastTelemetryMetadata, prompt.TelemetryMetadata);
         return (prompt.Template, prompt.Path);
+    }
+
+    public ValueTask<ResolvedPredictionPromptTemplate> LoadObservedMatchTemplateAsync(
+        PredictionPromptExecutionRequirement requirement,
+        bool includeJustification,
+        CancellationToken cancellationToken = default)
+    {
+        if (_promptKind != LangfusePromptKind.Match)
+            throw new NotSupportedException("This Langfuse prompt provider is configured for bonus prompts.");
+        if (includeJustification
+            && string.Equals(_promptName, CompetitionResolver.WorldCupMatchPromptName, StringComparison.Ordinal))
+            throw new NotSupportedException("The WM 2026 hosted match prompt does not support justification.");
+        return ResolveObserved(requirement, includeJustification, cancellationToken);
+    }
+
+    public ValueTask<ResolvedPredictionPromptTemplate> LoadObservedBonusTemplateAsync(
+        PredictionPromptExecutionRequirement requirement,
+        CancellationToken cancellationToken = default)
+    {
+        if (_promptKind != LangfusePromptKind.Bonus)
+            throw new NotSupportedException("This Langfuse prompt provider is configured for match prompts.");
+        return ResolveObserved(requirement, includeJustification: false, cancellationToken);
+    }
+
+    private ValueTask<ResolvedPredictionPromptTemplate> ResolveObserved(
+        PredictionPromptExecutionRequirement requirement,
+        bool includeJustification,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(requirement);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (!string.Equals(_promptName, requirement.HostedName, StringComparison.Ordinal)
+            || _version != requirement.HostedVersion
+            || !string.Equals(_label, requirement.RequiredLabel, StringComparison.Ordinal))
+            throw new InvalidDataException("Observed prompt requirement conflicts with the provider's exact binding.");
+
+        var hosted = _hostedPrompt.Value;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (hosted.Prompt is { } prompt && hosted.Template is { } template)
+        {
+            return ValueTask.FromResult(ResolvedPredictionPromptTemplate.CreateHosted(
+                requirement, template, BuildPromptPath(prompt), prompt.Name, prompt.Version,
+                prompt.Labels ?? []));
+        }
+
+        if (_fallbackTemplateProvider is null || string.IsNullOrWhiteSpace(_fallbackModel))
+            throw new FileNotFoundException(
+                $"{hosted.FailureReason} No local fallback prompt was configured for '{_promptName}'.");
+        var fallback = _promptKind == LangfusePromptKind.Match
+            ? _fallbackTemplateProvider.LoadMatchTemplate(_fallbackModel, includeJustification)
+            : _fallbackTemplateProvider.LoadBonusTemplate(_fallbackModel);
+        _fallbackWarning?.Invoke($"{hosted.FailureReason} Using local fallback prompt '{fallback.path}'.");
+        return ValueTask.FromResult(ResolvedPredictionPromptTemplate.CreateFallback(
+            requirement, fallback.template, fallback.path));
     }
 
     private HostedPromptResolution LoadHostedPrompt()

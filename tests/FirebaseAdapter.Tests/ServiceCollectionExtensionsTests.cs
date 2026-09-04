@@ -89,6 +89,47 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public async Task AddFirebaseDatabase_registers_separate_typed_and_audit_capabilities_only_for_Bundesliga_2026_27()
+    {
+        var bundesligaServices = CreateServices();
+        AddDefaultFirebaseDatabase(bundesligaServices);
+
+        foreach (var serviceType in new[]
+        {
+            typeof(IBundesligaTypedPredictionAuthorityRepository),
+            typeof(ILegacyFirebaseMatchPredictionAuditCostReader),
+            typeof(ILegacyFirebaseBonusPredictionAuditCostReader),
+            typeof(ITypedFirebaseMatchPredictionAuditCostReader),
+            typeof(ITypedFirebaseBonusPredictionAuditCostReader)
+        })
+        {
+            var descriptor = bundesligaServices.SingleOrDefault(entry => entry.ServiceType == serviceType);
+            await Assert.That(descriptor).IsNotNull()
+                .And.Member(entry => entry!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
+        }
+
+        var wm26Services = CreateServices();
+        wm26Services.AddFirebaseDatabase(CompetitionIds.FifaWorldCup2026, options =>
+        {
+            options.ProjectId = "test-project";
+            options.ServiceAccountJson = "{}";
+        });
+
+        await Assert.That(wm26Services.Any(entry =>
+            entry.ServiceType == typeof(IBundesligaTypedPredictionAuthorityRepository))).IsFalse();
+        foreach (var serviceType in new[]
+        {
+            typeof(ILegacyFirebaseMatchPredictionAuditCostReader),
+            typeof(ILegacyFirebaseBonusPredictionAuditCostReader),
+            typeof(ITypedFirebaseMatchPredictionAuditCostReader),
+            typeof(ITypedFirebaseBonusPredictionAuditCostReader)
+        })
+        {
+            await Assert.That(wm26Services.Any(entry => entry.ServiceType == serviceType)).IsFalse();
+        }
+    }
+
+    [Test]
     public async Task AddFirebaseDatabase_registers_IKpiRepository_as_scoped()
     {
         // Arrange
@@ -123,6 +164,18 @@ public class ServiceCollectionExtensionsTests
         AddDefaultFirebaseDatabase(services);
 
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IDocumentPublicationRepository));
+
+        await Assert.That(descriptor).IsNotNull()
+            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
+    }
+
+    [Test]
+    public async Task AddFirebaseDatabase_registers_IResolvedTypedContextPublicationBindingRepository_as_scoped()
+    {
+        var services = CreateServices();
+        AddDefaultFirebaseDatabase(services);
+
+        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IResolvedTypedContextPublicationBindingRepository));
 
         await Assert.That(descriptor).IsNotNull()
             .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));

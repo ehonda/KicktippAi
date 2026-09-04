@@ -197,7 +197,6 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    [Arguments("schadensfresse")]
     [Arguments("relaxdays-tippt")]
     [Arguments("ehonda-ai-arena")]
     public async Task Copy_posting_lane_reuses_pes_squad_context_prediction_after_standings_refresh(string targetCommunity)

@@ -20,7 +20,7 @@ namespace OpenAiIntegration;
 /// <summary>
 /// Service for predicting match outcomes using OpenAI models
 /// </summary>
-public class PredictionService : IPredictionService
+public partial class PredictionService : IPredictionService, IObservedPredictionService
 {
     private const int TransientOpenAiMaxRetryAttempts = 3;
     private const int RateLimitedOpenAiMaxRetryAttempts = 8;

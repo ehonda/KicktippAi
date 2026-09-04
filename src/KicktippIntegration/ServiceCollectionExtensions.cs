@@ -24,17 +24,21 @@ public static class ServiceCollectionExtensions
         
         // Register the HTTP client with authentication
         services
-            .AddHttpClient<IKicktippClient, KicktippClient>(client =>
-            {
-                client.BaseAddress = new Uri("https://www.kicktipp.de");
-                // Set a reasonable timeout for web scraping operations
-                client.Timeout = TimeSpan.FromMinutes(2);
-                // Add headers to mimic a real browser
-                client.DefaultRequestHeaders.Add("User-Agent", 
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            })
+            .AddHttpClient<IKicktippClient, KicktippClient>(ConfigureKicktippHttpClient)
+            .AddHttpMessageHandler<KicktippAuthenticationHandler>();
+
+        services
+            .AddHttpClient<IBundesligaTypedKicktippClient, BundesligaTypedKicktippClient>(ConfigureKicktippHttpClient)
             .AddHttpMessageHandler<KicktippAuthenticationHandler>();
         
         return services;
+    }
+
+    private static void ConfigureKicktippHttpClient(HttpClient client)
+    {
+        client.BaseAddress = new Uri("https://www.kicktipp.de");
+        client.Timeout = TimeSpan.FromMinutes(2);
+        client.DefaultRequestHeaders.Add("User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
     }
 }

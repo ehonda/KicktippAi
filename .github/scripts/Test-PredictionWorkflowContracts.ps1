@@ -695,9 +695,7 @@ function Assert-ProductionLiveMatchdayWorkflow {
     $jobs = @(
         @{ Id = 'pes-squad-context'; Needs = $null; Kind = 'context'; Context = 'pes-squad'; SecretStem = 'PES_SQUAD' },
         @{ Id = 'pes-squad-matchday'; Needs = 'pes-squad-context'; Kind = 'match'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
-        @{ Id = 'schadensfresse-context'; Needs = 'pes-squad-matchday'; Kind = 'context'; Context = 'schadensfresse'; SecretStem = 'SCHADENSFRESSE' },
-        @{ Id = 'schadensfresse-matchday'; Needs = 'schadensfresse-context'; Kind = 'match'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
-        @{ Id = 'relaxdays-tippt-context'; Needs = 'schadensfresse-matchday'; Kind = 'context'; Context = 'relaxdays-tippt'; SecretStem = 'RELAXDAYS_TIPPT' },
+        @{ Id = 'relaxdays-tippt-context'; Needs = 'pes-squad-matchday'; Kind = 'context'; Context = 'relaxdays-tippt'; SecretStem = 'RELAXDAYS_TIPPT' },
         @{ Id = 'relaxdays-tippt-matchday'; Needs = 'relaxdays-tippt-context'; Kind = 'match'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
         @{ Id = 'arena-sol-xhigh-context'; Needs = 'relaxdays-tippt-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
         @{ Id = 'arena-sol-xhigh-matchday'; Needs = 'arena-sol-xhigh-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
@@ -713,8 +711,11 @@ function Assert-ProductionLiveMatchdayWorkflow {
 
     $expectedJobIds = @($jobs | ForEach-Object { $_.Id })
     Assert-True (($actualJobIds -join ',') -ceq ($expectedJobIds -join ',')) "$FileName job order differs. Expected $($expectedJobIds -join ', '); got $($actualJobIds -join ', ')."
-    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight context jobs."
-    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight matchday jobs."
+    Assert-True ($actualJobIds.Count -eq 14) "$FileName must contain exactly 14 jobs in the quarantined production-live lane."
+    Assert-True (-not ($actualJobIds -contains 'schadensfresse-context')) "$FileName must quarantine schadensfresse-context until separately reviewed primary activation."
+    Assert-True (-not ($actualJobIds -contains 'schadensfresse-matchday')) "$FileName must quarantine schadensfresse-matchday until separately reviewed primary activation."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 7) "$FileName must contain exactly seven context jobs."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 7) "$FileName must contain exactly seven matchday jobs."
 
     foreach ($job in $jobs) {
         $block = Get-WorkflowJobBlock $content $job.Id $FileName
@@ -976,7 +977,7 @@ Assert-True ([regex]::Matches($bonusBase, '--bonus-deadline-at-or-before "\$BONU
 $currentBundesligaCallers = @{}
 foreach ($row in @(
     @{ BaseName = 'buli2627-pes-squad-gpt-5-6-sol-xhigh'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
-    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'schadensfresse'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
     @{ BaseName = 'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-high'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
@@ -1093,6 +1094,10 @@ foreach ($caller in $callerFiles) {
         Assert-True ($reasoningEffort -eq $expectedCaller.Effort) "$($caller.Name) must pin reasoning_effort=$($expectedCaller.Effort)."
         Assert-True ((Get-WithValue $content 'community' $caller.Name) -eq $expectedCaller.Community) "$($caller.Name) must pin community=$($expectedCaller.Community)."
         Assert-True ((Get-WithValue $content 'community_context' $caller.Name) -eq $expectedCaller.Context) "$($caller.Name) must pin community_context=$($expectedCaller.Context)."
+        if ($expectedCaller.Community -ceq 'schadensfresse') {
+            Assert-True (-not $content.Contains('pes-squad', [StringComparison]::OrdinalIgnoreCase)) "$($caller.Name) must not select pes-squad as a schadensfresse copy source."
+            Assert-True (-not $content.Contains('copy', [StringComparison]::OrdinalIgnoreCase)) "$($caller.Name) must remain target-owned rather than advertising a copy route."
+        }
         Assert-True ((Get-WithValue $content 'model' $caller.Name) -eq $expectedCaller.Model) "$($caller.Name) must pin model=$($expectedCaller.Model)."
         Assert-True ($maxOutputTokens -eq '10000') "$($caller.Name) must pin the accepted 10000 output cap."
         $isBonus = $caller.Name.EndsWith('-bonus.yml', [StringComparison]::Ordinal)

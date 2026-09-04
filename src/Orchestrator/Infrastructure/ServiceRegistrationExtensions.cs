@@ -79,6 +79,56 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
+    /// <summary>
+    /// Opts into the unwired Bundesliga typed-authority R3a kernel with an
+    /// explicit, non-default route-selection registry.
+    /// </summary>
+    public static IServiceCollection AddBundesligaPredictionAuthorityR3a(
+        this IServiceCollection services,
+        IEnumerable<BundesligaPredictionRouteSelection> selections,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(selections);
+        var registry = new BundesligaPredictionRouteRegistry(selections);
+
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.TryAddSingleton(registry);
+        services.TryAddTransient<IBundesligaPredictionAuthorityKernel>(serviceProvider =>
+        {
+            var firebaseFactory = serviceProvider.GetRequiredService<IFirebaseServiceFactory>();
+            return new BundesligaPredictionAuthorityKernel(
+                serviceProvider.GetRequiredService<BundesligaPredictionRouteRegistry>(),
+                firebaseFactory.CreateBundesligaTypedPredictionAuthorityRepository());
+        });
+        services.TryAddTransient<IBundesligaPredictionAuditCostReportReader>(serviceProvider =>
+        {
+            var factory = serviceProvider.GetRequiredService<IFirebaseServiceFactory>();
+            return new BundesligaPredictionAuditCostReportReader(
+                factory.CreateLegacyBundesligaMatchAuditCostReader(),
+                factory.CreateLegacyBundesligaBonusAuditCostReader(),
+                factory.CreateTypedBundesligaMatchAuditCostReader(),
+                factory.CreateTypedBundesligaBonusAuditCostReader());
+        });
+        return services;
+    }
+
+    /// <summary>
+    /// Opts into the serialized R3b provenance assembler. No observed provider,
+    /// service, command, or route default is registered by this method.
+    /// </summary>
+    public static IServiceCollection AddBundesligaPredictionAuthorityR3b(
+        this IServiceCollection services,
+        IEnumerable<BundesligaPredictionRouteSelection> selections,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.AddBundesligaPredictionAuthorityR3a(selections, minimumLogLevel);
+        services.TryAddSingleton<IBundesligaPredictionProvenanceAssembler,
+            BundesligaPredictionProvenanceAssembler>();
+        return services;
+    }
+
     private static IServiceCollection AddOpenAiHttpClientIfMissing(this IServiceCollection services)
     {
         if (services.Any(descriptor => descriptor.ServiceType == typeof(OpenAiHttpClientRegistrationMarker)))
