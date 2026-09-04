@@ -327,48 +327,83 @@ The adopted workflow direction is:
 Proactive resource cleanup remains unproven and is recorded as a separate
 limitation rather than being conflated with ordinary thread-capacity reuse.
 
-## Aside: Investigate `CODEX_CLI_PATH`
+## `CODEX_CLI_PATH` aside resolution
 
-A separate configuration question remains unresolved.
+**Status:** resolved on 2026-09-04
 
-During the earlier investigation, user-level Codex configuration contained an `app_server` / `CODEX_CLI_PATH` setting pinned to an older Codex executable. It was changed to point at the current launcher/executable, and Codex appeared to continue functioning normally.
+The earlier note misclassified this value as a Desktop or collaboration-surface
+app-server selector. In this installation it is nested under
+`[mcp_servers.node_repl.env]`; the root process does not have
+`CODEX_CLI_PATH` set. Codex injects it only into the configured Node REPL MCP
+server unless another process independently defines the same environment
+variable.
 
-We do not currently know:
+The [official OpenAI configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference)
+does not document `CODEX_CLI_PATH`, and current public `openai/codex` source
+contains no reader for it. The installed `node_repl.exe` does contain the reader and describes
+`--disable-sandbox` as starting the Node kernel directly even when
+`CODEX_CLI_PATH` is set. Its embedded strings show that the configured path is
+used to launch `codex app-server`.
 
-- when that setting was introduced;
-- whether Codex Desktop created it automatically;
-- whether it came from an older workaround or installation state;
-- what component consumes it;
-- whether it is still necessary;
-- whether pointing it directly at the current launcher is the intended configuration;
-- whether it should instead be removed and allowed to resolve automatically;
-- whether an updater is expected to maintain it;
-- or whether leaving an explicit version/path there risks future version skew.
+### Provenance
 
-This is no longer the leading explanation for missing `close_agent` if the runtime is confirmed to be V2, but the configuration should still be understood rather than left as an unexplained manual mutation.
+- The 2026-06-01 config backup already contains the value under
+  `[mcp_servers.node_repl.env]`, pointing to the internal hashed path
+  `...\OpenAI\Codex\bin\7dea4a003bc76627\codex.exe`.
+- That old executable reported `codex-cli 0.135.0-alpha.1` during the earlier
+  investigation, after the active installation had advanced substantially.
+- The 2026-09-03 diagnostic changed the value manually to the stable launcher
+  `...\Programs\OpenAI\Codex\bin\codex.exe`.
+- The stable launcher was updated in place on 2026-09-03 and reported
+  `codex-cli 0.153.0` during this investigation.
 
-### `CODEX_CLI_PATH` follow-up
+The surviving backup does not prove which component originally wrote the
+entry. Its placement beside the generated Node REPL command and its internal
+hashed package path are consistent with Node REPL setup having generated it.
+It does establish that the old hashed target was not maintained across CLI
+updates. The current stable launcher avoids that version-pinned failure mode.
 
-In the fresh diagnostic session:
+### Configured-versus-unset experiment
 
-1. Inspect official current Codex documentation and source for `CODEX_CLI_PATH`.
-2. Search the `openai/codex` repository, issues, discussions, and release notes for:
-   - `CODEX_CLI_PATH`;
-   - app-server CLI path selection;
-   - desktop-bundled CLI discovery;
-   - stale pinned CLI paths;
-   - updater behavior involving this setting.
-3. Determine which process reads the setting and what its documented purpose is.
-4. Determine whether Codex Desktop normally writes or updates it itself.
-5. Establish the supported/default behavior when it is absent.
-6. Compare:
-   - explicit current launcher path;
-   - no explicit `CODEX_CLI_PATH`;
-   - any documented recommended form.
-7. Prefer restoring/defaulting to supported automatic discovery if an explicit path is not required.
-8. Record the conclusion in repository documentation only if it affects reproducibility or project-specific Codex setup. Avoid retaining a user-machine-specific path in repository configuration.
+Two isolated Node REPL MCP processes completed the same `console.log(40 + 2)`
+call and were terminated with their complete diagnostic process trees:
 
-Do not make further configuration changes merely to explain the old value. Preserve enough evidence to understand the previous state first.
+| Configuration | Result | Descendant topology |
+| --- | --- | --- |
+| Stable launcher in `CODEX_CLI_PATH` | `42` | `node_repl.exe -> codex.exe -> codex.exe -> node.exe` |
+| `CODEX_CLI_PATH` absent | `42` | `node_repl.exe -> node.exe` |
+
+Both modes exposed the same `js`, `js_add_node_module_dir`, and `js_reset`
+tools. The process difference confirms that the configured value routes Node
+execution through Codex app-server, while absence falls back to a direct Node
+kernel. Removal is therefore not supported automatic CLI discovery; it changes
+the Node REPL isolation path.
+
+This setting did not select the root session's CLI and did not determine the
+MultiAgent V2 collaboration tools. The stale hashed target was a real Node REPL
+maintenance risk, but it was not a plausible cause of missing `close_agent`.
+Desktop-launch issues such as
+[`openai/codex#40796`](https://github.com/openai/codex/issues/40796) concern the
+same environment-variable name applied at the Desktop process boundary, which
+is distinct from this MCP-scoped config entry.
+
+### Selected handling
+
+- Keep `CODEX_CLI_PATH` under `[mcp_servers.node_repl.env]` so Node REPL uses
+  the Codex app-server isolation path.
+- Keep the stable installed launcher path, not an internal hashed or versioned
+  package path.
+- After a Codex update, verify that the configured launcher still exists and
+  reports the active supported CLI version if Node REPL startup or sandboxing
+  misbehaves.
+- Do not move the value into the global/root environment or infer that it
+  controls Desktop or MultiAgent tool negotiation.
+- If direct unsandboxed Node execution is ever intentionally required, make
+  that explicit through the supported Node REPL mode rather than silently
+  removing this value.
+
+The current user configuration already matches this policy. No additional
+configuration mutation or restart is required.
 
 ## Resolution
 
@@ -385,11 +420,11 @@ the merge gate:
 - interruption produced an evictable terminal resident; and
 - successful eviction did not establish proactive process or memory cleanup.
 
-The configured `CODEX_CLI_PATH` resolved to the same current `0.153.0`
-executable used by the session, excluding stale version skew as the cause of
-the observed surface. Whether an explicit path should be removed in favor of
-automatic discovery remains a user-machine setup question, not a PR #98 merge
-gate; no additional user configuration was changed.
+The configured `CODEX_CLI_PATH` is scoped to Node REPL, routes its kernel
+through Codex app-server, and now resolves to the stable current `0.153.0`
+launcher. It does not select the root session or MultiAgent surface. Keeping
+that stable launcher preserves Node REPL isolation without the old hashed-path
+version skew; no additional user configuration change is needed.
 
 PR #98 now adopts the validated V2 lifecycle policy and treats proactive
 resource cleanup as a separately monitored limitation.

@@ -27,8 +27,11 @@ cleanup remains a distinct runtime limitation.
   `multi_agent_v2` feature row reported `stable false`; the negotiated
   six-tool surface and the observed residency behavior, rather than that
   standalone row, establish the applicable lifecycle model.
-- User-level `CODEX_CLI_PATH` selected the same current executable and version.
-  No stale-CLI mismatch was present in the tested session.
+- User-level `CODEX_CLI_PATH` is nested under
+  `[mcp_servers.node_repl.env]` and selected the same current executable and
+  version. It controls Node REPL's Codex app-server isolation path, not the root
+  session or collaboration surface. No stale-CLI mismatch was present in the
+  tested Node REPL configuration.
 - The PR branch config specifies eight spawned-agent threads, but the session
   started before that branch was checked out and exposed three usable child
   slots. The experiment therefore used the actual root-plus-three limit. It
@@ -83,8 +86,9 @@ The 2026-09-04 GitHub refresh found:
   open for the missing `close_agent` surface. Its V1 closure expectation does
   not override the V2 eviction and reload behavior directly observed here.
 - [`openai/codex#40796`](https://github.com/openai/codex/issues/40796) confirms
-  that a stale `CODEX_CLI_PATH` can create desktop/CLI version skew. The tested
-  path instead resolved to the active `0.153.0` executable.
+  that the same environment-variable name can create desktop/CLI version skew
+  when applied at the Desktop process boundary. This installation instead
+  scopes it to Node REPL and resolves it to the active `0.153.0` launcher.
 - Stable releases
   [`0.153.1`](https://github.com/openai/codex/releases/tag/rust-v0.153.1) and
   [`0.153.2`](https://github.com/openai/codex/releases/tag/rust-v0.153.2) contain
