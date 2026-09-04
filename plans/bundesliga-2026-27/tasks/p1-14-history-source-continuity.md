@@ -10,6 +10,11 @@
 - Authenticated read-only 3+4+2 export: exact 54 names, 390 completed rows, 42 incomplete exclusions, and the four new BVB/FCB DFB occurrences.
 - Accumulated fixed evidence is 434 rows / 214 matches; rolling inventory is intentionally not an equality gate.
 
+## Runtime validation
+
+- The `ehonda-dev-buli-2627` ordinary dry run failed only at the history gate because its community-partitioned current `1.BL` outcomes were stale; it is not production evidence and performed no business, model, or storage write.
+- The production-equivalent `pes-squad` ordinary profile dry run passed: 256 completed history rows (`16` outcome-backed, `240` fixed-map), zero incomplete exclusions, and Club Elo plus Rosters dry-run validation. It performed no business, model, prediction, context, or outcome write. The normal diagnostic OTLP trace exported successfully.
+
 ## Deferred follow-up
 
 - Define and review proxy-date continuity and the closed-input historical full-season collector separately. Do not alter the selector/parser in this repair.

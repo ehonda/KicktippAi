@@ -37,4 +37,18 @@ public class OpenLigaDbHistorySnapshotValidatorTests
             OpenLigaDbHistorySnapshotKind.Relegation,
             "mutated.json")).Throws<InvalidDataException>();
     }
+
+    [Test]
+    public async Task Dfb2026_snapshot_fixture_fact_mutation_is_rejected()
+    {
+        var path = Path.Combine(SolutionPathUtility.FindSolutionRoot(), "data", "bundesliga-2026-27", "history", "sources", "openligadb-dfb-2026.json");
+        var content = await File.ReadAllTextAsync(path);
+        var mutated = content.Replace("SSV Jeddeloh II", "SSV Jeddeloh 2", StringComparison.Ordinal);
+
+        await Assert.That(mutated).IsNotEqualTo(content);
+        await Assert.That(() => OpenLigaDbHistorySnapshotValidator.Validate(
+            System.Text.Encoding.UTF8.GetBytes(mutated),
+            OpenLigaDbHistorySnapshotKind.DfbPokal2026LiveCompletion,
+            "mutated-dfb-2026.json")).Throws<InvalidDataException>();
+    }
 }

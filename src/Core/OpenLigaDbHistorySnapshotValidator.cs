@@ -252,16 +252,30 @@ public static class OpenLigaDbHistorySnapshotValidator
                 new Dfb2026SourceIdentity(81836, "Hamburg Eimsbütteler BC", "Borussia Dortmund", "2026-09-01T20:45:00", 2, "0:5"),
                 new Dfb2026SourceIdentity(81837, "TSV Schott Mainz", "Borussia Mönchengladbach", "2026-08-23T15:30:00", 2, "0:5"),
                 new Dfb2026SourceIdentity(81838, "Fortuna Düsseldorf", "SC Freiburg", "2026-08-23T18:00:00", 2, "1:5"),
+                new Dfb2026SourceIdentity(81839, "Rot-Weiss Essen", "FC St. Pauli", "2026-08-23T18:00:00", 2, "2:0"),
+                new Dfb2026SourceIdentity(81840, "SG Sonnenhof Großaspach", "DSC Arminia Bielefeld", "2026-08-22T18:00:00", 2, "2:2"),
+                new Dfb2026SourceIdentity(81841, "SSV Jeddeloh II", "1. FC Heidenheim 1846", "2026-08-23T13:00:00", 2, "5:2"),
                 new Dfb2026SourceIdentity(81842, "SV Wehen Wiesbaden", "Bayer 04 Leverkusen", "2026-08-22T13:00:00", 2, "0:4"),
                 new Dfb2026SourceIdentity(81843, "Hallescher FC", "FC Schalke 04", "2026-08-24T20:45:00", 4, "2:5"),
                 new Dfb2026SourceIdentity(81844, "Energie Cottbus", "FC Augsburg", "2026-08-22T13:00:00", 2, "0:2"),
                 new Dfb2026SourceIdentity(81845, "VfB 1921 Krieschow ", "1. FSV Mainz 05", "2026-08-23T15:30:00", 2, "0:9"),
+                new Dfb2026SourceIdentity(81846, "SpVgg Greuther Fürth", "VfL Bochum", "2026-08-23T13:00:00", 2, "1:2"),
+                new Dfb2026SourceIdentity(81847, "SV Hemelingen", "Hannover 96", "2026-08-22T15:30:00", 2, "1:9"),
+                new Dfb2026SourceIdentity(81848, "Preußen Münster", "Karlsruher SC", "2026-08-21T18:00:00", 2, "1:2"),
+                new Dfb2026SourceIdentity(81849, "1. FC Saarbrücken", "Hertha BSC", "2026-08-22T15:30:00", 2, "1:1"),
+                new Dfb2026SourceIdentity(81850, "Viktoria Köln", "1. FC Nürnberg", "2026-08-22T15:30:00", 2, "1:1"),
                 new Dfb2026SourceIdentity(81851, "MSV Duisburg", "SV 07 Elversberg", "2026-08-22T15:30:00", 2, "1:3"),
-                new Dfb2026SourceIdentity(81852, "VfL Osnabrück", "Bayern München", "2026-09-02T20:45:00", 2, "1:4"),
+                new Dfb2026SourceIdentity(81852, "VfL Osnabrück", "FC Bayern München", "2026-09-02T20:45:00", 2, "1:4"),
                 new Dfb2026SourceIdentity(81853, "Lüneburger SK Hansa", "SV Werder Bremen", "2026-08-22T15:30:00", 2, "0:3"),
                 new Dfb2026SourceIdentity(81854, "SC Verl", "Hamburger SV", "2026-08-24T18:00:00", 2, "0:3"),
                 new Dfb2026SourceIdentity(81855, "Hansa Rostock", "VfB Stuttgart", "2026-08-21T20:45:00", 2, "0:4"),
+                new Dfb2026SourceIdentity(81856, "FC Carl Zeiss Jena", "SV Darmstadt 98", "2026-08-23T15:30:00", 2, "1:2"),
+                new Dfb2026SourceIdentity(81857, "Bahlinger SC", "1. FC Magdeburg", "2026-08-23T15:30:00", 2, "0:4"),
+                new Dfb2026SourceIdentity(81858, "TSV 1860 München", "Holstein Kiel", "2026-08-22T18:00:00", 2, "0:2"),
+                new Dfb2026SourceIdentity(81859, "SV Waldhof Mannheim", "1. FC Kaiserslautern", "2026-08-21T18:00:00", 2, "0:0"),
+                new Dfb2026SourceIdentity(81860, "SV Westfalia Rhynern", "Dynamo Dresden", "2026-08-23T15:30:00", 2, "0:6"),
                 new Dfb2026SourceIdentity(81861, "1. FC Phönix Lübeck", "SC Paderborn 07", "2026-08-23T18:00:00", 2, "2:4"),
+                new Dfb2026SourceIdentity(81862, "VSG Altglienicke Berlin", "VfL Wolfsburg", "2026-08-24T18:00:00", 2, "2:2"),
                 new Dfb2026SourceIdentity(81863, "Würzburger Kickers", "1. FC Köln", "2026-08-24T18:00:00", 2, "1:2")
             };
             foreach (var identity in accepted)
@@ -284,9 +298,10 @@ public static class OpenLigaDbHistorySnapshotValidator
             }
 
             var extraTimeCompletion = matches.Single(value => RequiredInt64(value, "matchID", sourceName) == 81843);
-            if (!string.Equals(ResultScore(extraTimeCompletion, 2, sourceName), "2:2", StringComparison.Ordinal))
+            if (!string.Equals(ResultScore(extraTimeCompletion, 2, sourceName), "2:2", StringComparison.Ordinal)
+                || !string.Equals(ResultScore(extraTimeCompletion, 4, sourceName), "2:5", StringComparison.Ordinal))
             {
-                throw Invalid(sourceName, "does not retain the accepted match 81843 full-time identity");
+                throw Invalid(sourceName, "does not retain the accepted match 81843 full-time and after-extra-time identities");
             }
         }
 

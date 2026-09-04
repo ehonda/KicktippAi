@@ -24,4 +24,6 @@ The broken historical full-season collection path is deferred; this decision doe
 
 ## Supersedes
 
-[ADR-0044](0044-select-canonical-preseason-history-sources.md) only for its 1+2 rolling source-checkpoint assumption. Its atomic publication and other selection contracts remain accepted.
+This ADR supersedes [ADR-0041](0041-freeze-completed-dfb-first-round-history-transition.md) only for its obsolete `dfb/2026` byte revision, completed-ID set, 16-identity/32-occurrence scope, and `81836`/`81852` incomplete-status claims. It retains ADR-0041's exact-source provenance, ODbL license, no-runtime-fetch, fail-closed, and atomic-publication boundaries.
+
+It supersedes [ADR-0044](0044-select-canonical-preseason-history-sources.md) only for its 1+2 rolling source-checkpoint assumption. Its atomic publication and other selection contracts remain accepted.

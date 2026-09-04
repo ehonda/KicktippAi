@@ -21,7 +21,7 @@ The checked-in map is the frozen inventory plus played-date provenance. Dates we
 
 ## OpenLigaDB
 
-- Scope: completed 2025/26 `2.BL` and Bundesliga `Releg` rows absent from the DuckDB artifact; the exact 2025/26 DFB-Pokal final identity absent from that artifact and repeated in four selected inventory rows; and the 16 exact 2026/27 DFB-Pokal identities repeated across 32 authenticated selected-history occurrences.
+- Scope: completed 2025/26 `2.BL` and Bundesliga `Releg` rows absent from the DuckDB artifact; the exact 2025/26 DFB-Pokal final identity absent from that artifact and repeated in four selected inventory rows; and the 18 exact 2026/27 DFB-Pokal identities repeated across 36 authenticated selected-history occurrences.
 - League endpoint: <https://api.openligadb.de/getmatchdata/bl2/2025>.
 - Relegation endpoint: <https://api.openligadb.de/getmatchdata/rel/2025>.
 - DFB-Pokal endpoint: <https://api.openligadb.de/getmatchdata/dfb/2025>.
@@ -33,7 +33,7 @@ The checked-in map is the frozen inventory plus played-date provenance. Dates we
 - Frozen DFB-Pokal response: [`sources/openligadb-dfb-2025.json`](sources/openligadb-dfb-2025.json), SHA-256 `9d16d5d30e5882c592ec4d8b39b592ea0f102c2e2695da98897f76a87b6ec2a3`.
 - Frozen 2026/27 DFB-Pokal response: [`sources/openligadb-dfb-2026.json`](sources/openligadb-dfb-2026.json), 77,825 bytes, SHA-256 `728d31be6f928fa83cff7bf56925d0456642686a35bf02fb43e428ebd3ce81eb`.
 
-The response was refreshed at `2026-09-04T22:44:10Z`. It contains 32 positive unique, completed `dfb/2026` fixtures. `81836` is Hamburg Eimsbütteler BC–Borussia Dortmund (`0:5`, 2026-09-01) and `81852` is VfL Osnabrück–FC Bayern München (`1:4`, 2026-09-02); all 30 formerly completed identities retain their accepted facts. Every match has exactly one full-time result. Match `81843` additionally has the exact after-extra-time `2:5` result used by Kicktipp with annotation `nach Verlängerung`; match `81832` retains the previously accepted halftime `0:10` and full-time `0:11` evidence.
+The response was refreshed at `2026-09-04T22:44:10Z`. It contains 32 positive unique, completed `dfb/2026` fixtures. `81836` is Hamburg Eimsbütteler BC–Borussia Dortmund (`0:5`, 2026-09-01) and `81852` is VfL Osnabrück–FC Bayern München (`1:4`, 2026-09-02); all 30 formerly completed identities retain their accepted IDs, dates, and results. The sole prior source-name delta is `81841`, from `SSV Jeddeloh 2` to `SSV Jeddeloh II`; it has no selected occurrence. Every match has exactly one full-time result. Match `81843` additionally has the exact after-extra-time `2:5` result used by Kicktipp with annotation `nach Verlängerung`; match `81832` retains the previously accepted halftime `0:10` and full-time `0:11` evidence.
 
 The ordered 3+4+2 authenticated export is the rolling occurrence authority: its exact 54-document set has SHA-256 `01919a51b7fbc17c27d47a7a16ad03376456e2efb3ea9bbb56e7e3ff89e184b9`, 390 completed rows, and 42 excluded incomplete rows. It confirms four new selected occurrences: `away-history-bvb.csv` and `recent-history-bvb.csv` for `81836`, and `away-history-fcb.csv` and `recent-history-fcb.csv` for `81852`. The retained map keeps older identities that have rolled out of the current window. Runtime never fetches this provider or fuzzy-matches reviewed provider/Kicktipp naming differences.
 
