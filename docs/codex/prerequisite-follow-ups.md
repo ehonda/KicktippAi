@@ -1,11 +1,11 @@
 # MultiAgent V2 Lifecycle Reassessment
 
-**Status:** hypothesis requiring fresh-session validation  
-**Purpose:** reassess the current `close_agent` merge prerequisite before changing or merging PR #98
+**Status:** validated in a fresh diagnostic session on 2026-09-04
+**Purpose:** record the reassessment and resolution of the former `close_agent` merge prerequisite for PR #98
 
 ## Summary
 
-The current `close_agent` prerequisite may be based on an incorrect interpretation of Codex's multi-agent runtime.
+The former `close_agent` prerequisite was based on an incorrect interpretation of Codex's multi-agent runtime.
 
 The investigation that produced the latest prerequisite updates was performed with `gpt-5.3-codex-spark`. Its observations remain useful evidence, but its diagnosis should not be treated as authoritative. A subsequent source-level review of Codex `0.153.0` indicates that the collaboration surface observed in our sessions is likely **MultiAgent V2**, where the absence of `close_agent` is expected rather than evidence of a broken or incompletely negotiated V1 tool surface.
 
@@ -27,9 +27,17 @@ Current Codex source distinguishes this V2 surface from the older V1 surface, wh
 
 This changes the lifecycle question substantially.
 
-In MultiAgent V2, completed agents appear to be managed through **automatic residency eviction and later reload**, rather than explicit `close_agent` calls. If this is confirmed in our actual Codex Desktop environment, explicit closure should probably not remain a merge prerequisite for PR #98.
+In MultiAgent V2, terminal, idle, mailbox-clean residents can be managed
+through **automatic residency eviction and later reload**, rather than explicit
+`close_agent` calls. The fresh-session experiment confirmed this behavior in
+the actual runtime used for this repository, so explicit closure is no longer
+a merge prerequisite for PR #98.
 
-## Current Working Hypothesis
+The complete environment, experiment matrix, upstream refresh, selected
+policy, and residual resource limitation are recorded in
+[`agent-closure-prerequisite.md`](agent-closure-prerequisite.md).
+
+## Validated Working Model
 
 The six-tool collaboration surface observed in our sessions is the intended MultiAgent V2 interface.
 
@@ -47,7 +55,7 @@ Therefore:
    
    rather than requiring an explicit `close_agent -> released` transition.
 
-This hypothesis must be validated against the actual Codex Desktop/runtime configuration used for this repository before the PR is changed.
+This model was validated against the actual Codex Desktop/runtime surface on 2026-09-04 before the PR workflow was amended.
 
 ## Supporting Codex V2 Behavior
 
@@ -81,16 +89,16 @@ There is an important known V2 failure mode.
 
 A completed V2 agent with an unread queued message may not be eligible for residency eviction. Upstream reports describe this causing apparently surprising `agent thread limit reached` failures: only a small number of agents may be actively running, while completed agents remain resident because queued mailbox items prevent eviction.
 
-This means the orchestration policy should probably distinguish carefully between the two messaging operations.
+The orchestration policy therefore distinguishes carefully between the two messaging operations.
 
-Tentative policy:
+Validated policy input:
 
 - Use `send_message` only for steering an agent that is known to still be actively running.
 - Do not send speculative or late `send_message` calls to agents near or after completion.
 - Use `followup_task` when intentionally asking an idle/completed retained agent to perform additional work.
 - Avoid unnecessary control-plane chatter with agents that are already release-due.
 
-This should also be tested directly.
+The queue-only mailbox failure and its `followup_task` recovery were reproduced directly.
 
 ## Proposed Lifecycle Model
 
@@ -139,7 +147,7 @@ However, agent reuse should not become the default merely to conserve slots.
 
 Reuse carries context-history costs and can reduce independence. In particular, independent reviews should generally use fresh agents rather than repeatedly recycling the same reviewer.
 
-Tentative rule:
+Selected rule:
 
 > Reuse agents where continuity is valuable. Spawn fresh agents where independence or a clean context is valuable. Let V2 residency management handle the resulting inactive agents.
 
@@ -174,9 +182,9 @@ Two separate questions must not be conflated:
 
 ### Thread capacity
 
-V2 appears able to reclaim residency capacity automatically by unloading completed idle agents when another agent needs admission.
-
-If confirmed, this largely resolves the orchestration thread-capacity concern.
+The fresh-session experiment confirmed that V2 can reclaim residency capacity
+by unloading a terminal, idle, mailbox-clean agent when another agent needs
+admission. This resolves the ordinary orchestration thread-capacity concern.
 
 ### Memory/process/resource reclamation
 
@@ -186,7 +194,9 @@ Upstream reports suggest completed V2 agents can retain MCP/runtime processes an
 
 Therefore the absence of an explicit release operation may still matter for proactive resource cleanup even if it does not prevent future spawning.
 
-The PR already contains machine-resource admission policy, so the fresh-session experiment should capture enough evidence to distinguish:
+The PR already contains machine-resource admission policy. The fresh-session
+experiment distinguished the observable lifecycle states but did not prove
+that eviction proactively reclaims process memory:
 
 - "completed but still resident";
 - "automatically evicted";
@@ -195,9 +205,11 @@ The PR already contains machine-resource admission policy, so the fresh-session 
 
 A resource-cleanup limitation may deserve workflow policy or monitoring without necessarily being a merge blocker.
 
-## Required Fresh-Session Validation
+## Fresh-Session Validation Protocol
 
-Before amending PR #98, run a deliberately small diagnostic session with the actual current Codex Desktop/runtime environment.
+This protocol was executed on 2026-09-04. The results are recorded in
+[`agent-closure-prerequisite.md`](agent-closure-prerequisite.md); the steps
+remain here so the evidence can be reproduced after future runtime changes.
 
 ### 1. Identify the active multi-agent mode
 
@@ -290,17 +302,18 @@ Where practical, record lightweight evidence around:
 
 This does not need to become a full performance study. The purpose is to establish whether lack of proactive release creates a material problem for the resource policy already defined in PR #98.
 
-## Reassessing the Current `close_agent` Prerequisite
+## Resolved `close_agent` Prerequisite
 
-If the fresh-session tests confirm V2 automatic eviction and continued spawning, the current prerequisite should be rewritten.
+The fresh-session tests confirmed V2 automatic eviction and continued
+spawning, so the former prerequisite was rewritten.
 
-The PR should no longer state or imply that:
+The amended PR no longer states or implies that:
 
 > capacity cannot be reclaimed unless the root can explicitly call `close_agent`.
 
-Instead, document the actual observed V2 semantics.
+It documents the actual observed V2 semantics instead.
 
-A likely workflow direction would be:
+The adopted workflow direction is:
 
 - mark specialists release-due when the orchestration policy no longer intends to retain them;
 - stop sending them unnecessary messages;
@@ -311,7 +324,8 @@ A likely workflow direction would be:
 - fail safely if actual spawn admission nevertheless reports capacity exhaustion;
 - record any known V2 edge cases rather than pretending explicit closure exists.
 
-If proactive resource cleanup proves materially inadequate, record that as a separate limitation rather than conflating it with ordinary thread-capacity reuse.
+Proactive resource cleanup remains unproven and is recorded as a separate
+limitation rather than being conflated with ordinary thread-capacity reuse.
 
 ## Aside: Investigate `CODEX_CLI_PATH`
 
@@ -356,20 +370,26 @@ In the fresh diagnostic session:
 
 Do not make further configuration changes merely to explain the old value. Preserve enough evidence to understand the previous state first.
 
-## Decision Gate
+## Resolution
 
-Do not amend the orchestration workflow based solely on this note.
+The fresh-session evidence answered the lifecycle questions that controlled
+the merge gate:
 
-This document is a reassessment hypothesis based on stronger source-level evidence than the previous Spark investigation, but the decisive evidence should come from a fresh Codex session using the actual environment.
+- the six-tool surface and runtime behavior are consistent with MultiAgent V2;
+- clean completed agents were evicted and their capacity reused;
+- completed and interrupted identities were reloaded with `followup_task` and
+  retained prior context;
+- queue-only mail pinned a completed resident and caused the predicted generic
+  thread-limit failure;
+- consuming that mail through `followup_task` restored admission;
+- interruption produced an evictable terminal resident; and
+- successful eviction did not establish proactive process or memory cleanup.
 
-The gate can be resolved once we know:
+The configured `CODEX_CLI_PATH` resolved to the same current `0.153.0`
+executable used by the session, excluding stale version skew as the cause of
+the observed surface. Whether an explicit path should be removed in favor of
+automatic discovery remains a user-machine setup question, not a PR #98 merge
+gate; no additional user configuration was changed.
 
-- whether the current session is in fact MultiAgent V2;
-- whether clean completed agents are automatically evicted and their capacity reused;
-- whether retained completed agents can be reloaded with `followup_task`;
-- how terminal queue-only messages affect eviction;
-- how interrupted agents behave;
-- whether resource retention creates a practical constraint;
-- and what the correct supported handling of `CODEX_CLI_PATH` is.
-
-At that point PR #98 should be amended to describe the observed runtime semantics rather than preserving the existing `close_agent` assumption.
+PR #98 now adopts the validated V2 lifecycle policy and treats proactive
+resource cleanup as a separately monitored limitation.

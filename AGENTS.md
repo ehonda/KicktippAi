@@ -103,17 +103,34 @@ primary thread. This is capacity, not a target and not a second resource model.
 - Do not impose another universal active-agent cap. Writer/worktree, heavy,
   and spawned-thread capacity remain separate.
 - At acceptance, freeze, review-surface change, or a recorded release trigger,
-  mark the specialist releasable. Retain it only when near-term continuity is
+  stop intentional retention and mark a terminal, idle, mailbox-clean
+  specialist reclaimable. Retain it only when near-term continuity is
   concretely valuable and does not block a useful ready lane. Never retain a
   specialist merely as insurance in the last available slot.
+- On the MultiAgent V2 surface, use `send_message` only for necessary mid-turn
+  steering when the target is clearly active and not near completion. Use
+  `followup_task` when work must be consumed across an idle or completion
+  boundary. Never send speculative, status-only, or late queue-only messages
+  to terminal, release-due, or possibly completing agents; pending mail pins a
+  terminal resident and can block automatic eviction.
+- `reclaimable` records orchestration intent, not proof of physical unload.
+  Record eviction only from runtime evidence such as removal from `list_agents`
+  or successful admission under known capacity pressure. If spawning reports
+  `agent thread limit reached`, inspect live state and retry once only after a
+  known mailbox blocker has been consumed with a bounded `followup_task`.
+  Otherwise record the blocker and queue the lane.
 - Subscription quota is not an admission signal. Do not introspect, estimate,
   conserve, or accelerate quota burn when scheduling. Dispatch useful ready
   work according to the graph, authority, quality gates, and machine budgets.
 
-The explicit thread-disposal mechanism is a merge prerequisite under
+The validated lifecycle evidence and selected policy are recorded in
 [`docs/codex/agent-closure-prerequisite.md`](docs/codex/agent-closure-prerequisite.md).
-Until that investigation chooses a policy, release decisions may be recorded
-but must not be represented as reclaimed thread capacity.
+MultiAgent V2 may automatically evict and later reload clean terminal agents;
+it does not provide proactive resource-cleanup evidence. Keep machine-resource
+admission separate. If pressure persists without a supported release operation,
+stop affected admission and request an owner-controlled end/restart of the
+current session. Recover from the ledger and re-sample resources before
+admitting work; do not open a concurrent replacement or claim cleanup.
 
 ### Resource Admission
 

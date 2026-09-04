@@ -194,15 +194,36 @@ the ledger records operation type, start/post memory, duration, and outcome.
 Missing required measurements still fail closed; an explicit run-scoped owner
 override remains available for a measured exceptional shortfall.
 
-## Specialist release prerequisite
+## Validated MultiAgent V2 lifecycle
 
-The workflow now defines when a specialist should stop being retained, but the
-current client surface did not expose the documented explicit thread-closure
-operation. Merging and activating this revision is blocked until the separate
-fresh-session experiment in
-[`agent-closure-prerequisite.md`](agent-closure-prerequisite.md) establishes the
-actual mechanism and the owner chooses a policy. No missing-tool fallback is
-assumed in this draft.
+The 2026-09-04 fresh-session experiment in
+[`agent-closure-prerequisite.md`](agent-closure-prerequisite.md) resolved the
+former explicit-closure blocker. Under root-plus-three capacity pressure, a
+clean completed resident was automatically evicted, its logical identity was
+later reloaded with prior context, and an interrupted resident was likewise
+evicted and reloaded. Six distinct logical agents were created over a session
+with only three simultaneously resident child slots.
+
+The experiment also reproduced the known V2 mailbox failure: queue-only
+`send_message` mail pinned a terminal resident and caused `agent thread limit
+reached` while the other two residents were active. Waking that agent through
+`followup_task` consumed the mail and restored admission.
+
+The workflow therefore marks terminal, idle, mailbox-clean specialists
+reclaimable and lets V2 evict them under pressure. It uses `send_message` only
+for necessary steering of a clearly active agent, uses `followup_task` across
+idle or completion boundaries, and avoids late or speculative queue-only mail.
+Reclaimability is not represented as physical unload until runtime evidence is
+available. A generic capacity failure permits one bounded retry after a known
+mailbox blocker is consumed; otherwise the lane is queued.
+
+Codex process count stayed constant while combined working set increased by
+about 0.096 GiB during the diagnostic. That sample cannot establish proactive
+resource cleanup, so machine admission remains separate. Persistent resource
+pressure without a supported release operation stops affected admission and
+requires an owner-controlled end/restart of the current session. Recovery from
+the ledger must re-sample resources before new admission; a concurrent
+replacement session or a claim that automatic eviction freed memory is unsafe.
 
 The immediate preview-to-execution UX remains intentionally small: one
 `EXECUTION START` commentary marker before the first writer. A durable,
@@ -219,8 +240,9 @@ useful checkpoint. That review
 will reconstruct normalized evidence from native Codex transcripts, Git,
 branches, PRs, and CI. It should examine accepted milestones/review closures,
 ready-lane utilization, root work per accepted milestone, correction turns and
-tokens, blocker time by the fixed categories, explicit releases and
-agent-slot-blocked time, resource start/post/outcome calibration, re-freezes,
+tokens, blocker time by the fixed categories, reclaimable and observed-evicted
+transitions, mailbox-related and other agent-slot-blocked time, resource
+start/post/outcome calibration, re-freezes,
 publication and CI count, owner waits, and escaped defects. Generic event-wait
 frequency and raw token burn are contextual utilization measures, not
 standalone efficiency KPIs. Early results guide parameter changes; they are not
