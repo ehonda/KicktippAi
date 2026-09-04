@@ -153,6 +153,18 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                 ValidateSelectedDocumentName(document.Name);
                 var parsedRows = ParseRows(document, allowMissingScore: true);
                 var incompleteRows = parsedRows.Where(row => string.IsNullOrWhiteSpace(row.Score)).ToArray();
+                foreach (var incompleteRow in incompleteRows.Where(row => !string.IsNullOrWhiteSpace(row.PlayedAt)))
+                {
+                    diagnostics.Add(new(document.Name, incompleteRow.Ordinal,
+                        "Incomplete selected-history rows must have a blank Played_At value"));
+                }
+                foreach (var duplicateIncompleteRow in incompleteRows
+                             .GroupBy(RowIdentity, StringComparer.Ordinal)
+                             .Where(group => group.Count() > 1))
+                {
+                    diagnostics.Add(new(document.Name, null,
+                        $"Ambiguous duplicate incomplete row identity '{duplicateIncompleteRow.Key}'"));
+                }
                 var rows = parsedRows.Where(row => !string.IsNullOrWhiteSpace(row.Score))
                     .Select((row, index) => row with { Ordinal = index + 1 }).ToArray();
                 excludedIncompleteRowCount += incompleteRows.Length;
@@ -340,7 +352,10 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             {
                 if (csv.Parser.Record?.All(string.IsNullOrWhiteSpace) == true) continue;
                 var ordinal = rows.Count + 1;
-                var score = csv.GetField("Score")?.Trim() ?? string.Empty;
+                var rawScore = csv.GetField("Score") ?? string.Empty;
+                var score = rawScore.Trim();
+                if (string.IsNullOrWhiteSpace(score) && rawScore.Length != 0)
+                    throw new InvalidDataException($"{document.Name} row {ordinal} requires an exactly blank Score when incomplete");
                 if (string.IsNullOrWhiteSpace(score) && !allowMissingScore)
                     throw new InvalidDataException($"{document.Name} row {ordinal} requires Score");
                 rows.Add(new(ordinal, Required(csv, "Competition", document.Name, ordinal),

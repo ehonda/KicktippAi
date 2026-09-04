@@ -21,13 +21,13 @@ public class BundesligaHistoryPlayedDateCollectorTests
 
         var result = Collector.Collect(CompetitionIds.Bundesliga2026_27, documents, map, []);
 
-        await Assert.That(map.Count).IsEqualTo(430);
-        await Assert.That(map.Select(entry => (entry.SourceName, entry.SourceMatchId)).Distinct().Count()).IsEqualTo(212);
+        await Assert.That(map.Count).IsEqualTo(434);
+        await Assert.That(map.Select(entry => (entry.SourceName, entry.SourceMatchId)).Distinct().Count()).IsEqualTo(214);
         await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceName)).IsEqualTo(326);
-        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName)).IsEqualTo(102);
+        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName)).IsEqualTo(106);
         await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.UefaSourceName)).IsEqualTo(2);
         await Assert.That(result.Succeeded).IsTrue();
-        await Assert.That(result.FixedMapCount).IsEqualTo(430);
+        await Assert.That(result.FixedMapCount).IsEqualTo(434);
         await Assert.That(result.Documents.Count).IsEqualTo(54);
         await Assert.That(map.Select(entry => entry.DocumentName).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(54);
     }
@@ -178,6 +178,31 @@ public class BundesligaHistoryPlayedDateCollectorTests
         await Assert.That(result.ExcludedIncompleteRowCount).IsEqualTo(1);
         await Assert.That(result.Documents[0].Content).DoesNotContain("SV Wehen Wiesbaden");
         await Assert.That(result.Documents[0].Content).Contains("2026-05-09");
+    }
+
+    [Test]
+    public async Task Incomplete_rows_require_blank_played_at_exactly_blank_score_and_unique_identity()
+    {
+        var map = Map(1, "1.BL", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09");
+        var invalidContents = new[]
+        {
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "DFB,2026-09-01,Hamburg Eimsbütteler BC,Borussia Dortmund,,\r\n" +
+            "1.BL,,Bayer 04 Leverkusen,VfB Stuttgart,3:1,\r\n",
+            "Competition,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "DFB,Hamburg Eimsbütteler BC,Borussia Dortmund, ,\r\n" +
+            "1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,\r\n",
+            "Competition,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "DFB,Hamburg Eimsbütteler BC,Borussia Dortmund,,\r\n" +
+            "DFB,Hamburg Eimsbütteler BC,Borussia Dortmund,,\r\n" +
+            "1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,\r\n"
+        };
+
+        foreach (var content in invalidContents)
+        {
+            var result = Collect(content, [map]);
+            await Assert.That(result.Succeeded).IsFalse();
+        }
     }
 
     [Test]
@@ -433,8 +458,8 @@ public class BundesligaHistoryPlayedDateCollectorTests
         using var reader = new StringReader(valid);
         var parsed = BundesligaHistoryPlayedDateMap.ParseFragment(reader, "dfb-2026-live-completion");
 
-        await Assert.That(parsed.Entries.Count).IsEqualTo(32);
-        await Assert.That(parsed.Entries.Select(entry => entry.SourceMatchId).Distinct().Count()).IsEqualTo(16);
+        await Assert.That(parsed.Entries.Count).IsEqualTo(36);
+        await Assert.That(parsed.Entries.Select(entry => entry.SourceMatchId).Distinct().Count()).IsEqualTo(18);
         var extraTime = parsed.Entries.Single(entry =>
             entry.SourceMatchId == "81843" && entry.DocumentName == "away-history-s04.csv");
         await Assert.That(extraTime.Score).IsEqualTo("2:5");

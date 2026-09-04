@@ -8,7 +8,7 @@ public class OpenLigaDbHistorySnapshotValidatorTests
     [Arguments("openligadb-bl2-2025.json", OpenLigaDbHistorySnapshotKind.SecondBundesliga, 306, 306)]
     [Arguments("openligadb-rel-2025.json", OpenLigaDbHistorySnapshotKind.Relegation, 2, 2)]
     [Arguments("openligadb-dfb-2025.json", OpenLigaDbHistorySnapshotKind.DfbPokal, 63, 63)]
-    [Arguments("openligadb-dfb-2026.json", OpenLigaDbHistorySnapshotKind.DfbPokal2026LiveCompletion, 32, 30)]
+    [Arguments("openligadb-dfb-2026.json", OpenLigaDbHistorySnapshotKind.DfbPokal2026LiveCompletion, 32, 32)]
     public async Task Frozen_snapshot_has_expected_hash_completion_results_dates_and_identities(
         string fileName,
         OpenLigaDbHistorySnapshotKind kind,

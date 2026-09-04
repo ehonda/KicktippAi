@@ -20,6 +20,14 @@ isolated, and the full target-primary implementation stays on archival/future
 PR history. The recovery's temporary copy route sunsets at
 `2026-09-08T12:00:00Z`.
 
+## Urgent source repair
+
+P1-14 is a separately safe exact-date repair under ADR-0066: it refreshes the
+captured DFB source, preserves the accumulated map, and removes rolling-map
+count equality from the history gate. Proxy continuity and the closed-input
+historical full-season collector are deferred; this packet does not authorize
+their redesign.
+
 ## Frozen delivery topology
 
 1. Preserve the archival exact `71637cc` ref already pushed.

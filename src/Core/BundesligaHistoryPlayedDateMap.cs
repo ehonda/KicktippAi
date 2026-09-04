@@ -37,7 +37,7 @@ public sealed class BundesligaHistoryPlayedDateMap
     public const string OpenLigaDbDfbPokalRevision = "9d16d5d30e5882c592ec4d8b39b592ea0f102c2e2695da98897f76a87b6ec2a3";
     public const string OpenLigaDbDfbPokalFinalMatchId = "81581";
     public const string OpenLigaDbDfbPokal2026Url = "https://api.openligadb.de/getmatchdata/dfb/2026";
-    public const string OpenLigaDbDfbPokal2026Revision = "92ca6f8c7175970db15bbdcea15cb79f3f2e83cb52a59300cfcf9591760affa2";
+    public const string OpenLigaDbDfbPokal2026Revision = "728d31be6f928fa83cff7bf56925d0456642686a35bf02fb43e428ebd3ce81eb";
     public const string UefaSourceClass = "official-match-record";
     public const string UefaSourceName = "UEFA";
     public const string UefaFinalUrl = "https://www.uefa.com/uefaeuropaleague/match/2047743/";
@@ -70,6 +70,7 @@ public sealed class BundesligaHistoryPlayedDateMap
         Dfb2026("81833", "Erzgebirge Aue", "1899 Hoffenheim", "0:4", "", "2026-08-22", "tsg"),
         Dfb2026("81834", "Eintracht Braunschweig", "1. FC Union Berlin", "2:4", "", "2026-08-23", "fcu"),
         Dfb2026("81835", "Eintracht Trier", "RB Leipzig", "0:6", "", "2026-08-22", "rbl"),
+        Dfb2026("81836", "Hamburg Eimsbütteler BC", "Borussia Dortmund", "0:5", "", "2026-09-01", "bvb"),
         Dfb2026("81837", "TSV Schott Mainz", "Bor. Mönchengladbach", "0:5", "", "2026-08-23", "bmg"),
         Dfb2026("81838", "Fortuna Düsseldorf", "SC Freiburg", "1:5", "", "2026-08-23", "scf"),
         Dfb2026("81842", "SV Wehen Wiesbaden", "Bayer 04 Leverkusen", "0:4", "", "2026-08-22", "b04"),
@@ -77,6 +78,7 @@ public sealed class BundesligaHistoryPlayedDateMap
         Dfb2026("81844", "Energie Cottbus", "FC Augsburg", "0:2", "", "2026-08-22", "fca"),
         Dfb2026("81845", "VfB Krieschow", "FSV Mainz 05", "0:9", "", "2026-08-23", "m05"),
         Dfb2026("81851", "MSV Duisburg", "SV Elversberg", "1:3", "", "2026-08-22", "sve"),
+        Dfb2026("81852", "VfL Osnabrück", "FC Bayern München", "1:4", "", "2026-09-02", "fcb"),
         Dfb2026("81853", "Lüneburger SK Hansa", "Werder Bremen", "0:3", "", "2026-08-22", "svw"),
         Dfb2026("81854", "SC Verl", "Hamburger SV", "0:3", "", "2026-08-24", "hsv"),
         Dfb2026("81855", "FC Hansa Rostock", "VfB Stuttgart", "0:4", "", "2026-08-21", "vfb"),

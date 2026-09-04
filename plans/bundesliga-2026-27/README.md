@@ -204,6 +204,7 @@ milestones may proceed while the remaining frontier stays `needs-interview`.
 | [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical** | Recovery `main` temporarily restores the 8-pair source-copy lane through `2026-09-08T12:00:00Z`; preserve the full implementation for an atomic target-primary PR that replaces/terminates it | P0-21; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
+| [P1-14](tasks/p1-14-history-source-continuity.md) **Urgent** | Restore exact selected-history source continuity; defer proxy and full-season capture redesign | P0-22, P0-21 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -278,6 +279,7 @@ contract:
 - [ADR-0042: Publish complete preseason Kicktipp context atomically](decisions/0042-publish-complete-preseason-context-atomically.md) — superseded by ADR-0044
 - [ADR-0043: Freeze historical experiment aliases and the context-eligible pool](decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md) — refines ADR-0040's document-name and sampling-pool contract
 - [ADR-0044: Select canonical preseason history sources](decisions/0044-select-canonical-preseason-history-sources.md)
+- [ADR-0066: Refresh the rolling Bundesliga history source checkpoint](decisions/0066-refresh-history-source-checkpoint.md)
 - [ADR-0045: Verify versioned prompt promotion before validation](decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
 - [ADR-0046: Bind cost usage to exact Langfuse dataset runs](decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
 - [ADR-0047: Observe one temporary arena Luna scheduled cycle](decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)

@@ -63,7 +63,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
         context.HistoryCollector.Verify(collector => collector.Collect(
             CompetitionIds.Bundesliga2026_27,
             It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
-            It.Is<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(entries => entries.Count == 430),
+            It.Is<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(entries => entries.Count == 434),
             It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
             It.Is<IReadOnlySet<string>>(names =>
                 names.SetEquals(BundesligaHistoryPlayedDateMap.ExpectedDocumentNames))), Times.Once);
@@ -100,7 +100,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
     }
 
     [Test]
-    public async Task Accepted_incomplete_history_count_mismatch_fails_before_atomic_publication()
+    public async Task Rolling_history_inventory_does_not_require_accumulated_map_or_incomplete_counts()
     {
         var schedule = CreateFullSeasonSchedule();
         var context = CreateCollectContextCommandApp();
@@ -118,20 +118,19 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
                 new BundesligaHistoryPlayedDateCollectionResult(
                     true,
                     documents,
-                    CompleteFrozenResolutions(),
+                    CompleteFrozenResolutions().Take(390).ToArray(),
                     [],
-                    ExcludedIncompleteRowCount: 1));
+                    ExcludedIncompleteRowCount: 42));
         var command = CreateCommand(context);
 
         var exitCode = await command.ExecuteWithSettingsAsync(CreateSettings());
 
-        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(context.Console.Output)
-            .Contains("expected exactly 2 accepted incomplete")
-            .And.Contains("selected-history rows")
-            .And.Contains("excluded 1");
+            .Contains("completed row(s)")
+            .And.Contains("excluded-incomplete=42");
         context.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
-            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -445,7 +444,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
                     documents,
                     resolutions,
                     [],
-                    ExcludedIncompleteRowCount: 2));
+                    ExcludedIncompleteRowCount: 42));
     }
 
     private static BundesligaHistoryPlayedDateResolution[] CompleteFrozenResolutions() =>

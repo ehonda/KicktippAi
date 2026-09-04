@@ -199,12 +199,13 @@ public static class OpenLigaDbHistorySnapshotValidator
             OpenLigaDbHistorySnapshotKind.DfbPokal => new(
                 63, 2025, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision, true, null, ValidateDfbPokalFinal),
             OpenLigaDbHistorySnapshotKind.DfbPokal2026LiveCompletion => new(
-                32, 2026, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Revision, false,
+                32, 2026, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Revision, true,
                 new HashSet<long>
                 {
-                    81832, 81833, 81834, 81835, 81837, 81838, 81839, 81840, 81841, 81842,
-                    81843, 81844, 81845, 81846, 81847, 81848, 81849, 81850, 81851, 81853,
-                    81854, 81855, 81856, 81857, 81858, 81859, 81860, 81861, 81862, 81863
+                    81832, 81833, 81834, 81835, 81836, 81837, 81838, 81839, 81840, 81841,
+                    81842, 81843, 81844, 81845, 81846, 81847, 81848, 81849, 81850, 81851,
+                    81852, 81853, 81854, 81855, 81856, 81857, 81858, 81859, 81860, 81861,
+                    81862, 81863
                 }, ValidateDfbPokal2026LiveCompletion),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
@@ -248,6 +249,7 @@ public static class OpenLigaDbHistorySnapshotValidator
                 new Dfb2026SourceIdentity(81833, "Erzgebirge Aue", "TSG Hoffenheim", "2026-08-22T15:30:00", 2, "0:4"),
                 new Dfb2026SourceIdentity(81834, "Eintracht Braunschweig", "1. FC Union Berlin", "2026-08-23T15:30:00", 2, "2:4"),
                 new Dfb2026SourceIdentity(81835, "Eintracht Trier", "RB Leipzig", "2026-08-22T18:00:00", 2, "0:6"),
+                new Dfb2026SourceIdentity(81836, "Hamburg Eimsbütteler BC", "Borussia Dortmund", "2026-09-01T20:45:00", 2, "0:5"),
                 new Dfb2026SourceIdentity(81837, "TSV Schott Mainz", "Borussia Mönchengladbach", "2026-08-23T15:30:00", 2, "0:5"),
                 new Dfb2026SourceIdentity(81838, "Fortuna Düsseldorf", "SC Freiburg", "2026-08-23T18:00:00", 2, "1:5"),
                 new Dfb2026SourceIdentity(81842, "SV Wehen Wiesbaden", "Bayer 04 Leverkusen", "2026-08-22T13:00:00", 2, "0:4"),
@@ -255,6 +257,7 @@ public static class OpenLigaDbHistorySnapshotValidator
                 new Dfb2026SourceIdentity(81844, "Energie Cottbus", "FC Augsburg", "2026-08-22T13:00:00", 2, "0:2"),
                 new Dfb2026SourceIdentity(81845, "VfB 1921 Krieschow ", "1. FSV Mainz 05", "2026-08-23T15:30:00", 2, "0:9"),
                 new Dfb2026SourceIdentity(81851, "MSV Duisburg", "SV 07 Elversberg", "2026-08-22T15:30:00", 2, "1:3"),
+                new Dfb2026SourceIdentity(81852, "VfL Osnabrück", "Bayern München", "2026-09-02T20:45:00", 2, "1:4"),
                 new Dfb2026SourceIdentity(81853, "Lüneburger SK Hansa", "SV Werder Bremen", "2026-08-22T15:30:00", 2, "0:3"),
                 new Dfb2026SourceIdentity(81854, "SC Verl", "Hamburger SV", "2026-08-24T18:00:00", 2, "0:3"),
                 new Dfb2026SourceIdentity(81855, "Hansa Rostock", "VfB Stuttgart", "2026-08-21T20:45:00", 2, "0:4"),

@@ -17,7 +17,6 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktippSettings>
 {
     private const int BundesligaOrdinaryOutcomeMatchdayCount = 34;
-    private const int BundesligaAcceptedIncompleteHistoryRowCount = 2;
 
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
@@ -733,28 +732,6 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 .Select(value => $"{value.DocumentName}#{value.RowOrdinal?.ToString() ?? "-"}: {value.Message}"));
             throw new InvalidDataException(
                 $"Bundesliga history played-date gate failed; no context documents were saved.{Environment.NewLine}{details}");
-        }
-
-        if (requireCompleteFrozenMap && collection.FixedMapCount != dateMap.Count)
-        {
-            throw new InvalidDataException(
-                $"Full-season history gate expected all {dateMap.Count} frozen row identities in deterministic order, " +
-                $"but resolved {collection.FixedMapCount} through the fixed map.");
-        }
-
-        if (requireCompleteFrozenMap && collection.Resolutions.Count != dateMap.Count)
-        {
-            throw new InvalidDataException(
-                $"Full-season history gate expected exactly {dateMap.Count} completed selected-history rows, " +
-                $"but resolved {collection.Resolutions.Count}.");
-        }
-
-        if (requireCompleteFrozenMap
-            && collection.ExcludedIncompleteRowCount != BundesligaAcceptedIncompleteHistoryRowCount)
-        {
-            throw new InvalidDataException(
-                $"Full-season history gate expected exactly {BundesligaAcceptedIncompleteHistoryRowCount} " +
-                $"accepted incomplete selected-history rows, but excluded {collection.ExcludedIncompleteRowCount}.");
         }
 
         _console.MarkupLine(
