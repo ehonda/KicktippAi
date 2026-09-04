@@ -58,11 +58,11 @@ The root may delegate bounded read-only preview audits. It must then freeze a re
 - the verified canonical repository, remote URL, integration branch, allowed run-branch prefix, initial local/remote SHA, and whether direct-main, draft-PR, or milestone-branch publication is permitted; and
 - the resource snapshot, worktree reservation, heavy-operation budget, and throttle rules.
 
-Cross-cutting or high-risk work requires one `gpt-5.6-sol` / `xhigh` architecture lead to produce the seam map, invariants, non-goals, dependency graph, owned paths, and verification strategy, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. Keep the accepted lead idle and recallable between implementation waves so it does not consume an active slot while waiting.
+Cross-cutting or high-risk work requires one `gpt-5.6-sol` / `xhigh` architecture lead to produce the seam map, invariants, non-goals, dependency graph, owned paths, and verification strategy, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. After acceptance, keep a specialist recallable only when reuse is expected before the next milestone and retention does not block useful ready work or a lightweight monitor. Record the retention reason and release trigger; architecture acceptance alone is not a reason to retain a thread indefinitely.
 
 When preview exposes genuine owner decisions, invocation of `$orchestrate` is explicit consent to invoke the installed explicit-only `$grill-me` skill. Complete the phase-wide foundation first, then interview one whole task or cohesive milestone at a time. The owner may timebox the session and stop between those complete units. Freeze the interview-complete independent graph, mark the rest `needs-interview`, and execute the ready work without guessing the deferred decisions. Preserve the design tree and frontier in `.tmp/orchestration/<run-id>/preview.md`; stop clearly if `$grill-me` is unavailable.
 
-Transition `preview -> ready -> active` automatically when the frozen packet contains no owner blocker and stays within existing authority. Use `awaiting-owner` when it does not. A new cross-cutting invariant, missing ADR, dependency seam, invalidated architecture, or material scope expansion pauses only the affected lane, recalls the architecture lead, requires independent review, and re-freezes the affected graph. The root may approve the re-freeze when it preserves the accepted outcome, durable decisions, and authority envelope; otherwise return to `awaiting-owner` while independent ready work continues.
+Transition `preview -> ready -> active` automatically when the frozen packet contains no owner blocker and stays within existing authority. Use `awaiting-owner` when it does not. Immediately before the first implementation writer, emit one concise commentary marker in the form `EXECUTION START — <wave>; ready: <lanes>; deferred/blocked: <summary>`. Do not turn this marker into a high-frequency status stream. A new cross-cutting invariant, missing ADR, dependency seam, invalidated architecture, or material scope expansion pauses only the affected lane, recalls the architecture lead, requires independent review, and re-freezes the affected graph. The root may approve the re-freeze when it preserves the accepted outcome, durable decisions, and authority envelope; otherwise return to `awaiting-owner` while independent ready work continues.
 
 ### Durable Orchestration Ledger
 
@@ -74,7 +74,9 @@ Keep the ledger concise and include:
 
 - the current objective and work wave;
 - each active or recently completed lane's task, agent path, role, model and reasoning effort, worktree or owned paths, status, and next action;
+- counts and identifiers for ready and running lanes, plus blockers using only `none`, `dependency`, `interview`, `owner`, `resource`, `agent-slot`, `review`, or `external`;
 - root-only decisions, pending owner gates, blockers, and available agent capacity;
+- each retained agent's retention reason, release trigger, and whether release is due; never claim capacity was reclaimed until the active client mechanism confirms it;
 - preview status (`preview`, `awaiting-owner`, `ready`, `active`, or `complete`), frozen-artifact paths and exact SHAs, deferred `needs-interview` nodes, and the Git allowlist;
 - latest resource sample time, free disk/memory, logical processors, linked-worktree count and reservation, active heavy-operation lease owner, and throttle reason;
 - the latest integrated and pushed commit; and
@@ -82,13 +84,62 @@ Keep the ledger concise and include:
 
 The root exclusively owns its run-scoped files. Include the run ID and ledger path in every task-agent assignment. Task agents report evidence but do not edit orchestration state. Mark the ledger `complete` only when the objective is complete; recovery must preserve any non-complete preview or execution status.
 
+Do not add new blocker categories or higher-frequency fields merely because they
+would be convenient. Expand this minimal schema only after a later evaluation
+shows that native transcripts plus these transition records cannot answer a
+specific operational question.
+
+### Scheduling And Specialist Lifecycle
+
+The repository config admits up to eight spawned-agent threads, excluding the
+primary thread. This is capacity, not a target and not a second resource model.
+
+- Admit useful independent ready work when ownership and machine budgets allow
+  it. Do not invent, prematurely grill, or speculatively start work merely to
+  fill slots.
+- Keep at most two concurrent writers, each with disjoint owned paths and an
+  admitted writable worktree when one is required. Keep at most one heavy
+  operation family regardless of how many read, review, or edit lanes run.
+- Do not impose another universal active-agent cap. Writer/worktree, heavy,
+  and spawned-thread capacity remain separate.
+- At acceptance, freeze, review-surface change, or a recorded release trigger,
+  stop intentional retention and mark a terminal, idle, mailbox-clean
+  specialist reclaimable. Retain it only when near-term continuity is
+  concretely valuable and does not block a useful ready lane. Never retain a
+  specialist merely as insurance in the last available slot.
+- On the MultiAgent V2 surface, use `send_message` only for necessary mid-turn
+  steering when the target is clearly active and not near completion. Use
+  `followup_task` when work must be consumed across an idle or completion
+  boundary. Never send speculative, status-only, or late queue-only messages
+  to terminal, release-due, or possibly completing agents; pending mail pins a
+  terminal resident and can block automatic eviction.
+- `reclaimable` records orchestration intent, not proof of physical unload.
+  Record eviction only from runtime evidence such as removal from `list_agents`
+  or successful admission under known capacity pressure. If spawning reports
+  `agent thread limit reached`, inspect live state and retry once only after a
+  known mailbox blocker has been consumed with a bounded `followup_task`.
+  Otherwise record the blocker and queue the lane.
+- Subscription quota is not an admission signal. Do not introspect, estimate,
+  conserve, or accelerate quota burn when scheduling. Dispatch useful ready
+  work according to the graph, authority, quality gates, and machine budgets.
+
+The validated lifecycle evidence and selected policy are recorded in
+[`docs/codex/agent-closure-prerequisite.md`](docs/codex/agent-closure-prerequisite.md).
+MultiAgent V2 may automatically evict and later reload clean terminal agents;
+it does not provide proactive resource-cleanup evidence. Keep machine-resource
+admission separate. If pressure persists without a supported release operation,
+stop affected admission and request an owner-controlled end/restart of the
+current session. Recover from the ledger and re-sample resources before
+admitting work; do not open a concurrent replacement or claim cleanup.
+
 ### Resource Admission
 
 Agent capacity, writable-worktree capacity, and heavy-operation capacity are separate budgets. Before creating a worktree or launching a heavy local gate, run `.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1` with the applicable admission mode and the checked-in `.agents/skills/orchestrate/resources/resource-policy.json` profile. Record admission and lease transitions in the ledger.
 
 - Keep at most two writable task worktrees. Reuse a clean admitted worktree for sequential work only after its prior commit is integrated or safely published; remove idle recoverable worktrees promptly.
-- On the current four-logical-processor/eight-GiB class host, admit only one full build/test or other heavy job family at once. A second agent may edit, research, or review while that lease is occupied.
+- Admit only one full build/test or other heavy job family at once. Other agents may edit, research, or review while that lease is occupied.
 - The helper's disk and memory gates fail closed. A run-scoped owner override must state the measured shortfall and reserved capacity; a task agent cannot override admission itself.
+- Heavy admission uses a `1.10 GiB` available-memory hard floor and a `1.50 GiB` warning threshold. A warning does not deny the sole lease. At admission and release transitions, record the operation type, starting and post-operation available memory, duration, and outcome so the next analysis can calibrate the floor.
 - PowerShell `Start-Job` children share the same global heavy-operation lease. Admit the whole job family before launching it.
 - Under pressure, queue new heavy work and allow the current bounded command to finish. Do not kill unrelated host processes or delete caches, build trees, worktrees, or user files merely to regain capacity.
 
@@ -131,11 +182,11 @@ Use these starting points:
 - Mechanical CI/status/exact-SHA checks and deterministic lookups: `gpt-5.6-luna` / `low`.
 - Bounded, well-defined read-only exploration: `gpt-5.6-luna` / `medium` or `gpt-5.6-terra` / `medium`, depending on breadth and ambiguity.
 - Normal bounded implementation and deterministic fixes: `gpt-5.6-terra` / `medium`; raise to `high` when the implementation has substantial ambiguity, integration risk, or difficult edge cases.
-- Independent correctness, security, or regression review: prefer `gpt-5.6-sol` / `high`. Review establishes whether work is safe to accept, so do not routinely assign it to the cheapest adequate tier.
+- Independent correctness, security, or regression review: default to `gpt-5.6-sol` / `xhigh` during this pilot. `gpt-5.6-sol` / `high` is allowed only when the root records that the contract is frozen, the exact commit or tip and owned paths are bounded, acceptance criteria are deterministic, and no ADR, invariant, ownership, architecture, or production-continuity question is open.
 - Open-ended or complex research whose conclusions will guide later design or implementation: prefer `gpt-5.6-sol` / `high`. Use a lighter model only when the question is bounded, evidence gathering is mechanical, and the result will receive stronger independent synthesis or review.
 - Ambiguous cross-cutting work, launch gates, architecture decisions, or difficult failure analysis: `gpt-5.6-sol` / `high`.
 
-Phase-wide or cross-cutting architecture and its independent specification review are a deliberate exception: both roles always use different `gpt-5.6-sol` / `xhigh` agents in the current pilot because architecture drift multiplies downstream rework. For every other task-agent role, `gpt-5.6-sol` / `xhigh` remains exceptional; before selecting it, state why `gpt-5.6-sol` / `high` is insufficient.
+Phase-wide or cross-cutting architecture and its independent specification review always use different `gpt-5.6-sol` / `xhigh` agents in the current pilot because architecture drift multiplies downstream rework. Post-freeze review remains xhigh by default, but the bounded Sol/high downgrade above does not require pretending an exact artifact reopened architecture.
 
 Every override-compatible spawn must explicitly set both `model` and `reasoning_effort`. Omitting either field is a protocol violation.
 

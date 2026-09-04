@@ -5,6 +5,7 @@
     "root_thread_id": "01a054ee-67b4-7ab2-a0b4-c9ffabc2da2e",
     "root_log": "2026\\08\\31\\rollout-2026-08-31T01-08-26-01a054ee-67b4-7ab2-a0b4-c9ffabc2da2e.jsonl",
     "session_family_rule": "Recursive thread_spawn.parent_thread_id descendants only",
+    "event_cutoff_at": "2026-08-31T20:04:43.872000Z",
     "complete_message_bodies_included": false
   },
   "pricing": {

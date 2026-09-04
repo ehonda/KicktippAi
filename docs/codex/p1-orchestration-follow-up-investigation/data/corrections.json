@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "published_on": "2026-09-01",
+  "preserved_snapshot": {
+    "generated_at": "2026-08-31T20:05:11.408139Z",
+    "last_event_at": "2026-08-31T20:04:43.872Z",
+    "final_commit": "5891d480ed1ac117c955a29b02dd940fd2d6187f"
+  },
+  "headline": "Less parallel. Less wasteful. Efficiency unproven.",
+  "causal_interpretation": {
+    "primary": "The successor had a narrower runnable graph: only P1-10 had completed grilling, while P1-04, P1-05, P1-06, P1-07, and P1-11 remained needs-interview.",
+    "secondary": [
+      "Three reusable architecture, review, and writer threads occupied the spawned-agent limit and blocked otherwise useful lightweight or independent work.",
+      "The 1.50 GiB heavy-operation memory floor created a volatile admission cliff close to otherwise runnable gates."
+    ],
+    "not_supported": "The evidence does not support treating machine admission as the dominant cause of the parallelism decline."
+  },
+  "efficiency_interpretation": {
+    "old_logged_tokens_per_effective_hour": 50070435,
+    "new_logged_tokens_per_effective_hour": 28932033,
+    "logged_token_rate_change": -0.4222,
+    "old_worker_seconds_per_effective_wall_second": 1.4281,
+    "new_worker_seconds_per_effective_wall_second": 0.8379,
+    "worker_activity_rate_change": -0.4133,
+    "old_worker_non_cached_plus_output_tokens_per_worker_hour": 771080,
+    "new_worker_non_cached_plus_output_tokens_per_worker_hour": 728054,
+    "worker_normalized_change": -0.0558,
+    "conclusion": "The wall-clock token-rate reduction mostly tracks reduced worker activity. Accepted-work-per-token or accepted-work-per-quota efficiency is not established by this snapshot."
+  },
+  "quota_interpretation": "Quota consumption is not an orchestration throttle. Faster quota use is acceptable when it buys useful accepted work; the workflow must not introspect or schedule around subscription quota.",
+  "polling_interpretation": "The nearly unchanged wait_agent rate is a weak headline metric. Root-owned external CI polling caused by the unavailable monitor slot is actionable; generic event-wait cadence is not evidence of inefficiency by itself.",
+  "post_cutoff_addendum": {
+    "separate_from_snapshot": true,
+    "evidence": [
+      "After R1 froze shared contracts, R2a and R2b were the first explicitly concurrent-ready siblings, but they were scheduled sequentially because the three reusable spawned-agent threads occupied the available limit.",
+      "A 2026-08-31T22:05:39.2671979Z admission sample found 1.48 GiB available memory and denied the queued R2b heavy gate against the 1.50 GiB floor.",
+      "The architecture lead was retained as recallable while subsequent artifact reviews repeatedly reported that no architecture recall was required."
+    ],
+    "use": "This addendum sharpens hypotheses for the next evaluation but is excluded from the preserved cutoff metrics."
+  }
+}

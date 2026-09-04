@@ -10,6 +10,15 @@ the user's invocation. The invocation opts into phase-scale intake, grilling,
 delegation, model allocation, recovery state, and the bounded Git publication
 contract in the repository-root `AGENTS.md`.
 
+## Validated MultiAgent V2 Lifecycle
+
+The fresh-session experiment and selected lifecycle policy are recorded in
+[`docs/codex/agent-closure-prerequisite.md`](../../../docs/codex/agent-closure-prerequisite.md).
+The six-tool MultiAgent V2 surface automatically evicts terminal, idle,
+mailbox-clean residents under capacity pressure and can reload their logical
+identities with `followup_task`. Treat reclaimability as orchestration intent,
+not proof of physical unload or proactive process and memory cleanup.
+
 ## Activate The Workflow
 
 - Activate only in the root user-facing thread. A task agent follows its
@@ -57,14 +66,57 @@ targets, resource admission, and proposed milestones.
   frozen independent graph; mark the remainder `needs-interview`.
 - Require a `gpt-5.6-sol` / `xhigh` architecture lead and a different
   `gpt-5.6-sol` / `xhigh` specification reviewer for cross-cutting or high-risk
-  work. Keep the lead recallable for scope discoveries and re-freezes.
+  work. Keep the lead recallable only while a near-term reuse reason and
+  release trigger are recorded and retention does not block useful ready work.
 - Writers may start only from a frozen contract. A new cross-cutting
   invariant, missing ADR, dependency seam, invalidated architecture, or
   material scope expansion pauses the affected lane for redesign and review.
 
+Immediately before the first writer, emit one concise `EXECUTION START` line
+that names the wave, ready lanes, and deferred/blocking summary. Do not repeat
+it as a polling or telemetry stream.
+
 For Bundesliga 2026/27, follow the accepted execution strategy and create the
 tracked phase execution packet and detailed design artifacts only after their
 grilling and review. Do not treat an earlier task file as a frozen packet.
+
+## Schedule Useful Work And Release Specialists
+
+Treat the repository's eight spawned-agent threads as capacity, not a target.
+Admit independent ready work when dependencies, authority, ownership, and
+machine budgets permit it; never manufacture work simply to fill slots.
+
+- Keep at most two concurrent writers with disjoint ownership and at most two
+  admitted writable task worktrees.
+- Keep at most one active heavy-operation family. Read, review, research, or bounded
+  editing may overlap it.
+- Give every retained specialist a retention reason and release trigger. At
+  acceptance, freeze, review-surface change, or the recorded trigger, stop
+  intentional retention and mark a terminal, idle, mailbox-clean specialist
+  reclaimable. Never retain a specialist merely as insurance when it blocks
+  useful ready work.
+- Use `send_message` only for necessary mid-turn steering when the target is
+  clearly active and not near completion. Use `followup_task` when work must
+  be consumed across an idle or completion boundary. Never send speculative,
+  status-only, or late queue-only messages to terminal, release-due, or
+  possibly completing agents; unread mail pins a terminal V2 resident.
+- Record eviction only when the runtime exposes evidence such as removal from
+  `list_agents` or successful admission under known capacity pressure. On
+  `agent thread limit reached`, inspect live state and retry once only after a
+  known mailbox blocker has been consumed with one bounded `followup_task`.
+  Otherwise record the capacity blocker and queue the lane.
+- Reuse a logical agent with `followup_task` only when continuity is valuable.
+  Use a fresh agent when independence or clean context is more important.
+- Use only the fixed blocker categories in `AGENTS.md`. Update ready/running
+  lanes, retention/reclaimability, blockers, and the heavy lease at transitions—not
+  on every message, poll, or test.
+- Ignore subscription quota when scheduling. It is neither an admission gate
+  nor a reason to throttle useful ready work.
+
+Keep Sol/xhigh as the independent-review default during the pilot. Sol/high is
+allowed only with a ledger justification that the contract, exact tip, paths,
+and deterministic acceptance criteria are frozen and no ADR, invariant,
+ownership, architecture, or production-continuity question remains.
 
 ## Admit Resources And Publish Deliberately
 
@@ -73,6 +125,18 @@ Before creating a worktree or launching a heavy local gate, run
 mode. Respect its fail-closed verdict and the resource lease recorded in the
 ledger. Resource pressure queues work; it never authorizes killing unrelated
 processes or deleting caches or user files.
+
+The sole heavy lease has a `1.10 GiB` available-memory hard floor and a
+`1.50 GiB` warning threshold. At admission and release transitions, record the
+operation type, start/post available memory, duration, and outcome. A warning
+does not deny work by itself.
+
+Automatic residency eviction is not evidence of proactive memory cleanup. If
+resource pressure persists and no supported release operation is exposed,
+stop admitting affected work, record the blocker, and request an
+owner-controlled end/restart of the current session. Recover from the run
+ledger and re-sample resources before new admission; do not open a concurrent
+replacement or claim that agent resources were released.
 
 Choose cohesive integration milestones from the frozen graph. Keep ordinary
 lane branches local; publish milestone commits and only recovery-critical lane
