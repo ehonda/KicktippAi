@@ -62,8 +62,12 @@ schedule-free P0-19 row. P0-21 preserved P0-25's enriched-publication
 precondition and the exact context-first, primary-before-secondary order.
 Bundesliga P0 prompt work is fixed at match v3 / bonus v1. ADR-0058's distinct
 DFB/CL prompt routes remain fail closed until immutable promotion. Club Elo
-network reuse remains independently Owner-gated P1 work and the dated-seed path
-remains launch-safe.
+network reuse and roster refresh are now owner-accepted P1 planning work under
+[ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md);
+the dated-seed and roster LKG paths remain launch-safe. This is a planning-only
+stop note: no runtime source collector, workflow, profile, schedule, or
+production activation is authorized until P1-04 then P1-05 complete their
+separate technical/source and implementation-design gates.
 
 ## P1-10 recovery safety boundary — 2026-08-31
 
@@ -205,7 +209,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
 | P0-23 candidate evidence | Complete under ADR-0049 and the Owner's execution-time amendments: eight original paired runs completed, Luna/`max` is incomplete after two transient capacity failures and an explicit p1 stop, and post-hoc Sol/`xhigh` is exploratory; this is evidence, not production selection |
 | Context | Bundesliga retains explicit live allowlists; schadensfresse DFB/CL uses ADR-0058's Accepted target-rules-only profiles with exact typed inputs and no Bundesliga context leakage, ADR-0059 binds publication to the structured v1 rules record, and ADR-0060 separates immutable generation provenance from the exact-key current rules attestation used for reuse |
-| Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
+| Club Elo and rosters | P1-04 then P1-05 are the next refresh implementation priorities under ADR-0073; existing cycles may be extended only after frozen source/date and implementation-design gates, while dated seed/LKG remain launch-safe |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
 | Activation | Every leaf caller remains manual-only; ADR-0062 temporarily restores the scheduled Schadensfresse context/copy pair, giving eight pairs/16 jobs at `7 2,9 * * *` until ADR-0068's reviewed replacement condition; historical natural observation `33143114280` closed P0-21 |
@@ -234,7 +238,7 @@ These are not ambiguities agents may decide on their own:
 | Decision | Timing | Work that may proceed first |
 |---|---|---|
 | Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Configuration is live and its first natural scheduled verification is green |
-| Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | P1-04 after launch | Continue the accepted dated seed and last-known-good behavior until resolved |
+| Club Elo CSV daily-name/date semantics and dcaribou revision-to-authoritative capture/effective-date binding | P1-04 then P1-05 technical evidence gates | Implement only future candidate/rejection paths until exact source semantics are proven; continue dated seed/LKG |
 | Exact production schedules, spacing, rollback trigger, and activation | ADR-0062 temporarily restores ADR-0054/0055's eight-pair copy lane while preserving ADR-0053's operating contract | Observe the recovered natural lane; final P1-10 primary activation remains separately reviewed and owner-controlled |
 | `schadensfresse` primary routing | A reviewed successor must replace/terminate temporary copy mode under ADR-0068; P1-08 is superseded | Implement typed identities and Accepted rules-only DFB/CL profiles on the future PR; do not treat recovery copy as primary activation |
 
@@ -260,4 +264,6 @@ require an atomic P1-10 PR and ADR-0068's reviewed successor condition to
 replace or terminate copy mode. P1-10 continues to own every `schadensfresse`
 Bundesliga/DFB/CL match and bonus route, fully absorbs P1-08, and retains later
 owner-controlled prompt/replacement/cost/force/cutoff/activation gates. P1-04
-owns any unattended Club Elo network refresh decision.
+then P1-05 own the accepted context-cycle refresh implementation; their frozen
+plan is [the context-refresh design](designs/p1-04-05-context-refresh.md), not
+an active runtime change.
