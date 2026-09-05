@@ -65,6 +65,6 @@ jobs:
               owner,
               repo,
               issue_number: issue.number,
-              body: `${reminderMarker}\nWeekly history-date maintenance is due. Follow [the manual weekly refresh procedure](https://github.com/ehonda/KicktippAi/blob/main/data/bundesliga-2026-27/history/SOURCES.md#manual-weekly-refresh-procedure) and add ${resultMarker} with the result.`
+              body: `${reminderMarker}\nWeekly history-date maintenance is due. Follow [the manual weekly refresh procedure](https://github.com/ehonda/KicktippAi/blob/main/data/bundesliga-2026-27/history/SOURCES.md#manual-weekly-refresh-procedure) and record this week's result with the prescribed manual result marker.`
             });
             await core.summary.addRaw(`Created the Bundesliga history maintenance reminder for ${week}.`).write();

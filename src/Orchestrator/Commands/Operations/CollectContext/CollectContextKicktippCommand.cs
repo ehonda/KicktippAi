@@ -795,15 +795,14 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         var proxyTupleGroups = collection.Resolutions
             .Where(resolution => resolution.SourceClass == BundesligaHistoryPlayedDateSourceClass.CollectionDateProxy)
             .GroupBy(resolution => resolution.TupleGroupIdentity, StringComparer.Ordinal)
-            .Select(group => new { Tuple = group.Key, Ordinal = group.Min(resolution => resolution.RowOrdinal) })
-            .OrderBy(group => group.Ordinal)
-            .ThenBy(group => group.Tuple, StringComparer.Ordinal)
+            .Select(group => group.Key)
+            .Order(StringComparer.Ordinal)
             .ToArray();
         if (proxyTupleGroups.Length > 0)
         {
             _console.MarkupLine(
                 $"[yellow]Warning: {collection.CollectionDateProxyCount} collection-date proxy occurrence(s) across {proxyTupleGroups.Length} tuple group(s); review the checked-in maintenance procedure.[/]");
-            _console.WriteLine(
+            _console.Profile.Out.Writer.WriteLine(
                 $"::warning title=Bundesliga history date maintenance::{collection.CollectionDateProxyCount} collection-date proxy occurrence(s) across {proxyTupleGroups.Length} tuple group(s); review the checked-in maintenance procedure.");
         }
 
@@ -831,13 +830,35 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             lines.Add("> [!WARNING]");
             lines.Add("> Collection-date proxies are continuity markers, not exact played dates. Follow the [manual weekly refresh procedure](https://github.com/ehonda/KicktippAi/blob/main/data/bundesliga-2026-27/history/SOURCES.md#manual-weekly-refresh-procedure).");
             lines.Add("- **Proxy tuple groups:**");
-            lines.AddRange(proxyTupleGroups.Select(group => $"  - `{EscapeMarkdownCode(group.Tuple)}`"));
+            lines.AddRange(proxyTupleGroups.Select(group => $"  - {RenderMarkdownCodeSpan(group)}"));
         }
         lines.Add(string.Empty);
         File.AppendAllLines(settings.MarkdownSummaryOutput.Trim(), lines, new UTF8Encoding(false));
     }
 
-    private static string EscapeMarkdownCode(string value) => value.Replace("`", "\\`", StringComparison.Ordinal);
+    private static string RenderMarkdownCodeSpan(string value)
+    {
+        var longestDelimiter = 0;
+        for (var index = 0; index < value.Length;)
+        {
+            if (value[index] != '`')
+            {
+                index++;
+                continue;
+            }
+
+            var runLength = 0;
+            while (index < value.Length && value[index] == '`')
+            {
+                runLength++;
+                index++;
+            }
+            longestDelimiter = Math.Max(longestDelimiter, runLength);
+        }
+
+        var delimiter = new string('`', longestDelimiter + 1);
+        return $"{delimiter}{value}{delimiter}";
+    }
 
     private static async Task<IReadOnlyDictionary<string, string?>> LoadPriorSelectedHistoryDocumentContentsAsync(
         IContextRepository contextRepository,

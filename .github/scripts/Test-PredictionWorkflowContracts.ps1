@@ -911,7 +911,10 @@ function Assert-BundesligaHistoryMaintenanceReminder {
     Assert-True ([regex]::Matches($content, 'github\.paginate\(').Count -eq 2) 'The maintenance reminder must paginate issues and comments.'
     Assert-True $content.Contains('reminder:${week}', [StringComparison]::Ordinal) 'The maintenance reminder must use an ISO-week reminder marker.'
     Assert-True $content.Contains('result:${week}', [StringComparison]::Ordinal) 'The maintenance reminder must use a distinct ISO-week result marker.'
-    Assert-True $content.Contains('createComment', [StringComparison]::Ordinal) 'The maintenance reminder must create at most one missing weekly comment.'
+    Assert-True ([regex]::Matches($content, 'github\.rest\.issues\.createComment\(').Count -eq 1) 'The maintenance reminder must create at most one missing weekly comment.'
+    $createComment = [regex]::Match($content, '(?ms)github\.rest\.issues\.createComment\(\{(?<body>.*?)\}\);')
+    Assert-True $createComment.Success 'The maintenance reminder must have one readable createComment body.'
+    Assert-True (-not $createComment.Groups['body'].Value.Contains('${resultMarker}', [StringComparison]::Ordinal)) 'The reminder comment must not interpolate the manual result marker; it is read only for deduplication.'
 
     $iso = {
         param([datetime] $Date)

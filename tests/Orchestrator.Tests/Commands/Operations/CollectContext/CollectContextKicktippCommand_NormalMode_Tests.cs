@@ -324,7 +324,7 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
     }
 
     [Test]
-    public async Task Bundesliga_proxy_coverage_is_reported_after_a_successful_dry_run()
+    public async Task Bundesliga_proxy_coverage_reports_distinct_ordinal_tuple_groups_with_safe_code_spans()
     {
         var summaryPath = Path.Combine(Path.GetTempPath(), $"kicktippai-history-{Guid.NewGuid():N}.md");
         var ctx = CreateCollectContextCommandApp();
@@ -338,7 +338,11 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
             .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
                 IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
                 IReadOnlySet<string> _, BundesligaHistoryPlayedDateCollectionOptions _) =>
-                CreateHistoryResult(documents, proxyCount: 2, tupleGroupCount: 1));
+                CreateHistoryResult(
+                    documents,
+                    ("recent-history-bvb.csv", 20, "DFB|Z|Y|1-0"),
+                    ("recent-history-fcb.csv", 1, "DFB|A`B|1-0"),
+                    ("recent-history-bvb.csv", 2, "DFB|Z|Y|1-0")));
 
         try
         {
@@ -351,17 +355,63 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
             });
 
             await Assert.That(exitCode).IsEqualTo(0);
-            await Assert.That(NormalizeWhitespace(ctx.Console.Output))
-                .Contains("::warning title=Bundesliga history date maintenance::2 collection-date proxy occurrence(s) across 1 tuple group(s); review the checked-in maintenance procedure.");
+            const string workflowWarning = "::warning title=Bundesliga history date maintenance::3 collection-date proxy occurrence(s) across 2 tuple group(s); review the checked-in maintenance procedure.";
+            await Assert.That(ctx.Console.Output.Split('\n')
+                .Count(line => string.Equals(line.TrimEnd('\r'), workflowWarning, StringComparison.Ordinal)))
+                .IsEqualTo(1);
             var summary = await File.ReadAllTextAsync(summaryPath);
             await Assert.That(summary)
                 .Contains("### Bundesliga history date coverage")
-                .And.Contains("**Collection-date proxy occurrences:** 2")
+                .And.Contains("**Collection-date proxy occurrences:** 3")
                 .And.Contains("**Proxy tuple groups:**")
-                .And.Contains("`DFB|A|B|1-0`")
+                .And.Contains("``DFB|A`B|1-0``")
+                .And.Contains("`DFB|Z|Y|1-0`")
                 .And.Contains("manual weekly refresh procedure");
+            await Assert.That(summary.IndexOf("``DFB|A`B|1-0``", StringComparison.Ordinal)
+                < summary.IndexOf("`DFB|Z|Y|1-0`", StringComparison.Ordinal)).IsTrue();
             ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
                 It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            File.Delete(summaryPath);
+        }
+    }
+
+    [Test]
+    public async Task Bundesliga_zero_proxy_coverage_writes_neutral_counts_without_a_warning_or_tuple_inventory()
+    {
+        var summaryPath = Path.Combine(Path.GetTempPath(), $"kicktippai-history-{Guid.NewGuid():N}.md");
+        var ctx = CreateCollectContextCommandApp();
+        ctx.HistoryCollector.Setup(collector => collector.Collect(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>(),
+                It.IsAny<BundesligaHistoryPlayedDateCollectionOptions>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _, BundesligaHistoryPlayedDateCollectionOptions _) =>
+                CreateHistoryResult(documents));
+
+        try
+        {
+            var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+            {
+                CommunityContext = "ehonda-dev-buli-2627",
+                Competition = CompetitionIds.Bundesliga2026_27,
+                DryRun = true,
+                MarkdownSummaryOutput = summaryPath
+            });
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(ctx.Console.Output).DoesNotContain("::warning title=Bundesliga history date maintenance::");
+            var summary = await File.ReadAllTextAsync(summaryPath);
+            await Assert.That(summary)
+                .Contains("**Collection-date proxy occurrences:** 0")
+                .And.DoesNotContain("[!WARNING]")
+                .And.DoesNotContain("Proxy tuple groups");
         }
         finally
         {
@@ -383,7 +433,7 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
             .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
                 IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
                 IReadOnlySet<string> _, BundesligaHistoryPlayedDateCollectionOptions _) =>
-                CreateHistoryResult(documents, proxyCount: 0, tupleGroupCount: 0));
+                CreateHistoryResult(documents));
 
         var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
         {
@@ -632,26 +682,24 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
 
     private static BundesligaHistoryPlayedDateCollectionResult CreateHistoryResult(
         IReadOnlyList<BundesligaHistoryDocument> documents,
-        int proxyCount,
-        int tupleGroupCount)
+        params (string DocumentName, int RowOrdinal, string TupleGroupIdentity)[] proxyRows)
     {
-        var resolutions = Enumerable.Range(0, proxyCount)
-            .Select(index => new BundesligaHistoryPlayedDateResolution(
-                "recent-history-bvb.csv",
-                index + 1,
+        var resolutions = proxyRows
+            .Select(proxy => new BundesligaHistoryPlayedDateResolution(
+                proxy.DocumentName,
+                proxy.RowOrdinal,
                 "2026-09-05",
                 BundesligaHistoryPlayedDateSourceClass.CollectionDateProxy,
                 "collection-date-proxy",
-                "DFB|A|B|1-0"))
+                proxy.TupleGroupIdentity))
             .ToArray();
         return new BundesligaHistoryPlayedDateCollectionResult(true, documents, resolutions, [])
         {
-            DistinctTupleGroupCount = tupleGroupCount
+            DistinctTupleGroupCount = proxyRows.Select(proxy => proxy.TupleGroupIdentity)
+                .Distinct(StringComparer.Ordinal)
+                .Count()
         };
     }
-
-    private static string NormalizeWhitespace(string value) =>
-        string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static async Task<int> ExecuteProfileCountCommand(CollectContextKicktippCommandTestContext context)
     {

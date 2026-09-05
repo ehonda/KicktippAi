@@ -56,8 +56,8 @@ The official DFB Data Center's 2025/26 2. Bundesliga schedule and individual mat
 
 The standing [maintenance issue](https://github.com/ehonda/KicktippAi/issues/101) is the sole weekly audit record. Next review: `2026-W37`.
 
-1. Triage the latest natural production summary. A zero-proxy result needs only the issue's current-week result marker; a proxy warning starts this procedure immediately. Never use this procedure to generate predictions, collect bonus context, or write production context.
-2. With the `pes-squad` credential profile, run the read-only ordered current-matchday export required to cover all 54 selected documents (the current `3,4,2` order is a checkpoint, not runtime authority). Record its document count, raw CSV hash, and capture time; the export alone is not source evidence.
+1. Once per ISO week inspect the latest natural production context summary. A zero-proxy result records `no exact-source update needed` on the standing issue and stops; a proxy warning starts this procedure immediately. Never generate a prediction, post a bonus, or write Firestore/Kicktipp.
+2. Use the production-equivalent `pes-squad` credential route for the explicitly initiated, read-only ordered matchday export. Select current pages sufficient to expose all 54 selected names; `3,4,2` is the current checkpoint, not a calendar constant. The command loads credentials once after settings validation and before client creation; stored-document export never loads them, and loader failure creates no client, network request, or output file.
 
    ```powershell
    $historyRefreshStamp = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssZ')
@@ -69,5 +69,50 @@ The standing [maintenance issue](https://github.com/ehonda/KicktippAi/issues/101
    if ($historyNames.Count -ne 54) { throw "Expected 54 selected history documents; found $($historyNames.Count). Choose a sufficient current ordered matchday set." }
    (Get-FileHash -LiteralPath $historyInventory -Algorithm SHA256).Hash.ToLowerInvariant()
    ```
-3. A maintainer may manually fetch the required OpenLigaDB DFB response, preserve its raw bytes, and record its hash. Provider failure, identity drift, malformed data, or an exact conflict is fatal; there is no cron, runtime fetch, or automatic retry.
-4. Join only exact competition/team/score identities, retain accumulated reviewed rows, and update the map, raw-source hash, and provenance together in review. Do not fuzzy-match, infer a date, or promote a collection-date proxy. Run the focused history checks and a dry run before closing the weekly issue comment.
+
+   Record the ordered matchdays, exact 54-name gate, command-reported completed and excluded-incomplete counts, raw inventory hash, and UTC collection time. This is rolling occurrence inventory, never played-date evidence.
+3. Only a maintainer manually fetches provider bytes; no cron, collector, or runtime path fetches them.
+
+   ```powershell
+   $historyCapture = Join-Path $historyRefreshRoot 'openligadb-dfb-2026.json'
+   Invoke-WebRequest -Uri 'https://api.openligadb.de/getmatchdata/dfb/2026' -OutFile $historyCapture
+   $historyCaptureLength = (Get-Item -LiteralPath $historyCapture).Length
+   $historyCaptureSha256 = (Get-FileHash -LiteralPath $historyCapture -Algorithm SHA256).Hash.ToLowerInvariant()
+   "bytes=$historyCaptureLength sha256=$historyCaptureSha256 capturedAt=$([DateTimeOffset]::UtcNow.ToString('O'))"
+   ```
+
+   Hash exact received bytes without reserializing JSON. Keep the ignored capture for review. Provider/schema/license drift, nonpositive or duplicate IDs, league/season drift, invalid local/UTC dates, conflicting results, or exact-identity conflict is fatal. A capture's total fixture count, completed ID set, and every retained completed fixture must pass the snapshot validator; scheduled/incomplete future fixtures never enter the map.
+4. Join only exact completed competition/team/normalized-score/original-annotation identities. Do not fuzzy-match, infer dates, join by row position, or promote a proxy. Retain accumulated map rows even after rolling out; when evidence is accepted, update these paths and their counts, hashes, source revision, selected identities, verification timestamp, and constants together in one reviewed commit:
+
+   - `data/bundesliga-2026-27/history/sources/openligadb-dfb-2026.json`
+   - `data/bundesliga-2026-27/history/history-played-dates.csv`
+   - `data/bundesliga-2026-27/history/SOURCES.md`
+   - `src/Core/BundesligaHistoryPlayedDateMap.cs`
+   - `src/Core/OpenLigaDbHistorySnapshotValidator.cs`
+   - `tests/Core.Tests/BundesligaHistoryPlayedDateCollectorTests.cs`
+   - `tests/Core.Tests/OpenLigaDbHistorySnapshotValidatorTests.cs`
+
+   The next ordinary collection upgrades an exact matching prior proxy atomically; absent exact evidence leaves its first proxy date stable. Before publication, run the production-equivalent profile dry run and focused history/validator gates. Do not use `bundesliga-history apply` as the normal path.
+
+   ```powershell
+   $filter = '/*/*/BundesligaHistoryPlayedDateCollectorTests/**'
+   dotnet run --project tests/Core.Tests --configuration Release -- --treenode-filter $filter
+   $filter = '/*/*/BundesligaHistoryCommandTests/**'
+   dotnet run --project tests/Orchestrator.Tests --configuration Release -- --reflection --treenode-filter $filter
+   dotnet run --no-build --no-restore --project src/Orchestrator --configuration Release -- collect-context profile --community-context pes-squad --competition bundesliga-2026-27 --dry-run --verbose
+   ```
+
+5. Add one immutable weekly result comment, then edit only the issue body's next-review/checklist block. The comment template is:
+
+   ```text
+   <!-- kicktippai:buli2627-history-date-maintenance:result:YYYY-Www -->
+   Reviewed at: <UTC timestamp>
+   Natural run: <URL> at <SHA>
+   Occurrences/groups/proxies/incomplete: <counts>
+   Ordered matchdays and inventory hash: <values or not collected>
+   Provider bytes/hash: <values or not collected>
+   Resulting commit/CI: <values or no exact-source update needed>
+   Next review: <YYYY-Www>
+   ```
+
+   A reminder marker is not a result marker. Keep one issue open until the season ends or P1-16 is reviewed; a warning never creates a second issue.
