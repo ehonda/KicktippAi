@@ -128,21 +128,12 @@ public class KicktippClient : IKicktippClient, IDisposable
         var submitterName = submitter.GetAttribute("name") ?? throw new InvalidDataException("The strict CL submitter has no name.");
         var submitterValue = submitter.GetAttribute("value") ?? string.Empty;
         var controls = ExtractSuccessfulNonTargetControls(form, targetKeys, submitter);
-        Uri action;
-        if (Uri.TryCreate(form.Action, UriKind.Absolute, out var absoluteAction))
+        if (!Uri.TryCreate(form.BaseUri, UriKind.Absolute, out var effectiveBase)
+            || !Uri.TryCreate(effectiveBase, form.Action, out var action)
+            || action is null)
         {
-            action = absoluteAction;
-        }
-        else
-        {
-            if (!Uri.TryCreate(form.BaseUri, UriKind.Absolute, out var effectiveBase)
-                || !Uri.TryCreate(effectiveBase, form.Action, out var resolvedAction)
-                || resolvedAction is null)
-            {
-                throw new InvalidDataException(
-                    "The strict CL form action cannot be resolved from the effective document base.");
-            }
-            action = resolvedAction;
+            throw new InvalidDataException(
+                "The strict CL form action cannot be resolved from the effective document base.");
         }
         var canPlace = questions.SelectMany(question => question.FormKeys)
             .All(targetKey => form.Elements.OfType<IHtmlSelectElement>()

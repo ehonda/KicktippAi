@@ -95,6 +95,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     [Arguments("tippabgabeForm#fragment")]
     [Arguments("https://user@www.kicktipp.de/schadensfresse/tippabgabeForm")]
     [Arguments("http://www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    [Arguments("file:///schadensfresse/tippabgabeForm")]
     [Arguments("https://kicktipp.de/schadensfresse/tippabgabeForm")]
     [Arguments("https://www.kicktipp.de:444/schadensfresse/tippabgabeForm")]
     public async Task Strict_parser_rejects_form_action_near_matches(string action)
