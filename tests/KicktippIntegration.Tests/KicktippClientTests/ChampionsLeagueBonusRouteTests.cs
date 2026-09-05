@@ -11,7 +11,7 @@ namespace KicktippIntegration.Tests.KicktippClientTests;
 public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
 {
     [Test]
-    public async Task Strict_parser_reads_the_exact_three_seeded_definitions_and_all_six_opaque_keys()
+    public async Task Strict_parser_reads_the_exact_seed_and_preserves_the_full_live_control_shape()
     {
         using var httpClient = new HttpClient(new StaticHtmlHandler(CreateHtml()))
         {
@@ -28,10 +28,18 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         await Assert.That(snapshot.NonTargetControls.SequenceEqual(new[]
         {
             new KeyValuePair<string, string>("tipperId", "123"),
+            new KeyValuePair<string, string>("spieltagIndex", "0"),
+            new KeyValuePair<string, string>("bonus", "true"),
+            new KeyValuePair<string, string>("tippsaisonId", "456"),
+            new KeyValuePair<string, string>("fragetippForms[1662326752].tippAbgegeben", "state-52"),
+            new KeyValuePair<string, string>("fragetippForms[1662326753].tippAbgegeben", "state-53"),
+            new KeyValuePair<string, string>("fragetippForms[1662326754].tippAbgegeben", "state-54"),
             new KeyValuePair<string, string>("kept", "first"),
             new KeyValuePair<string, string>("kept", "second"),
             new KeyValuePair<string, string>("unrelated", "u1")
         })).IsTrue();
+        await Assert.That(snapshot.SubmitterName).IsEqualTo("submitbutton");
+        await Assert.That(snapshot.SubmitterValue).IsEqualTo("save");
     }
 
     [Test]
@@ -110,6 +118,20 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
             BaseAddress = new Uri("https://www.kicktipp.de/")
         };
         await Assert.That(() => CreateClient(outsideClient).GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+
+        var submissionStateKey =
+            $"fragetippForms[{SchadensfresseChampionsLeagueBonusProfile.OrderedQuestionIds[0]}].tippAbgegeben";
+        var nonHiddenSubmissionState = CreateHtml().Replace(
+            $"<input type=\"hidden\" name=\"{submissionStateKey}\" value=\"state-52\">",
+            $"<input type=\"text\" name=\"{submissionStateKey}\" value=\"state-52\">",
+            StringComparison.Ordinal);
+        using var nonHiddenSubmissionStateClient = new HttpClient(new StaticHtmlHandler(nonHiddenSubmissionState))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+        await Assert.That(() => CreateClient(nonHiddenSubmissionStateClient)
+                .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
             .Throws<InvalidDataException>();
     }
 
@@ -512,6 +534,12 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
             .Append(new Uri(origin, "/schadensfresse/tippabgabe"))
             .Append("\">")
             .Append("<input type=\"hidden\" name=\"tipperId\" value=\"123\">")
+            .Append("<input type=\"hidden\" name=\"spieltagIndex\" value=\"0\">")
+            .Append("<input type=\"hidden\" name=\"bonus\" value=\"true\">")
+            .Append("<input type=\"hidden\" name=\"tippsaisonId\" value=\"456\">")
+            .Append("<input type=\"hidden\" name=\"fragetippForms[1662326752].tippAbgegeben\" value=\"state-52\">")
+            .Append("<input type=\"hidden\" name=\"fragetippForms[1662326753].tippAbgegeben\" value=\"state-53\">")
+            .Append("<input type=\"hidden\" name=\"fragetippForms[1662326754].tippAbgegeben\" value=\"state-54\">")
             .Append("<input type=\"checkbox\" name=\"ignored\" value=\"no\">");
         if (string.Equals(origin.Host, "www.kicktipp.de", StringComparison.Ordinal))
         {

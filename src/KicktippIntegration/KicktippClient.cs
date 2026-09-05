@@ -209,6 +209,9 @@ public class KicktippClient : IKicktippClient, IDisposable
         var seed = SchadensfresseChampionsLeagueBonusSeed.Default;
         var expectedKeys = seed.Questions.SelectMany(question => question.FormKeys).ToHashSet(StringComparer.Ordinal);
         var targetIds = seed.Questions.Select(question => question.KicktippQuestionId).ToHashSet(StringComparer.Ordinal);
+        var expectedSubmissionStateKeys = targetIds
+            .Select(questionId => $"fragetippForms[{questionId}].tippAbgegeben")
+            .ToHashSet(StringComparer.Ordinal);
         var canonicalSlotIds = expectedKeys.Select(key => ParseChampionsLeagueTargetKey(key)!.Value.SlotId)
             .ToHashSet(StringComparer.Ordinal);
         var observedExpectedKeys = new Dictionary<string, int>(StringComparer.Ordinal);
@@ -231,6 +234,17 @@ public class KicktippClient : IKicktippClient, IDisposable
                 else if (canonicalSlotIds.Contains(answerKey.SlotId))
                 {
                     throw new InvalidDataException("A canonical CL slot identity is reused by another question.");
+                }
+                continue;
+            }
+
+            if (expectedSubmissionStateKeys.Contains(name))
+            {
+                if (control is not IHtmlInputElement submissionState
+                    || !string.Equals(submissionState.Type, "hidden", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidDataException(
+                        "A canonical CL submission-state control is not the expected hidden input.");
                 }
                 continue;
             }
