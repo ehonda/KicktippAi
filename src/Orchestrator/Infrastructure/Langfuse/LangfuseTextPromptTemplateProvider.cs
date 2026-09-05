@@ -1,4 +1,5 @@
 using OpenAiIntegration;
+using System.Net;
 
 namespace Orchestrator.Infrastructure.Langfuse;
 
@@ -19,6 +20,9 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
     private readonly IInstructionsTemplateProvider? _fallbackTemplateProvider;
     private readonly string? _fallbackModel;
     private readonly Action<string>? _fallbackWarning;
+    private readonly string? _expectedContentSha256;
+    private readonly bool _availabilityOnlyFallback;
+    private readonly string _fallbackSource;
     private readonly Lazy<HostedPromptResolution> _hostedPrompt;
     private PromptTemplateTelemetryMetadata? _lastTelemetryMetadata;
 
@@ -31,7 +35,10 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         LangfusePromptKind promptKind = LangfusePromptKind.Match,
         IInstructionsTemplateProvider? fallbackTemplateProvider = null,
         string? fallbackModel = null,
-        Action<string>? fallbackWarning = null)
+        Action<string>? fallbackWarning = null,
+        string? expectedContentSha256 = null,
+        bool availabilityOnlyFallback = false,
+        string? fallbackSource = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _promptName = string.IsNullOrWhiteSpace(promptName)
@@ -44,6 +51,11 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         _fallbackTemplateProvider = fallbackTemplateProvider;
         _fallbackModel = string.IsNullOrWhiteSpace(fallbackModel) ? null : fallbackModel.Trim();
         _fallbackWarning = fallbackWarning;
+        _expectedContentSha256 = string.IsNullOrWhiteSpace(expectedContentSha256) ? null : expectedContentSha256.Trim();
+        _availabilityOnlyFallback = availabilityOnlyFallback;
+        _fallbackSource = string.IsNullOrWhiteSpace(fallbackSource)
+            ? CompetitionResolver.LocalPromptSource
+            : fallbackSource.Trim();
         _hostedPrompt = new Lazy<HostedPromptResolution>(LoadHostedPrompt);
     }
 
@@ -105,7 +117,7 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
                          .GetAwaiter()
                          .GetResult();
         }
-        catch (Exception ex) when (_fallbackTemplateProvider is not null)
+        catch (Exception ex) when (_fallbackTemplateProvider is not null && CanFallbackFor(ex))
         {
             return new HostedPromptResolution(
                 Prompt: null,
@@ -115,6 +127,11 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
 
         if (prompt is null)
         {
+            if (_availabilityOnlyFallback)
+            {
+                throw new FileNotFoundException($"Langfuse prompt '{_promptName}' was not found.");
+            }
+
             return new HostedPromptResolution(
                 Prompt: null,
                 Template: null,
@@ -145,6 +162,13 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         {
             throw new InvalidDataException(
                 $"Resolved Langfuse prompt '{_promptName}' version {prompt.Version} does not have required label '{requiredLabel}'.");
+        }
+
+        if (_expectedContentSha256 is { } expectedHash
+            && !string.Equals(PromptTemplateContentHash.ComputeSha256(prompt.GetTextPrompt()), expectedHash, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Resolved Langfuse prompt '{_promptName}' does not match the frozen normalized content hash.");
         }
     }
 
@@ -189,13 +213,20 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
             ? _fallbackTemplateProvider.LoadMatchTemplate(_fallbackModel, includeJustification)
             : _fallbackTemplateProvider.LoadBonusTemplate(_fallbackModel);
 
+        if (_expectedContentSha256 is { } expectedHash
+            && !string.Equals(PromptTemplateContentHash.ComputeSha256(fallback.template), expectedHash, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Local fallback prompt '{fallback.path}' does not match the frozen normalized content hash.");
+        }
+
         _fallbackWarning?.Invoke($"{reason} Using local fallback prompt '{fallback.path}'.");
         return new ResolvedPrompt(
             fallback.template,
             fallback.path,
             new PromptTemplateTelemetryMetadata(
                 RequestedSource: CompetitionResolver.LangfusePromptSource,
-                ActualSource: CompetitionResolver.LocalPromptSource,
+                ActualSource: _fallbackSource,
                 LangfusePromptName: _promptName,
                 LangfusePromptLabel: _label,
                 LangfusePromptVersion: null,
@@ -213,4 +244,22 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         string Template,
         string Path,
         PromptTemplateTelemetryMetadata TelemetryMetadata);
+
+    private bool CanFallbackFor(Exception exception)
+    {
+        if (!_availabilityOnlyFallback)
+        {
+            return true;
+        }
+
+        if (exception is HttpRequestException httpException)
+        {
+            return httpException.StatusCode is null or HttpStatusCode.InternalServerError
+                or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
+        }
+
+        return exception is TimeoutException
+            or System.Net.Sockets.SocketException
+            or System.Security.Authentication.AuthenticationException;
+    }
 }

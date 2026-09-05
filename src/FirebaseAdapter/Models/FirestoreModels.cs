@@ -340,6 +340,10 @@ public class FirestoreBonusPrediction
     [FirestoreProperty("resolvedBonusContextManifest")]
     public string? ResolvedBonusContextManifest { get; set; }
 
+    /// <summary>Canonical empty-context provenance for the narrow CL exception.</summary>
+    [FirestoreProperty("schadensfresseChampionsLeagueBonusManifest")]
+    public string? SchadensfresseChampionsLeagueBonusManifest { get; set; }
+
     /// <summary>
     /// Canonical JSON provenance for the complete normalized question and source option set.
     /// Legacy documents legitimately omit this field and cannot be reused across communities.

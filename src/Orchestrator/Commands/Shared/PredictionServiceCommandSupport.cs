@@ -66,6 +66,20 @@ internal static class PredictionServiceCommandSupport
         var fallbackModel = string.IsNullOrWhiteSpace(metadata.FallbackPromptModel)
             ? model
             : metadata.FallbackPromptModel;
+        var isChampionsLeagueBonus = bonusPrompt && SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
+            competition,
+            community,
+            communityContext,
+            promptSource,
+            langfusePromptName,
+            langfusePromptLabel,
+            langfusePromptVersion,
+            model,
+            reasoningEffort,
+            maxOutputTokenCount,
+            documentBudget: 0,
+            tokenBudget: 0,
+            deadlineAtOrBefore: SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc);
 
         var templateProvider = new LangfuseTextPromptTemplateProvider(
             langfuseClient,
@@ -74,8 +88,11 @@ internal static class PredictionServiceCommandSupport
             langfusePromptVersion ?? metadata.PromptVersion,
             promptKind: bonusPrompt ? LangfusePromptKind.Bonus : LangfusePromptKind.Match,
             fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
-            fallbackModel: fallbackModel,
-            fallbackWarning: message => console.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(message)}"));
+            fallbackModel: isChampionsLeagueBonus ? "bundesliga-2026-27/champions-league" : fallbackModel,
+            fallbackWarning: message => console.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(message)}"),
+            expectedContentSha256: isChampionsLeagueBonus ? SchadensfresseChampionsLeagueBonusProfile.PromptNormalizedSha256 : null,
+            availabilityOnlyFallback: isChampionsLeagueBonus,
+            fallbackSource: isChampionsLeagueBonus ? "dedicated-cl-mirror" : null);
 
         if (requireHostedPrompt)
         {

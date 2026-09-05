@@ -205,6 +205,7 @@ milestones may proceed while the remaining frontier stays `needs-interview`.
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
 | [P1-14](tasks/p1-14-history-source-continuity.md) **Urgent** | Restore exact selected-history provenance and collection-date proxy continuity; defer full-season capture redesign | P0-22, P0-21 |
+| [P1-15](tasks/p1-15-schadensfresse-champions-league-bonus.md) **Deadline-critical** | Deliver the three frozen target-owned CL bonus predictions without global P1-10 typing | ADR-0069 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -300,3 +301,4 @@ contract:
 - [ADR-0060: Separate generation provenance from current rules attestation](decisions/0060-separate-generation-manifest-from-current-rules-attestation.md) — keeps generation manifests immutable while a directly keyed, exact-publication binding may refresh unchanged authenticated rules evidence for zero-call, zero-mutation reuse
 - [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — replaces the earlier fixed-capacity orchestration/Git rules with phase preview, fully grilled runnable milestones, semantic scope gates, resource admission, and production-safe milestone publication
 - [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery; ADR-0068 replaces only its calendar sunset with a reviewed replacement condition
+- [ADR-0069: Deliver the frozen schadensfresse Champions-League bonus exception](decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md) — narrow target-owned, context-free, manual-only exception for the three September 8 CL questions

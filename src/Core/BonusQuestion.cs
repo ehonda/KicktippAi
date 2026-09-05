@@ -67,4 +67,5 @@ public record BonusPredictionMetadata(
     List<string> ContextDocumentNames,
     ResolvedBonusContextManifest? ResolvedContextManifest = null,
     BonusQuestionCompatibilityManifest? QuestionCompatibilityManifest = null,
-    string? PredictionIdentity = null);
+    string? PredictionIdentity = null,
+    SchadensfresseChampionsLeagueBonusManifest? SchadensfresseChampionsLeagueBonusManifest = null);

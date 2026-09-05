@@ -85,4 +85,18 @@ public sealed class BundesligaPromptMirrorTests
         await Assert.That(crlf).IsEqualTo(lf);
         await Assert.That(lf).Matches("^[0-9a-f]{64}$");
     }
+
+    [Test]
+    public async Task Champions_league_bonus_mirror_is_context_free_and_matches_the_frozen_hosted_hash()
+    {
+        var provider = new InstructionsTemplateProvider(PromptsFileProvider.Create());
+        var bonus = provider.LoadBonusTemplate("bundesliga-2026-27/champions-league");
+
+        await Assert.That(PromptTemplateContentHash.ComputeSha256(bonus.template))
+            .IsEqualTo("70819641df57c8979f1c11dfe4e3df920bca96defdbef29646fd22247dfd0ee2");
+        await Assert.That(bonus.template)
+            .Contains("No context documents or external evidence are supplied.")
+            .And.DoesNotContain("{{context_documents}}")
+            .And.DoesNotContain("Bundesliga bonus questions");
+    }
 }
