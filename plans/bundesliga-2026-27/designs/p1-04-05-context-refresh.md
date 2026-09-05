@@ -88,6 +88,11 @@ seed/head metadata, final-set failure, concurrency error, or atomic publication
 failure is fatal and blocks serial descendants; it never rolls back an already
 published head. Source-copy compatibility continues to fail closed.
 
+If a legitimate roster change repeatedly fails automatic gates, use a reviewed
+correction to the affected club’s fallback data, validate the complete 18-club
+set, and publish it atomically. Retain LKG and warnings until that correction
+is ready; never force a rejected artifact.
+
 Dry-run has permitted public reads, parsing, selection, hashing, and reporting
 only; it writes no health, issue, context, or publication state. Markdown
 summaries and warning annotations report attempt ID, disposition, exact

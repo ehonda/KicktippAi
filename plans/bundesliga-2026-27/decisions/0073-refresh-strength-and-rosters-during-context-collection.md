@@ -59,6 +59,11 @@ Recurring refresh never applies P0 launch floors such as `464/464/450`;
 departures leave the denominator and complete-set safety plus accepted
 per-club percentage diagnostics remain.
 
+If a legitimate roster change repeatedly fails automatic gates, use a reviewed
+correction to the affected club’s fallback data, validate the complete 18-club
+set, and publish it atomically. Retain LKG and warnings until that correction
+is ready; never force a rejected artifact.
+
 External candidate failure, remote drift, hash/revision mismatch, unknown
 source date, or candidate-only identity conflict retains valid seed/LKG with a
 warning. Corrupt seed/head metadata, invalid final 18-club set, final-set
