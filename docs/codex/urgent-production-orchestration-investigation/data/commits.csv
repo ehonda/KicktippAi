@@ -1,0 +1,19 @@
+sha,short_sha,authored_at,committed_at,author,subject
+cd8408cb27714d4c768f6abc99bc97670a1cffab,cd8408c,2026-09-05T01:11:19+02:00,2026-09-05T01:11:19+02:00,Dennis Renz,fix: refresh Bundesliga history source checkpoint
+f4fb722fcb650447b91ee0a453c249069494401a,f4fb722,2026-09-05T01:35:17+02:00,2026-09-05T01:35:17+02:00,Dennis Renz,fix: complete frozen DFB source contract
+1b13b83930812b73640f62b0f5f736953054c4e4,1b13b83,2026-09-05T02:02:21+02:00,2026-09-05T02:02:21+02:00,Dennis Renz,feat: tolerate bounded external history date proxies
+1ca8dbcb07cc798e8a56488fd5344357143b4905,1ca8dbc,2026-09-05T02:15:43+02:00,2026-09-05T02:15:43+02:00,Dennis Renz,fix: fail closed for unsupported history dates
+e5eee578108b99bdd3851d4cb3d41e5ffc3305f8,e5eee57,2026-09-05T02:26:11+02:00,2026-09-05T02:26:11+02:00,Dennis Renz,feat: freeze Champions League bonus profile
+8f5bab573ab5611e55e8b5d0ef1e194913879de3,8f5bab5,2026-09-05T03:40:00+02:00,2026-09-05T03:40:00+02:00,Dennis Renz,feat: complete strict Champions League bonus route
+7a40da2f58e927210fc783d7a4d2803ed531e5f6,7a40da2,2026-09-05T04:46:24+02:00,2026-09-05T04:46:24+02:00,Dennis Renz,Complete strict Champions League bonus delivery
+4761464d8a556259b21fd2abcecb110757df6f12,4761464,2026-09-05T05:03:21+02:00,2026-09-05T05:03:21+02:00,Dennis Renz,Preserve ordinary Schadensfresse bonus routing
+0838fce407d144d64ff11cb9010ad0f18ce24779,0838fce,2026-09-05T05:24:26+02:00,2026-09-05T05:24:26+02:00,Dennis Renz,Accept canonical CL submission state controls
+b5deb90f6cfc147baaf4f93a9f63053332602830,b5deb90,2026-09-05T10:42:00+02:00,2026-09-05T10:42:00+02:00,Dennis Renz,fix: refresh strict CL bonus action route
+c1c44f1e67664e44247e6cd1b8f55aac9123281a,c1c44f1,2026-09-05T11:29:22+02:00,2026-09-05T11:29:22+02:00,Dennis Renz,fix: bind CL bonus post to selected action
+497e1a5552b148a2098862a436f6e6a356590545,497e1a5,2026-09-05T11:57:27+02:00,2026-09-05T11:57:27+02:00,Dennis Renz,fix: resolve CL form actions portably
+045e1a008236d947fbf36903189bd1e082989a00,045e1a0,2026-09-05T13:40:50+02:00,2026-09-05T13:40:50+02:00,Dennis Renz,Add Bundesliga history maintenance reporting
+34f80258b93d56d330589b3a0c93ff202b247f08,34f8025,2026-09-05T14:02:22+02:00,2026-09-05T14:02:22+02:00,Dennis Renz,Correct history maintenance reporting contracts
+72c2f28beb8bef0fff8858635a6a1fc6857b6607,72c2f28,2026-09-05T14:07:20+02:00,2026-09-05T14:07:20+02:00,Dennis Renz,Document history snapshot validator gate
+ba51f5bf1ef3a24af2234337c4bf6f822b49843b,ba51f5b,2026-09-05T16:31:27+02:00,2026-09-05T16:31:27+02:00,Dennis Renz,Plan context-cycle strength and roster refreshes
+064d5c0471fa58ab6b10019a8b9134a7c249a2cc,064d5c0,2026-09-05T16:34:59+02:00,2026-09-05T16:34:59+02:00,Dennis Renz,Correct context refresh planning fidelity
+538c30c53870faa608cf0d6e6a9dbf20f8d833d3,538c30c,2026-09-05T16:36:30+02:00,2026-09-05T16:36:30+02:00,Dennis Renz,Document roster fallback correction route

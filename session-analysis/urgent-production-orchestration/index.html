@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="kicktippai-report-title" content="Urgent production orchestration">
+  <title>Urgent production orchestration · KicktippAi</title>
+  <style>
+    :root { --ink:#172026; --muted:#5f6d73; --paper:#f6f1e8; --card:#fffdf8; --line:#d9d1c4; --blue:#176b87; --blue2:#7cc0cb; --green:#29755d; --amber:#a66b17; --red:#a4473d; --shadow:0 20px 50px rgba(35,41,43,.10); }
+    * { box-sizing:border-box; min-width:0; } html { scroll-behavior:smooth; overflow-x:hidden; }
+    body { margin:0; color:var(--ink); background:radial-gradient(circle at 10% 0,rgba(54,154,174,.16),transparent 32%),linear-gradient(180deg,#fbf8f1,var(--paper)); font-family:"Segoe UI",system-ui,sans-serif; }
+    a { color:var(--blue); } main { max-width:1180px; margin:auto; padding:26px 22px 70px; }
+    .hero { padding:44px; background:linear-gradient(140deg,#13252c 0%,#1e5361 68%,#397d88 100%); color:#f9f7ef; border-radius:30px; box-shadow:var(--shadow); overflow:hidden; position:relative; }
+    .hero:after { content:""; position:absolute; width:370px; height:370px; border:70px solid rgba(255,255,255,.055); border-radius:50%; right:-135px; top:-190px; }
+    .eyebrow { display:block; text-transform:uppercase; letter-spacing:.16em; font-size:.75rem; font-weight:800; color:#a8d9df; margin-bottom:12px; overflow-wrap:anywhere; }
+    h1 { font-size:clamp(2.5rem,6vw,5.4rem); letter-spacing:-.055em; line-height:.94; max-width:900px; margin:0 0 20px; }
+    .hero .lead { font-size:clamp(1.05rem,2vw,1.32rem); line-height:1.55; max-width:850px; color:#dcebed; overflow-wrap:anywhere; }
+    .verdict { margin-top:28px; display:flex; gap:14px; align-items:flex-start; max-width:900px; } .verdict b { color:#fff; }
+    .verdict i { flex:0 0 10px; height:74px; border-radius:10px; background:#f6bd60; }
+    .chips { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; } .chip { background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); border-radius:999px; padding:7px 11px; font-size:.78rem; overflow-wrap:anywhere; max-width:100%; }
+    nav { display:flex; flex-wrap:wrap; gap:8px; padding:18px 4px 8px; position:sticky; top:0; z-index:5; backdrop-filter:blur(12px); } nav a { text-decoration:none; background:rgba(255,253,248,.88); border:1px solid var(--line); border-radius:999px; padding:8px 12px; font-size:.82rem; color:var(--ink); }
+    .kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:13px; margin:18px 0; } .kpi { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; box-shadow:0 8px 24px rgba(35,41,43,.05); } .kpi strong { display:block; font-size:2rem; letter-spacing:-.04em; } .kpi span { color:var(--muted); font-size:.86rem; line-height:1.35; }
+    section.block { background:rgba(255,253,248,.82); border:1px solid var(--line); border-radius:24px; padding:30px; margin-top:18px; } .section-head { display:flex; justify-content:space-between; gap:24px; align-items:end; margin-bottom:22px; } .section-head h2 { font-size:clamp(1.8rem,3.7vw,3rem); letter-spacing:-.04em; margin:0; } .section-head p { max-width:540px; color:var(--muted); line-height:1.55; margin:0; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:15px; } .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; } .card h3 { margin:8px 0 10px; font-size:1.2rem; } .card p { color:var(--muted); line-height:1.58; } .big { font-size:2.8rem; letter-spacing:-.05em; font-weight:800; display:block; }
+    .outcome { border-top:4px solid var(--green); } .caution { border-top:4px solid var(--amber); }
+    .score-grid { display:grid; grid-template-columns:1fr 1fr; gap:13px; } .score-card { background:var(--card); border:1px solid var(--line); border-radius:18px; padding:20px; } .score-card h3 { margin:10px 0; } .score-card p { line-height:1.55; color:var(--muted); } .score-card .interpretation { color:var(--ink); border-top:1px solid var(--line); padding-top:12px; }
+    .signal { display:inline-block; border-radius:999px; padding:5px 9px; text-transform:uppercase; letter-spacing:.08em; font-size:.67rem; font-weight:850; } .signal.pass { background:#dbeee6; color:var(--green); } .signal.qualified-pass,.signal.mixed { background:#f5e8c9; color:#80530f; } .signal.regression { background:#f1dad6; color:var(--red); }
+    .bars { display:grid; gap:15px; } .bar-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline; margin-bottom:6px; } .bar-head small { color:var(--muted); } .track { height:18px; background:#e6e0d6; border-radius:999px; overflow:hidden; } .track i { height:100%; display:block; border-radius:inherit; background:linear-gradient(90deg,var(--blue),var(--blue2)); transition:width .7s ease; }
+    .formula { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:15px; } .formula div { background:#eef5f5; border-radius:12px; padding:12px; } .formula b,.formula span { display:block; } .formula span { color:var(--muted); font-size:.76rem; margin-top:4px; }
+    .recommendation { background:#13252c; color:#fff; border-radius:18px; padding:22px; margin-top:15px; } .recommendation p { color:#d7e5e7; line-height:1.6; }
+    .stat-row { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:14px 0; } .stat-row div { background:#f1eee7; padding:13px; border-radius:12px; } .stat-row b,.stat-row small { display:block; } .stat-row small { color:var(--muted); margin-top:3px; }
+    table { width:100%; border-collapse:collapse; font-size:.88rem; } th { text-align:left; color:var(--muted); font-size:.7rem; text-transform:uppercase; letter-spacing:.08em; } td,th { padding:11px 9px; border-bottom:1px solid var(--line); vertical-align:middle; } td small { display:block; color:var(--muted); margin-top:3px; } td.num { text-align:right; font-variant-numeric:tabular-nums; } .mini-bar { display:inline-block; vertical-align:middle; width:120px; height:8px; background:#e6e0d6; border-radius:99px; overflow:hidden; margin-right:8px; } .mini-bar i { display:block; height:100%; background:var(--blue); } .cost-label { white-space:nowrap; }
+    .ci { font-size:.72rem; font-weight:800; text-transform:uppercase; } .ci.success { color:var(--green); } .ci.failure { color:var(--red); }
+    .timeline { list-style:none; padding:0; margin:0; } .timeline li { display:grid; grid-template-columns:150px 18px 1fr; gap:12px; position:relative; padding:0 0 22px; } .timeline li:before { content:""; grid-column:2; width:10px; height:10px; background:var(--blue); border:4px solid #d8edf0; border-radius:50%; z-index:2; } .timeline li:after { content:""; position:absolute; left:167px; top:15px; bottom:-1px; width:2px; background:#c7d9db; } .timeline li:last-child:after { display:none; } .timeline time { text-align:right; color:var(--muted); font-size:.78rem; padding-top:2px; } .timeline strong { display:block; } .timeline p { margin:5px 0 0; color:var(--muted); line-height:1.5; }
+    .delta { font-weight:800; } .good-text { color:var(--green); } .warn-text { color:var(--red); }
+    ul.clean { padding-left:20px; } ul.clean li { margin:9px 0; line-height:1.55; color:var(--muted); }
+    footer { color:var(--muted); font-size:.8rem; line-height:1.6; padding:28px 6px 0; }
+    @media(max-width:850px) { .kpis,.grid2,.grid3,.score-grid { grid-template-columns:1fr 1fr; } .section-head { display:block; } .section-head p { margin-top:8px; } .stat-row { grid-template-columns:1fr 1fr; } }
+    @media(max-width:600px) { main { padding:12px 10px 38px; overflow:hidden; } .hero,section.block { padding:21px; border-radius:20px; } .hero h1 { font-size:2.25rem; } .hero .lead { font-size:1rem; } .kpis,.grid2,.grid3,.score-grid,.formula { grid-template-columns:1fr; } nav { position:static; } .timeline li { grid-template-columns:1fr 18px; } .timeline time { grid-column:1; text-align:left; } .timeline li:before { grid-column:2; grid-row:1; } .timeline li div { grid-column:1/-1; } .timeline li:after { display:none; } table { min-width:690px; } .table-wrap { overflow:auto; max-width:100%; } }
+  </style>
+</head>
+<body>
+<main>
+  <header class="hero">
+    <span class="eyebrow">Codex orchestration investigation · 5 September 2026</span>
+    <h1>Safer and more resilient. Still expensive.</h1>
+    <p class="lead">The PR #98 workflow survived an urgent production repair, live HTML drift, a Linux-only CI defect, repeated exact reviews, and a planning handoff. The strongest improvements were resource admission and agent-slot recovery. Astra/medium did not reduce root token volume enough to offset its 2.5× price.</p>
+    <div class="verdict"><i></i><p><b>Verdict:</b> keep the new capacity, memory, heavy-lease, and bounded-publication rules. Tighten ledger coalescing and end specialist reuse when the role changes materially. This run does not establish enough incremental orchestration value to make Astra/medium the cost default.</p></div>
+    <div class="chips"><span class="chip">Run 01a06e72-0c2f-76a3-8d2b-d48f9131a1d5</span><span class="chip">Frozen at 538c30c</span><span class="chip">16h 34m wall · 11h 11m effective</span><span class="chip">Root: gpt-6-astra / medium</span></div>
+  </header>
+
+  <nav><a href="#outcome">Outcome</a><a href="#workflow">PR #98 scorecard</a><a href="#cost">Astra cost</a><a href="#agents">Agent portfolio</a><a href="#timeline">Timeline</a><a href="#limits">Limits</a></nav>
+
+  <div class="kpis">
+    <article class="kpi"><strong>2 × 16/16</strong><span>natural production workflow cycles succeeded</span></article>
+    <article class="kpi"><strong>3 / 3</strong><span>CL answers stored and verified on Kicktipp</span></article>
+    <article class="kpi"><strong>11</strong><span>task-agent threads · zero slot-limit errors</span></article>
+    <article class="kpi"><strong>$219.25</strong><span>Astra root API list-price equivalent</span></article>
+  </div>
+
+  <section class="block" id="outcome">
+    <div class="section-head"><h2>The session restored production.</h2><p>The delivery result matters when judging control-plane overhead: this was a long, adversarial incident response rather than a routine implementation sample.</p></div>
+    <div class="grid3">
+      <article class="card outcome"><span class="big">32 / 32</span><h3>Natural jobs passed</h3><p>Two independently observed scheduled runs completed every job after the history repair. The second cycle proved continuity after later CL changes.</p></article>
+      <article class="card outcome"><span class="big">1 / 4 / 1</span><h3>CL selections verified</h3><p>One successful POST applied all three generated answers. A read-only recovery pass confirmed Firestore lineage and the exact Kicktipp selections.</p></article>
+      <article class="card outcome"><span class="big">18</span><h3>Scoped commits</h3><p>73 net files changed, with 7,479 insertions and 347 deletions. The final source-session CI passed all 12 jobs.</p></article>
+    </div>
+    <div class="grid2" style="margin-top:15px">
+      <article class="card caution"><h3>Fail-closed behavior worked</h3><p>The first paid attempt stopped before model, Firestore, or Kicktipp mutation when the live form action changed. Later, an uncertain redirect response was reconciled through reads before any retry.</p></article>
+      <article class="card caution"><h3>Live evidence still outran the specification</h3><p>Three release corrections were needed for a changed endpoint, library-specific base resolution, and Linux URI semantics. Strong review found many defects, but test fixtures did not capture all production and cross-platform behavior before the first dispatch.</p></article>
+    </div>
+  </section>
+
+  <section class="block" id="workflow">
+    <div class="section-head"><h2>PR #98 mostly worked.</h2><p>Four changes passed directly, two helped with qualifications, one exposed over-reuse, and the transition-only ledger rule regressed.</p></div>
+    <div class="stat-row">
+      <div><b>+27.7%</b><small>average active concurrency</small></div>
+      <div><b>+198%</b><small>share of active time at 2+ agents</small></div>
+      <div><b>20</b><small>heavy admissions below old floor</small></div>
+      <div><b>26</b><small>resource samples denied by current gates</small></div>
+    </div>
+    <div class="score-grid">
+        <article class="score-card">
+          <div><span class="signal pass">Pass</span><h3>Eight resident task-agent slots and V2 recycling</h3></div>
+          <p>Eleven distinct task-agent threads ran with no thread-limit error. Active concurrency averaged 1.432 and reached four; the predecessor averaged 1.121 and reached three.</p>
+          <p class="interpretation">The larger resident pool and automatic recycling removed the previous slot deadlock. The different runnable graph prevents attributing all concurrency gain to the capacity change.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal pass">Pass</span><h3>1.10 GiB hard memory floor; 1.50 GiB warning</h3></div>
+          <p>Twenty heavy admissions occurred below the old 1.50 GiB floor, while 26 resource samples were denied under the current rules.</p>
+          <p class="interpretation">The new threshold admitted useful work under warnings while still failing closed below the hard floor. This is the clearest direct success from PR #98.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal pass">Pass</span><h3>One heavy-operation family</h3></div>
+          <p>The 129 transcript-classified dotnet command families had a maximum overlap of one.</p>
+          <p class="interpretation">The machine discipline held throughout repeated build and test cycles.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal mixed">Mixed</span><h3>Retention reason, release trigger, V2 follow-up lifecycle</h3></div>
+          <p>Only 11 threads handled 106 turns, compared with 27 threads and 70 turns in the predecessor. One reused Sol/high completion thread alone consumed 134.0M tokens and about $69.05.</p>
+          <p class="interpretation">Reuse solved slot churn and preserved live-debugging context, but the completion role grew across implementation, CI diagnosis, production dispatch, and reconciliation. Add a role-change or context-cost release trigger.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal mixed">Mixed</span><h3>Bounded Sol/high review downgrade</h3></div>
+          <p>Sol/high was used for bounded prompt and completion work, while independent specification reviews remained Sol/xhigh. Review agents returned 8 finding verdicts and 5 accept-with-fixes verdicts before 11 clean acceptances.</p>
+          <p class="interpretation">The allocation rule preserved strong independent review, but the long-lived completion thread was no longer a bounded deterministic role.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal regression">Regression</span><h3>Transition-only orchestration ledger</h3></div>
+          <p>The root patched state.md 207 times, or 18.51 times per effective hour, versus 10.19 in the predecessor.</p>
+          <p class="interpretation">Urgent re-freezes created real transitions, but the ledger still became a high-frequency operational log. Coalesce resource and gate updates more aggressively.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal qualified-pass">Qualified pass</span><h3>Concise execution-start marker</h3></div>
+          <p>Four markers clearly announced production recovery, two live-drift correction waves, and maintenance work.</p>
+          <p class="interpretation">The markers were useful milestone boundaries. The workflow text calls for the marker before the first implementation writer, so repeated use should be explicitly allowed only for material re-freezes.</p>
+        </article>
+
+        <article class="score-card">
+          <div><span class="signal pass">Pass</span><h3>Bounded Git and GitHub authorization</h3></div>
+          <p>Eighteen scoped commits reached canonical main and nine source-session CI runs completed without a push-approval pause; eight CI runs succeeded and the one failed run was corrected at a later exact SHA.</p>
+          <p class="interpretation">Publication no longer interrupted the recovery loop. Two production-write approval waits remained because paid generation and Kicktipp mutation are outside that Git/GitHub authority envelope.</p>
+        </article></div>
+    <div class="recommendation"><h3>Next workflow edit</h3><p>Keep the PR #98 changes. Add a release trigger when a retained agent changes role or crosses a recorded context-cost threshold; the root should assign a fresh bounded thread for the next role. Make no-change resource samples ledger-silent, and clarify that another <code>EXECUTION START</code> marker is permitted only after a material re-freeze. Record standing production authority explicitly so a safe pre-mutation failure does not recreate an owner gate.</p></div>
+  </section>
+
+  <section class="block" id="cost">
+    <div class="section-head"><h2>Astra cost 2.5× for the same tokens.</h2><p>The cleanest comparison applies OpenAI's current short-context rates to the observed root token mix. All responses stayed below the long-context pricing threshold.</p></div>
+    <div class="grid2">
+      <article class="card">
+        <div id="cost-bars" class="bars"></div>
+        <div class="formula">
+          <div><b>$186.69</b><span>186.69M cached input × $1/M</span></div>
+          <div><b>$17.45</b><span>1.75M uncached input × $10/M</span></div>
+          <div><b>$15.10</b><span>0.30M output × $50/M</span></div>
+        </div>
+      </article>
+      <article class="card">
+        <span class="signal regression">Cost premium</span><span class="big">+$131.55</span>
+        <h3>for the observed root token mix</h3>
+        <p>Astra and Sol prices differ by exactly 2.5× in every applicable token class. Rates per million input / cached input / output tokens are $10 / $1 / $50 for Astra and $4 / $0.40 / $20 for Sol. The 99.07% cache hit rate helped both models, but cached input still dominated the root bill.</p>
+        <div class="stat-row">
+          <div><b>+6.24%</b><small>tokens vs prior Sol root</small></div>
+          <div><b>+156.9%</b><small>cost vs prior Sol root</small></div>
+          <div><b>$19.60</b><small>Astra / effective hour</small></div>
+          <div><b>$8.21</b><small>prior Sol / effective hour</small></div>
+        </div>
+      </article>
+    </div>
+    <div class="grid2" style="margin-top:15px">
+      <article class="card"><h3>Whole priced portfolio</h3><span class="big">$384.08</span><p>Root plus priced task agents. The task agents account for $164.83. Repricing only the root to Sol lowers the portfolio to $252.53; Astra's premium is 34.2% of the observed portfolio.</p></article>
+      <article class="card"><h3>Decision</h3><p>The session achieved a difficult recovery, but it is not a matched quality experiment. Root tokens rose 6.24% from the prior Sol/xhigh session, so no token-efficiency signal offsets the list-price premium. Keep Sol/xhigh as the cost baseline and reserve Astra/medium for incident response or decisions where a matched evaluation shows enough quality or latency gain to justify roughly $131.55 at this run size.</p><p><a href="https://developers.openai.com/api/docs/pricing">Official OpenAI pricing used in this report</a></p></article>
+    </div>
+  </section>
+
+  <section class="block" id="agents">
+    <div class="section-head"><h2>Reuse cut thread churn and grew contexts.</h2><p>The session used fewer logical threads than the predecessor but many more turns per thread. The completion specialist became the clearest concentration risk.</p></div>
+    <div class="stat-row">
+      <div><b>11</b><small>threads · predecessor 27</small></div>
+      <div><b>106</b><small>turns · predecessor 70</small></div>
+      <div><b>9.64</b><small>turns per thread</small></div>
+      <div><b>36.5%</b><small>root share of priced tokens</small></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Agent</th><th class="num">Responses</th><th class="num">Tokens</th><th>API equivalent</th></tr></thead><tbody>
+        <tr>
+          <td><strong>/root</strong><small>gpt-6-astra · medium</small></td>
+          <td class="num">1,394</td>
+          <td class="num">188.7M</td>
+          <td><div class="mini-bar"><i style="width:100.00%"></i></div><span class="cost-label">$219.25</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/urgent_architecture</strong><small>gpt-5.6-sol · xhigh</small></td>
+          <td class="num">291</td>
+          <td class="num">35.6M</td>
+          <td><div class="mini-bar"><i style="width:11.94%"></i></div><span class="cost-label">$26.17</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/p1_inventory</strong><small>gpt-5.6-terra · medium</small></td>
+          <td class="num">12</td>
+          <td class="num">0.8M</td>
+          <td><div class="mini-bar"><i style="width:0.21%"></i></div><span class="cost-label">$0.46</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/restoration_spec_review</strong><small>gpt-5.6-sol · xhigh</small></td>
+          <td class="num">139</td>
+          <td class="num">17.1M</td>
+          <td><div class="mini-bar"><i style="width:5.29%"></i></div><span class="cost-label">$11.59</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/source_repair</strong><small>gpt-5.6-terra · high</small></td>
+          <td class="num">437</td>
+          <td class="num">54.5M</td>
+          <td><div class="mini-bar"><i style="width:7.21%"></i></div><span class="cost-label">$15.81</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/cl_spec_review</strong><small>gpt-5.6-sol · xhigh</small></td>
+          <td class="num">357</td>
+          <td class="num">43.6M</td>
+          <td><div class="mini-bar"><i style="width:13.93%"></i></div><span class="cost-label">$30.55</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/cl_prompt_preflight</strong><small>gpt-5.6-luna · low</small></td>
+          <td class="num">104</td>
+          <td class="num">9.0M</td>
+          <td><div class="mini-bar"><i style="width:0.12%"></i></div><span class="cost-label">$0.25</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/cl_live_preflight</strong><small>gpt-5.6-terra · high</small></td>
+          <td class="num">29</td>
+          <td class="num">2.4M</td>
+          <td><div class="mini-bar"><i style="width:0.40%"></i></div><span class="cost-label">$0.88</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/cl_prompt_draft</strong><small>gpt-5.6-sol · high</small></td>
+          <td class="num">30</td>
+          <td class="num">2.7M</td>
+          <td><div class="mini-bar"><i style="width:0.81%"></i></div><span class="cost-label">$1.78</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/cl_bonus_implementation</strong><small>gpt-5.6-terra · high</small></td>
+          <td class="num">54</td>
+          <td class="num">8.8M</td>
+          <td><div class="mini-bar"><i style="width:1.16%"></i></div><span class="cost-label">$2.55</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/cl_completion</strong><small>gpt-5.6-sol · high</small></td>
+          <td class="num">964</td>
+          <td class="num">134.0M</td>
+          <td><div class="mini-bar"><i style="width:31.49%"></i></div><span class="cost-label">$69.05</span></td>
+        </tr>
+
+        <tr>
+          <td><strong>/root/natural_watch</strong><small>gpt-5.6-terra · medium</small></td>
+          <td class="num">200</td>
+          <td class="num">19.5M</td>
+          <td><div class="mini-bar"><i style="width:2.62%"></i></div><span class="cost-label">$5.75</span></td>
+        </tr></tbody></table></div>
+    <div class="grid2" style="margin-top:15px">
+      <article class="card"><h3>Coordination got quieter</h3><p>The root issued 404 event waits, 36.12 per effective hour, down 22.7% from the predecessor. Eleven spawns plus 97 follow-ups show the V2 lifecycle was actively reused.</p></article>
+      <article class="card"><h3>The ledger got louder</h3><p>207 state patches produced 18.51 writes per effective hour, up 81.6%. The count is too high for a compact recovery ledger even after allowing for live re-freezes.</p></article>
+    </div>
+  </section>
+
+  <section class="block" id="timeline">
+    <div class="section-head"><h2>Sixteen and a half hours, with 5h 23m paused.</h2><p>The pause-adjusted 11h 11m denominator removes two production-approval waits and the owner's deliberate break before planning resumed.</p></div>
+    <ol class="timeline">
+        <li><time>00:09 CEST</time><div><strong>Urgent recovery begins</strong><p>The session reprioritizes broken scheduled workflows and the missing Champions League answers.</p></div></li>
+
+        <li><time>01:35 CEST</time><div><strong>Official DFB dates frozen</strong><p>The source repair and independent review restore the two missing round-one dates.</p></div></li>
+
+        <li><time>03:23 CEST</time><div><strong>First natural 16/16 cycle</strong><p>Scheduled run 33939145345 succeeds across all jobs using the repaired history context.</p></div></li>
+
+        <li><time>05:24 CEST</time><div><strong>Strict CL route published</strong><p>The initial reviewed bonus implementation reaches 0838fce and green CI.</p></div></li>
+
+        <li><time>05:42–09:39 CEST</time><div><strong>Production approval wait</strong><p>The session pauses 3h56m before the first paid production attempt.</p></div></li>
+
+        <li><time>09:43 CEST</time><div><strong>First attempt fails safely</strong><p>Run 33953252166 stops on a changed form action before model generation, Firestore writes, or answer submission.</p></div></li>
+
+        <li><time>10:42–11:57 CEST</time><div><strong>Live drift corrected in three exact releases</strong><p>Form-action changes, AngleSharp base behavior, and Linux rooted-path URI handling require successive reviewed fixes.</p></div></li>
+
+        <li><time>11:59 CEST</time><div><strong>Second natural 16/16 cycle</strong><p>Scheduled run 33957672697 confirms ongoing production continuity.</p></div></li>
+
+        <li><time>12:34 CEST</time><div><strong>Standing execution authority granted</strong><p>The owner clarifies that authorization continues until the three CL answers are delivered.</p></div></li>
+
+        <li><time>12:38–12:44 CEST</time><div><strong>All three answers delivered</strong><p>Run 33961092255 generates and stores three answers for $0.015816. Read-only recovery proves that the single POST applied all three Kicktipp selections.</p></div></li>
+
+        <li><time>14:07 CEST</time><div><strong>Maintenance controls published</strong><p>Warnings, the manual refresh recipe, issue #101, and a weekly reminder close the urgent implementation wave.</p></div></li>
+
+        <li><time>16:44 CEST</time><div><strong>Planning boundary closes</strong><p>P1-04 and P1-05 are grilled, independently reviewed, documented, and intentionally left for a later implementation session.</p></div></li></ol>
+  </section>
+
+  <section class="block" id="ci">
+    <div class="section-head"><h2>Nine source-session CI runs.</h2><p>Eight passed. The lone Linux failure at c1c44f was diagnosed and corrected at 497e1a5 before the successful production run.</p></div>
+    <div class="table-wrap"><table><thead><tr><th>SHA</th><th>Title</th><th>Result</th></tr></thead><tbody>
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33930255667">f4fb722</a></td><td>fix: complete frozen DFB source contract</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33932552380">1ca8dbc</a></td><td>fix: fail closed for unsupported history dates</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33940923340">4761464</a></td><td>Preserve ordinary Schadensfresse bonus routing</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33941968888">0838fce</a></td><td>Accept canonical CL submission state controls</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33956152942">b5deb90</a></td><td>fix: refresh strict CL bonus action route</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33958378108">c1c44f1</a></td><td>fix: bind CL bonus post to selected action</td><td><span class="ci failure">failure</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33959525126">497e1a5</a></td><td>fix: resolve CL form actions portably</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33965211808">72c2f28</a></td><td>Document history snapshot validator gate</td><td><span class="ci success">success</span></td></tr>
+
+        <tr><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/33972378750">538c30c</a></td><td>Document roster fallback correction route</td><td><span class="ci success">success</span></td></tr></tbody></table></div>
+  </section>
+
+  <section class="block" id="limits">
+    <div class="section-head"><h2>Read the comparison within its limits.</h2><p>This report freezes the root transcript at its terminal response and the repository at its final source-session commit.</p></div>
+    <ul class="clean"><li>The Astra-versus-Sol counterfactual reprices the exact same observed token mix. It does not estimate how Sol/xhigh would have changed decisions, latency, retries, or token consumption.</li><li>The comparison session had a different ready graph and objective. Concurrency and delivery differences are evidence about this run, not a controlled experiment for PR #98.</li><li>API list-price equivalents are a common cost unit; Codex subscription quota and billing are separate and cannot be reconstructed from transcript token counters.</li><li>Tool timing is transcript timing around tool calls. It measures orchestration-visible occupancy rather than CPU time.</li><li>The final P1-04/P1-05 commits document plans only. Those tasks were not implemented in this session.</li></ul>
+    <div class="grid3" style="margin-top:18px">
+      <article class="card"><h3>Frozen source</h3><p><a href="https://github.com/ehonda/KicktippAi/tree/538c30c53870faa608cf0d6e6a9dbf20f8d833d3">Repository at 538c30c</a><br>Cutoff 2026-09-05T14:44:05.022000Z</p></article>
+      <article class="card"><h3>Comparison</h3><p><a href="../p1-orchestration-follow-up/">Previous Sol/xhigh orchestration report</a><br>Different task graph; used only as an observed baseline.</p></article>
+      <article class="card"><h3>Data</h3><p>Normalized JSON and CSV evidence lives beside the report source under <code>docs/codex/urgent-production-orchestration-investigation/data</code>.</p></article>
+    </div>
+  </section>
+
+  <footer>Generated from frozen local Codex transcripts, exact Git history, authenticated GitHub Actions metadata, and OpenAI's pricing page. API list-price equivalents are analytical comparisons; they are not a reconstruction of subscription billing.</footer>
+</main>
+<script>
+  const costData=[{"label":"Observed Astra / medium","value":219.249134,"note":"this session"},{"label":"Same tokens at Sol rates","value":87.699654,"note":"price-only counterfactual"},{"label":"Prior Sol / xhigh root","value":85.332613,"note":"different session"}]; const maxCost=Math.max(...costData.map(d=>d.value));
+  document.querySelector('#cost-bars').innerHTML=costData.map(d=>`<div><div class="bar-head"><span>${d.label} <small>· ${d.note}</small></span><strong>${d.value.toLocaleString('en-US',{style:'currency',currency:'USD'})}</strong></div><div class="track"><i style="width:${(d.value/maxCost*100).toFixed(2)}%"></i></div></div>`).join('');
+</script>
+</body>
+</html>

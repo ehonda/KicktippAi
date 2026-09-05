@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "production_outcome": {
+    "natural_workflow_runs": [33939145345, 33957672697],
+    "successful_jobs_per_run": 16,
+    "champions_league_attempts": [33953252166, 33961092255],
+    "champions_league_answers_verified": 3,
+    "champions_league_generation_cost_usd": 0.015816,
+    "maintenance_issue": 101,
+    "maintenance_schedule": "Monday 07:17 UTC"
+  },
+  "workflow_scorecard": [
+    {
+      "change": "Eight resident task-agent slots and V2 recycling",
+      "verdict": "pass",
+      "evidence": "Eleven distinct task-agent threads ran with no thread-limit error. Active concurrency averaged 1.432 and reached four; the predecessor averaged 1.121 and reached three.",
+      "interpretation": "The larger resident pool and automatic recycling removed the previous slot deadlock. The different runnable graph prevents attributing all concurrency gain to the capacity change."
+    },
+    {
+      "change": "1.10 GiB hard memory floor; 1.50 GiB warning",
+      "verdict": "pass",
+      "evidence": "Twenty heavy admissions occurred below the old 1.50 GiB floor, while 26 resource samples were denied under the current rules.",
+      "interpretation": "The new threshold admitted useful work under warnings while still failing closed below the hard floor. This is the clearest direct success from PR #98."
+    },
+    {
+      "change": "One heavy-operation family",
+      "verdict": "pass",
+      "evidence": "The 129 transcript-classified dotnet command families had a maximum overlap of one.",
+      "interpretation": "The machine discipline held throughout repeated build and test cycles."
+    },
+    {
+      "change": "Retention reason, release trigger, V2 follow-up lifecycle",
+      "verdict": "mixed",
+      "evidence": "Only 11 threads handled 106 turns, compared with 27 threads and 70 turns in the predecessor. One reused Sol/high completion thread alone consumed 134.0M tokens and about $69.05.",
+      "interpretation": "Reuse solved slot churn and preserved live-debugging context, but the completion role grew across implementation, CI diagnosis, production dispatch, and reconciliation. Add a role-change or context-cost release trigger."
+    },
+    {
+      "change": "Bounded Sol/high review downgrade",
+      "verdict": "mixed",
+      "evidence": "Sol/high was used for bounded prompt and completion work, while independent specification reviews remained Sol/xhigh. Review agents returned 8 finding verdicts and 5 accept-with-fixes verdicts before 11 clean acceptances.",
+      "interpretation": "The allocation rule preserved strong independent review, but the long-lived completion thread was no longer a bounded deterministic role."
+    },
+    {
+      "change": "Transition-only orchestration ledger",
+      "verdict": "regression",
+      "evidence": "The root patched state.md 207 times, or 18.51 times per effective hour, versus 10.19 in the predecessor.",
+      "interpretation": "Urgent re-freezes created real transitions, but the ledger still became a high-frequency operational log. Coalesce resource and gate updates more aggressively."
+    },
+    {
+      "change": "Concise execution-start marker",
+      "verdict": "qualified pass",
+      "evidence": "Four markers clearly announced production recovery, two live-drift correction waves, and maintenance work.",
+      "interpretation": "The markers were useful milestone boundaries. The workflow text calls for the marker before the first implementation writer, so repeated use should be explicitly allowed only for material re-freezes."
+    },
+    {
+      "change": "Bounded Git and GitHub authorization",
+      "verdict": "pass",
+      "evidence": "Eighteen scoped commits reached canonical main and nine source-session CI runs completed without a push-approval pause; eight CI runs succeeded and the one failed run was corrected at a later exact SHA.",
+      "interpretation": "Publication no longer interrupted the recovery loop. Two production-write approval waits remained because paid generation and Kicktipp mutation are outside that Git/GitHub authority envelope."
+    }
+  ],
+  "timeline": [
+    {
+      "time": "00:09 CEST",
+      "title": "Urgent recovery begins",
+      "detail": "The session reprioritizes broken scheduled workflows and the missing Champions League answers."
+    },
+    {
+      "time": "01:35 CEST",
+      "title": "Official DFB dates frozen",
+      "detail": "The source repair and independent review restore the two missing round-one dates."
+    },
+    {
+      "time": "03:23 CEST",
+      "title": "First natural 16/16 cycle",
+      "detail": "Scheduled run 33939145345 succeeds across all jobs using the repaired history context."
+    },
+    {
+      "time": "05:24 CEST",
+      "title": "Strict CL route published",
+      "detail": "The initial reviewed bonus implementation reaches 0838fce and green CI."
+    },
+    {
+      "time": "05:42–09:39 CEST",
+      "title": "Production approval wait",
+      "detail": "The session pauses 3h56m before the first paid production attempt."
+    },
+    {
+      "time": "09:43 CEST",
+      "title": "First attempt fails safely",
+      "detail": "Run 33953252166 stops on a changed form action before model generation, Firestore writes, or answer submission."
+    },
+    {
+      "time": "10:42–11:57 CEST",
+      "title": "Live drift corrected in three exact releases",
+      "detail": "Form-action changes, AngleSharp base behavior, and Linux rooted-path URI handling require successive reviewed fixes."
+    },
+    {
+      "time": "11:59 CEST",
+      "title": "Second natural 16/16 cycle",
+      "detail": "Scheduled run 33957672697 confirms ongoing production continuity."
+    },
+    {
+      "time": "12:34 CEST",
+      "title": "Standing execution authority granted",
+      "detail": "The owner clarifies that authorization continues until the three CL answers are delivered."
+    },
+    {
+      "time": "12:38–12:44 CEST",
+      "title": "All three answers delivered",
+      "detail": "Run 33961092255 generates and stores three answers for $0.015816. Read-only recovery proves that the single POST applied all three Kicktipp selections."
+    },
+    {
+      "time": "14:07 CEST",
+      "title": "Maintenance controls published",
+      "detail": "Warnings, the manual refresh recipe, issue #101, and a weekly reminder close the urgent implementation wave."
+    },
+    {
+      "time": "16:44 CEST",
+      "title": "Planning boundary closes",
+      "detail": "P1-04 and P1-05 are grilled, independently reviewed, documented, and intentionally left for a later implementation session."
+    }
+  ],
+  "limitations": [
+    "The Astra-versus-Sol counterfactual reprices the exact same observed token mix. It does not estimate how Sol/xhigh would have changed decisions, latency, retries, or token consumption.",
+    "The comparison session had a different ready graph and objective. Concurrency and delivery differences are evidence about this run, not a controlled experiment for PR #98.",
+    "API list-price equivalents are a common cost unit; Codex subscription quota and billing are separate and cannot be reconstructed from transcript token counters.",
+    "Tool timing is transcript timing around tool calls. It measures orchestration-visible occupancy rather than CPU time.",
+    "The final P1-04/P1-05 commits document plans only. Those tasks were not implemented in this session."
+  ]
+}

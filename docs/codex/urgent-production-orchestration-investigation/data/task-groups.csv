@@ -1,0 +1,3 @@
+task_group,completed_task_files,task_keys,observed_agent_start,observed_agent_start_local,ledger_completed_at,ledger_completed_at_local,observed_finish,observed_finish_local,elapsed_seconds,agent_worker_seconds,agent_turns,agent_threads,agent_paths,commits_touching_task_files,completion_commits
+P1-14,1,p1-14-history-source-continuity,,,2026-09-05T11:40:50Z,2026-09-05T13:40:50+02:00,2026-09-05T11:40:50Z,2026-09-05T13:40:50+02:00,,0,0,0,,5,045e1a0
+P1-15,1,p1-15-schadensfresse-champions-league-bonus,,,2026-09-05T11:40:50Z,2026-09-05T13:40:50+02:00,2026-09-05T11:40:50Z,2026-09-05T13:40:50+02:00,,0,0,0,,8,045e1a0

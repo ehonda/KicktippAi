@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "session_boundary": {
+    "run_id": "01a06e72-0c2f-76a3-8d2b-d48f9131a1d5",
+    "base_commit": "55491b2ec642666938eb2517eaa150cb3695d048",
+    "final_commit": "538c30c53870faa608cf0d6e6a9dbf20f8d833d3",
+    "event_cutoff_at": "2026-09-05T14:44:05.022000Z",
+    "wall_seconds": 59655.826,
+    "owner_wait_seconds": 19389.456,
+    "effective_seconds": 40266.37,
+    "owner_waits": [
+      {
+        "started_at": "2026-09-05T03:42:24.892Z",
+        "ended_at": "2026-09-05T07:39:03.283Z",
+        "reason": "direct production-dispatch approval"
+      },
+      {
+        "started_at": "2026-09-05T10:11:47.914Z",
+        "ended_at": "2026-09-05T10:34:10.309Z",
+        "reason": "standing retry authority after a safe pre-generation failure"
+      },
+      {
+        "started_at": "2026-09-05T12:21:57.303Z",
+        "ended_at": "2026-09-05T13:26:05.973Z",
+        "reason": "owner pause before resuming P1 prioritization and grilling"
+      }
+    ]
+  },
+  "delivery": {
+    "commits": 18,
+    "net_files": 73,
+    "net_insertions": 7479,
+    "net_deletions": 347,
+    "git_shortstat": "73 files changed, 7479 insertions(+), 347 deletions(-)",
+    "completed_task_files": 2
+  },
+  "cost": {
+    "pricing_as_of": "2026-09-05",
+    "root_astra_medium_usd": 219.249134,
+    "same_usage_sol_xhigh_usd": 87.699654,
+    "astra_increment_usd": 131.54948,
+    "astra_multiple_same_tokens": 2.5,
+    "previous_sol_xhigh_root_usd": 85.332613,
+    "actual_session_root_cost_ratio": 2.5693,
+    "current_root_total_tokens": 188739519,
+    "previous_root_total_tokens": 177658918,
+    "root_token_change": 0.0624,
+    "current_root_cost_per_effective_hour": 19.6019,
+    "same_usage_sol_cost_per_effective_hour": 7.8408,
+    "previous_sol_cost_per_effective_hour": 8.2071,
+    "root_cache_hit_share": 0.99074,
+    "priced_agent_portfolio_usd": 384.082569,
+    "priced_portfolio_if_root_sol_usd": 252.533089,
+    "astra_increment_share_of_priced_portfolio": 0.3425,
+    "scope_note": "API list-price equivalent; reasoning effort changes token use, not published per-token rates; Codex subscription quota is separate."
+  },
+  "workflow": {
+    "subagent_threads": 11,
+    "subagent_turns": 106,
+    "turns_per_thread": 9.636,
+    "followup_calls": 97,
+    "spawn_calls": 11,
+    "send_message_calls": 107,
+    "wait_calls": 404,
+    "waits_per_effective_hour": 36.12,
+    "previous_waits_per_effective_hour": 46.74,
+    "thread_limit_errors": 0,
+    "execution_start_markers": 4,
+    "execution_markers": [
+      {
+        "timestamp": "2026-09-04T22:40:46.409Z",
+        "text": "EXECUTION START — production recovery; ready: exact DFB date repair; deferred: proxy implementation and CL bonus await their specification reviews; reminder tooling follows both urgent fixes."
+      },
+      {
+        "timestamp": "2026-09-05T08:05:25.905Z",
+        "text": "The specification is accepted after one evidence-wording correction: verification stops at the first missing stored answer, so that result must not be described as a three-row audit. EXECUTION START — CL action correction; ready: exact endpoint fix and regression tests; deferred: production retry approval, maintenance follow-ups and remaining-P1 grilling."
+      },
+      {
+        "timestamp": "2026-09-05T09:04:22.062Z",
+        "text": "The design is accepted after two small clarifications: how selected actions map into loopback tests, and a safe diagnostic that reports only which approved action was observed. EXECUTION START — stable CL action selection; ready: bounded implementation and tests; deferred: production retry, maintenance and other-P1 grilling."
+      },
+      {
+        "timestamp": "2026-09-05T11:14:22.604Z",
+        "text": "EXECUTION START — maintenance follow-up; ready: warnings/summary, credential-safe refresh procedure, weekly issue reminder, and task closeout; deferred: automatic date updates and the remaining P1 work."
+      }
+    ],
+    "root_ledger_patches": 207,
+    "root_ledger_patches_per_effective_hour": 18.51,
+    "previous_ledger_patches_per_effective_hour": 10.19,
+    "maximum_concurrent_subagents": 4,
+    "average_concurrency_while_active": 1.432,
+    "two_plus_share": 0.3518,
+    "previous_average_concurrency_while_active": 1.1213,
+    "previous_two_plus_share": 0.1182,
+    "writer_concurrency": {
+      "maximum": 2,
+      "active_seconds": 25276.0,
+      "two_plus_seconds": 105.0,
+      "two_plus_share": 0.0042
+    },
+    "dotnet_concurrency": {
+      "maximum": 1,
+      "active_seconds": 2752.047,
+      "two_plus_seconds": 0,
+      "two_plus_share": 0.0
+    },
+    "resource_samples": 107,
+    "minimum_observed_available_memory_gib": 0.36,
+    "samples_below_warning_floor": 64,
+    "admitted_heavy_samples_below_warning_floor": 20,
+    "denied_resource_samples": 26,
+    "review_verdicts": {
+      "other": 5,
+      "accept-with-fixes": 5,
+      "accepted": 11,
+      "findings": 8
+    },
+    "review_turns": 29,
+    "root_compactions": 5,
+    "root_token_share": 0.3653
+  },
+  "tool_time": {
+    "calls": 2620,
+    "by_class": {
+      "clock__curr_time": {
+        "calls": 7,
+        "elapsed_seconds": 0.978
+      },
+      "clock__curr_time+exec_command": {
+        "calls": 1,
+        "elapsed_seconds": 15.285
+      },
+      "dotnet": {
+        "calls": 129,
+        "elapsed_seconds": 2752.047
+      },
+      "exec_command": {
+        "calls": 135,
+        "elapsed_seconds": 997.116
+      },
+      "exec_command+get_goal": {
+        "calls": 1,
+        "elapsed_seconds": 4.458
+      },
+      "git-read": {
+        "calls": 311,
+        "elapsed_seconds": 1207.921
+      },
+      "git-release": {
+        "calls": 39,
+        "elapsed_seconds": 328.314
+      },
+      "github": {
+        "calls": 154,
+        "elapsed_seconds": 1571.411
+      },
+      "mcp__openaiDeveloperDocs__fetch_openai_doc": {
+        "calls": 2,
+        "elapsed_seconds": 0.474
+      },
+      "mcp__openaiDeveloperDocs__search_openai_docs": {
+        "calls": 1,
+        "elapsed_seconds": 0.925
+      },
+      "other": {
+        "calls": 6,
+        "elapsed_seconds": 61.45
+      },
+      "patch": {
+        "calls": 490,
+        "elapsed_seconds": 1149.866
+      },
+      "read-search": {
+        "calls": 1163,
+        "elapsed_seconds": 4718.796
+      },
+      "resource-admission": {
+        "calls": 107,
+        "elapsed_seconds": 317.317
+      },
+      "update_goal": {
+        "calls": 2,
+        "elapsed_seconds": 0.836
+      },
+      "web__run": {
+        "calls": 20,
+        "elapsed_seconds": 36.136
+      },
+      "write_stdin": {
+        "calls": 52,
+        "elapsed_seconds": 1092.37
+      }
+    }
+  }
+}

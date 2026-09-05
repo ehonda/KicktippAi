@@ -439,6 +439,7 @@ $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.htm
 $hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-closeout/index.html")
 $hasP1SessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-interim/index.html")
 $hasP1FollowUpAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-follow-up/index.html")
+$hasUrgentProductionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "urgent-production-orchestration/index.html")
 
 $coverageCard = if ($hasCoverage)
 {
@@ -483,6 +484,15 @@ $p1FollowUpAnalysisCard = if ($hasP1FollowUpAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>No P1 follow-up investigation has been published yet.</p></section>"
+}
+
+$urgentProductionAnalysisCard = if ($hasUrgentProductionAnalysis)
+{
+    "<a class='card' href='session-analysis/urgent-production-orchestration/index.html'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>Assess the PR #98 workflow changes and compare the gpt-6-astra orchestrator cost with gpt-5.6-sol.</p></a>"
+}
+else
+{
+    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>No urgent-production orchestration investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -612,6 +622,7 @@ $rootIndex = @"
       $sessionAnalysisCard
       $p1SessionAnalysisCard
       $p1FollowUpAnalysisCard
+      $urgentProductionAnalysisCard
     </section>
   </main>
 </body>
