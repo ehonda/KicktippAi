@@ -103,9 +103,71 @@ public class BundesligaHistoryCommandTests
             It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Test]
+    public async Task Kicktipp_inventory_loads_matching_credentials_before_creating_a_client_or_output()
+    {
+        var contextRepository = CreateRepository();
+        var kicktippFactory = new Mock<IKicktippClientFactory>();
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        credentialLoader.Setup(loader => loader.Load("pes-squad"))
+            .Throws(new InvalidOperationException("credential load failed"));
+        var output = Path.Combine(Path.GetTempPath(), $"kicktippai-inventory-{Guid.NewGuid():N}.csv");
+        var test = CreateApp(
+            contextRepository,
+            CreateMockMatchOutcomeRepository(),
+            kicktippFactory,
+            credentialLoader);
+
+        try
+        {
+            var exitCode = await test.App.RunAsync([
+                "export-inventory", "--community-context", "pes-squad", "--from-kicktipp", "--matchdays", "3,4,2", "--output", output
+            ]);
+
+            await Assert.That(exitCode).IsEqualTo(1);
+            await Assert.That(test.Console.Output).Contains("credential load failed");
+            credentialLoader.Verify(loader => loader.Load("pes-squad"), Times.Once);
+            kicktippFactory.Verify(factory => factory.CreateClient(), Times.Never);
+            await Assert.That(File.Exists(output)).IsFalse();
+        }
+        finally
+        {
+            File.Delete(output);
+        }
+    }
+
+    [Test]
+    public async Task Stored_inventory_never_loads_kicktipp_credentials()
+    {
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        var output = Path.Combine(Path.GetTempPath(), $"kicktippai-stored-inventory-{Guid.NewGuid():N}.csv");
+        var test = CreateApp(
+            CreateRepository(),
+            CreateMockMatchOutcomeRepository(),
+            credentialLoader: credentialLoader);
+
+        try
+        {
+            var exitCode = await test.App.RunAsync([
+                "export-inventory", "--community-context", Community, "--output", output
+            ]);
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            credentialLoader.Verify(loader => loader.Load(It.IsAny<string>()), Times.Never);
+            credentialLoader.Verify(loader => loader.Load(It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+            await Assert.That(File.Exists(output)).IsTrue();
+        }
+        finally
+        {
+            File.Delete(output);
+        }
+    }
+
     private static TestContext CreateApp(
         Mock<IContextRepository> contextRepository,
-        Mock<IMatchOutcomeRepository> matchOutcomeRepository)
+        Mock<IMatchOutcomeRepository> matchOutcomeRepository,
+        Mock<IKicktippClientFactory>? kicktippFactory = null,
+        Mock<ICommunityKicktippCredentialLoader>? credentialLoader = null)
     {
         var console = new TestConsole();
         var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -114,9 +176,13 @@ public class BundesligaHistoryCommandTests
         var services = new ServiceCollection();
         services.AddSingleton<IAnsiConsole>(console);
         services.AddSingleton(firebaseFactory.Object);
+        services.AddSingleton((kicktippFactory ?? new Mock<IKicktippClientFactory>()).Object);
+        services.AddSingleton((credentialLoader ?? new Mock<ICommunityKicktippCredentialLoader>()).Object);
+        services.AddSingleton(new Mock<IContextProviderFactory>().Object);
         services.AddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
         services.AddSingleton<ILogger<BundesligaHistoryApplyCommand>>(new FakeLogger<BundesligaHistoryApplyCommand>());
         services.AddSingleton<ILogger<BundesligaHistoryAuditCommand>>(new FakeLogger<BundesligaHistoryAuditCommand>());
+        services.AddSingleton<ILogger<BundesligaHistoryExportInventoryCommand>>(new FakeLogger<BundesligaHistoryExportInventoryCommand>());
 
         var app = new CommandApp(new TypeRegistrar(services));
         app.Configure(configuration =>
@@ -124,6 +190,7 @@ public class BundesligaHistoryCommandTests
             configuration.Settings.Console = console;
             configuration.AddCommand<BundesligaHistoryApplyCommand>("apply");
             configuration.AddCommand<BundesligaHistoryAuditCommand>("audit");
+            configuration.AddCommand<BundesligaHistoryExportInventoryCommand>("export-inventory");
         });
         return new(app, console, firebaseFactory);
     }

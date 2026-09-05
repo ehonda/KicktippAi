@@ -133,7 +133,8 @@ public class CollectContextProfileCommandTests
                 .IsEqualTo("Kicktipp,ClubElo,Rosters");
             await Assert.That(executed.All(call =>
                 call.Context.Profile.Competition == CompetitionIds.Bundesliga2026_27
-                && call.Context.CommunityContext == "pes-squad")).IsTrue();
+                && call.Context.CommunityContext == "pes-squad"
+                && call.Context.MarkdownSummaryOutput == summaryPath)).IsTrue();
             await Assert.That(output)
                 .Contains("Kicktipp -> BundesligaHistoryPlayedDates -> ClubElo -> Rosters")
                 .And.Contains("BundesligaHistoryPlayedDates: IncludedInPrevious")

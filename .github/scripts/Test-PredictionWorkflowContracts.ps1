@@ -890,8 +890,42 @@ function Assert-HostileSummaryValueIsLiteral {
     }
 }
 
+function Assert-BundesligaHistoryMaintenanceReminder {
+    param([string] $WorkflowDirectory)
+
+    $path = Join-Path $WorkflowDirectory 'bundesliga-history-maintenance-reminder.yml'
+    Assert-True (Test-Path -LiteralPath $path) 'The Bundesliga history maintenance reminder workflow must exist.'
+    $content = Get-Content -Raw -LiteralPath $path
+    Assert-True $content.Contains("- cron: '17 7 * * 1'", [StringComparison]::Ordinal) 'The maintenance reminder must retain its exact Monday UTC cron.'
+    Assert-True ([regex]::IsMatch($content, '(?m)^permissions:\r?\n  contents: read\r?\n  issues: write\s*$')) 'The maintenance reminder must retain exact least-privilege permissions.'
+    Assert-True ([regex]::IsMatch($content, '(?m)^concurrency:\r?\n  group: bundesliga-history-maintenance-reminder\r?\n  cancel-in-progress: false\s*$')) 'The maintenance reminder must retain its fixed non-cancelling concurrency.'
+    Assert-True (-not $content.Contains('workflow_dispatch', [StringComparison]::Ordinal)) 'The maintenance reminder must not be manually dispatchable.'
+    Assert-True ([regex]::Matches($content, 'uses:\s*actions/github-script@v8').Count -eq 1) 'The maintenance reminder must use exactly one github-script step.'
+    Assert-True (-not [regex]::IsMatch($content, '(?m)^\s*- uses: actions/checkout')) 'The maintenance reminder must not check out repository code.'
+    Assert-True (-not [regex]::IsMatch($content, '(?mi)(firebase|openligadb|collect-context|dotnet\s+run|workflow_dispatch|repository_dispatch)')) 'The maintenance reminder must not contain provider, collection, prediction, or dispatch capability.'
+    Assert-True $content.Contains("owner !== 'ehonda' || repo !== 'KicktippAi'", [StringComparison]::Ordinal) 'The maintenance reminder must fail closed outside the canonical repository.'
+    Assert-True $content.Contains("state: 'all'", [StringComparison]::Ordinal) 'The maintenance reminder must search all issue states.'
+    Assert-True $content.Contains('!issue.pull_request', [StringComparison]::Ordinal) 'The maintenance reminder must exclude pull requests from the singleton search.'
+    Assert-True $content.Contains('Expected exactly one non-PR maintenance issue', [StringComparison]::Ordinal) 'The maintenance reminder must fail closed for zero or duplicate maintenance issues.'
+    Assert-True $content.Contains("issue.state === 'closed'", [StringComparison]::Ordinal) 'The maintenance reminder must no-op for a closed maintenance issue.'
+    Assert-True ([regex]::Matches($content, 'github\.paginate\(').Count -eq 2) 'The maintenance reminder must paginate issues and comments.'
+    Assert-True $content.Contains('reminder:${week}', [StringComparison]::Ordinal) 'The maintenance reminder must use an ISO-week reminder marker.'
+    Assert-True $content.Contains('result:${week}', [StringComparison]::Ordinal) 'The maintenance reminder must use a distinct ISO-week result marker.'
+    Assert-True $content.Contains('createComment', [StringComparison]::Ordinal) 'The maintenance reminder must create at most one missing weekly comment.'
+
+    $iso = {
+        param([datetime] $Date)
+        $year = [System.Globalization.ISOWeek]::GetYear($Date)
+        $week = [System.Globalization.ISOWeek]::GetWeekOfYear($Date)
+        '{0}-W{1:D2}' -f $year, $week
+    }
+    Assert-True ((& $iso ([datetime]'2024-12-30')) -eq '2025-W01') 'The maintenance reminder ISO-week contract must cross 2024-12-30 into 2025-W01.'
+    Assert-True ((& $iso ([datetime]'2026-01-01')) -eq '2026-W01') 'The maintenance reminder ISO-week contract must retain 2026-01-01 in 2026-W01.'
+}
+
 $workflowDirectory = Join-Path $RepositoryRoot '.github\workflows'
 Assert-AdditionalManualTriggersRejected
+Assert-BundesligaHistoryMaintenanceReminder $workflowDirectory
 $matchBasePath = Join-Path $workflowDirectory 'base-matchday-predictions.yml'
 $bonusBasePath = Join-Path $workflowDirectory 'base-bonus-predictions.yml'
 $matchBase = Get-Content -Raw -LiteralPath $matchBasePath

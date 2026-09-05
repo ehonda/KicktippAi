@@ -52,6 +52,9 @@ public class CollectContextKicktippSettings : CollectContextSettings
     /// </summary>
     public int? ExpectedMatchesPerMatchday { get; set; }
 
+    /// <summary>Optional profile-owned GitHub Markdown summary path; not a direct CLI option.</summary>
+    public string? MarkdownSummaryOutput { get; set; }
+
     [CommandOption("--verbose")]
     [Description("Enable verbose output")]
     public bool Verbose { get; set; }

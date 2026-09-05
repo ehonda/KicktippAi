@@ -12,7 +12,8 @@ public sealed record CompetitionCollectorExecutionContext(
     bool FullSeason,
     string RecentHistoryDateMap,
     bool DryRun,
-    bool Verbose);
+    bool Verbose,
+    string? MarkdownSummaryOutput);
 
 public interface ICompetitionProfileCollectorExecutor
 {
@@ -49,7 +50,8 @@ public sealed class CompetitionProfileCollectorExecutor : ICompetitionProfileCol
                     ExpectedMatchCount = context.Profile.ExpectedMatchCount,
                     ExpectedMatchesPerMatchday = context.Profile.ExpectedMatchesPerMatchday,
                     DryRun = context.DryRun,
-                    Verbose = context.Verbose
+                    Verbose = context.Verbose,
+                    MarkdownSummaryOutput = context.MarkdownSummaryOutput
                 },
                 cancellationToken),
             CompetitionCollector.Wm26HistoryPlayedDates => Create<Wm26RecentHistoryApplyDateMapCommand>().ExecuteWithSettingsAsync(

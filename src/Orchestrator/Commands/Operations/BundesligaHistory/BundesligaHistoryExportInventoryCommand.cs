@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -12,14 +13,16 @@ public sealed class BundesligaHistoryExportInventoryCommand : AsyncCommand<Bunde
     private readonly IFirebaseServiceFactory _firebaseFactory;
     private readonly IKicktippClientFactory _kicktippFactory;
     private readonly IContextProviderFactory _providerFactory;
+    private readonly ICommunityKicktippCredentialLoader _credentialLoader;
     private readonly ILogger<BundesligaHistoryExportInventoryCommand> _logger;
 
     public BundesligaHistoryExportInventoryCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseFactory,
         IKicktippClientFactory kicktippFactory, IContextProviderFactory providerFactory,
+        ICommunityKicktippCredentialLoader credentialLoader,
         ILogger<BundesligaHistoryExportInventoryCommand> logger)
     {
         _console = console; _firebaseFactory = firebaseFactory; _kicktippFactory = kicktippFactory;
-        _providerFactory = providerFactory; _logger = logger;
+        _providerFactory = providerFactory; _credentialLoader = credentialLoader; _logger = logger;
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, BundesligaHistoryExportInventorySettings settings,
@@ -58,6 +61,7 @@ public sealed class BundesligaHistoryExportInventoryCommand : AsyncCommand<Bunde
         BundesligaHistoryExportInventorySettings settings, CancellationToken cancellationToken)
     {
         _console.MarkupLine("[blue]Read-only Kicktipp inventory mode; no Firestore or Kicktipp writes will be made[/]");
+        _credentialLoader.Load(settings.CommunityContext);
         var client = _kicktippFactory.CreateClient();
         var documents = new Dictionary<string, string>(StringComparer.Ordinal);
         var expectedDocumentNames = new HashSet<string>(StringComparer.Ordinal);

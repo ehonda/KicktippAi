@@ -30,7 +30,8 @@ internal static class CompetitionProfileCollectionRunner
             request.FullSeason,
             request.RecentHistoryDateMap,
             request.DryRun,
-            request.Verbose);
+            request.Verbose,
+            request.MarkdownSummaryOutput);
 
         PrintProfile(console, request.Profile, request.Community, request.CommunityContext);
         console.MarkupLine(

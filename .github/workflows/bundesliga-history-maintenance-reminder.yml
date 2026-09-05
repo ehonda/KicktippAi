@@ -1,0 +1,70 @@
+name: Bundesliga history maintenance reminder
+
+on:
+  schedule:
+    - cron: '17 7 * * 1'
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: bundesliga-history-maintenance-reminder
+  cancel-in-progress: false
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record the weekly maintenance reminder
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            if (owner !== 'ehonda' || repo !== 'KicktippAi') {
+              throw new Error(`Unexpected repository ${owner}/${repo}.`);
+            }
+
+            const marker = '<!-- kicktippai:buli2627-history-date-maintenance -->';
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'all', per_page: 100
+            });
+            const matches = issues.filter(issue => !issue.pull_request && issue.body?.includes(marker));
+            if (matches.length !== 1) {
+              throw new Error(`Expected exactly one non-PR maintenance issue, found ${matches.length}.`);
+            }
+
+            const issue = matches[0];
+            if (issue.state === 'closed') {
+              await core.summary.addRaw('Bundesliga history maintenance issue is closed; no reminder was created.').write();
+              return;
+            }
+
+            const isoWeek = (date) => {
+              const utc = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+              const day = utc.getUTCDay() || 7;
+              utc.setUTCDate(utc.getUTCDate() + 4 - day);
+              const yearStart = new Date(Date.UTC(utc.getUTCFullYear(), 0, 1));
+              const week = Math.ceil((((utc - yearStart) / 86400000) + 1) / 7);
+              return `${utc.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+            };
+            const week = isoWeek(new Date());
+            const reminderMarker = `<!-- kicktippai:buli2627-history-date-maintenance:reminder:${week} -->`;
+            const resultMarker = `<!-- kicktippai:buli2627-history-date-maintenance:result:${week} -->`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: issue.number, per_page: 100
+            });
+            if (comments.some(comment => comment.body?.includes(reminderMarker) || comment.body?.includes(resultMarker))) {
+              await core.summary.addRaw(`Bundesliga history maintenance for ${week} is already recorded.`).write();
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: `${reminderMarker}\nWeekly history-date maintenance is due. Follow [the manual weekly refresh procedure](https://github.com/ehonda/KicktippAi/blob/main/data/bundesliga-2026-27/history/SOURCES.md#manual-weekly-refresh-procedure) and add ${resultMarker} with the result.`
+            });
+            await core.summary.addRaw(`Created the Bundesliga history maintenance reminder for ${week}.`).write();

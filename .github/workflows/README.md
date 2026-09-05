@@ -25,6 +25,13 @@ P0-21 production-live schedule. Every current leaf caller exposes only
 no leaf contains `schedule` or `workflow_call`. The separately authorized
 Luna/none validation schedule from ADR-0047 is no longer present.
 
+`bundesliga-history-maintenance-reminder.yml` is deliberately not a prediction
+or context-collection lane. ADR-0072 limits it to a Monday metadata reminder on
+one marker-bound GitHub issue: it has no checkout, repository code, provider,
+credential, Firestore, Kicktipp, model, dispatch, or workflow-call capability.
+The linked checked-in procedure, rather than the workflow, governs any manual
+source review.
+
 P0-21 also prepares `buli2627-production-live-matchday.yml` as the single
 production-live outer caller. Its strict default-success `needs`
 chain runs context immediately before each matchday row in this order:

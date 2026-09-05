@@ -2,6 +2,13 @@
 
 ## Workflow Activation Status
 
+`bundesliga-history-maintenance-reminder.yml` is ADR-0072's isolated
+metadata-only weekly reminder. It may read repository metadata and create one
+deduplicated comment on its exact marker-bound issue; it must not acquire
+secrets, check out code, call providers, collect context, invoke a workflow,
+or generate/post predictions. Keep its fixed non-cancelling concurrency and
+least-privilege permissions intact.
+
 As of 2026-08-28, ADR-0052's complete Bundesliga 2026/27 caller matrix is
 present. `pes-squad` is the independent Sol/`xhigh` primary;
 `schadensfresse`, `relaxdays-tippt`, and arena Sol/`xhigh` copy `pes-squad` for

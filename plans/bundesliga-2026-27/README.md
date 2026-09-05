@@ -204,8 +204,9 @@ milestones may proceed while the remaining frontier stays `needs-interview`.
 | [P1-10](tasks/p1-10-schadensfresse-primary-community.md) | Recovery `main` retains the 8-pair source-copy lane until a reviewed successor replaces/terminates it; preserve the full implementation for an atomic target-primary PR | P0-21; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
-| [P1-14](tasks/p1-14-history-source-continuity.md) **Urgent** | Restore exact selected-history provenance and collection-date proxy continuity; defer full-season capture redesign | P0-22, P0-21 |
-| [P1-15](tasks/p1-15-schadensfresse-champions-league-bonus.md) **Deadline-critical** | Deliver the three frozen target-owned CL bonus predictions without global P1-10 typing | ADR-0069 |
+| [P1-14](tasks/p1-14-history-source-continuity.md) | Complete exact selected-history provenance, bounded collection-date proxy continuity, and maintenance reporting; defer full-season capture redesign | P0-22, P0-21 |
+| [P1-15](tasks/p1-15-schadensfresse-champions-league-bonus.md) | Complete the three frozen target-owned CL bonus predictions without global P1-10 typing | ADR-0069 |
+| [P1-16](tasks/p1-16-automatic-history-date-updates.md) | Deferred low-urgency automatic exact-date update design; requires interview | ADR-0072 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -283,6 +284,7 @@ contract:
 - [ADR-0066: Refresh the rolling Bundesliga history source checkpoint](decisions/0066-refresh-history-source-checkpoint.md)
 - [ADR-0067: Tolerate unresolved external history dates with a collection-date proxy](decisions/0067-tolerate-unresolved-external-history-dates.md)
 - [ADR-0068: Replace the copy calendar sunset with a reviewed replacement condition](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md)
+- [ADR-0072: Operate history-date maintenance manually](decisions/0072-operate-history-date-maintenance-manually.md)
 - [ADR-0045: Verify versioned prompt promotion before validation](decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
 - [ADR-0046: Bind cost usage to exact Langfuse dataset runs](decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
 - [ADR-0047: Observe one temporary arena Luna scheduled cycle](decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)

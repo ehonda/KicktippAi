@@ -316,10 +316,85 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("prior selected history read failed");
+        await Assert.That(output).DoesNotContain("Bundesliga history played-date gate passed");
         ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
             It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_proxy_coverage_is_reported_after_a_successful_dry_run()
+    {
+        var summaryPath = Path.Combine(Path.GetTempPath(), $"kicktippai-history-{Guid.NewGuid():N}.md");
+        var ctx = CreateCollectContextCommandApp();
+        ctx.HistoryCollector.Setup(collector => collector.Collect(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>(),
+                It.IsAny<BundesligaHistoryPlayedDateCollectionOptions>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _, BundesligaHistoryPlayedDateCollectionOptions _) =>
+                CreateHistoryResult(documents, proxyCount: 2, tupleGroupCount: 1));
+
+        try
+        {
+            var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+            {
+                CommunityContext = "ehonda-dev-buli-2627",
+                Competition = CompetitionIds.Bundesliga2026_27,
+                DryRun = true,
+                MarkdownSummaryOutput = summaryPath
+            });
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(NormalizeWhitespace(ctx.Console.Output))
+                .Contains("::warning title=Bundesliga history date maintenance::2 collection-date proxy occurrence(s) across 1 tuple group(s); review the checked-in maintenance procedure.");
+            var summary = await File.ReadAllTextAsync(summaryPath);
+            await Assert.That(summary)
+                .Contains("### Bundesliga history date coverage")
+                .And.Contains("**Collection-date proxy occurrences:** 2")
+                .And.Contains("**Proxy tuple groups:**")
+                .And.Contains("`DFB|A|B|1-0`")
+                .And.Contains("manual weekly refresh procedure");
+            ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+                It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            File.Delete(summaryPath);
+        }
+    }
+
+    [Test]
+    public async Task Bundesliga_unwritable_coverage_summary_fails_after_one_atomic_history_publication_without_replay()
+    {
+        var ctx = CreateCollectContextCommandApp();
+        ctx.HistoryCollector.Setup(collector => collector.Collect(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>(),
+                It.IsAny<BundesligaHistoryPlayedDateCollectionOptions>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _, BundesligaHistoryPlayedDateCollectionOptions _) =>
+                CreateHistoryResult(documents, proxyCount: 0, tupleGroupCount: 0));
+
+        var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        {
+            CommunityContext = "ehonda-dev-buli-2627",
+            Competition = CompetitionIds.Bundesliga2026_27,
+            MarkdownSummaryOutput = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "summary.md")
+        });
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), "ehonda-dev-buli-2627", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -554,6 +629,29 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
                 $"fixture-{index + 1}"))
             .ToArray();
     }
+
+    private static BundesligaHistoryPlayedDateCollectionResult CreateHistoryResult(
+        IReadOnlyList<BundesligaHistoryDocument> documents,
+        int proxyCount,
+        int tupleGroupCount)
+    {
+        var resolutions = Enumerable.Range(0, proxyCount)
+            .Select(index => new BundesligaHistoryPlayedDateResolution(
+                "recent-history-bvb.csv",
+                index + 1,
+                "2026-09-05",
+                BundesligaHistoryPlayedDateSourceClass.CollectionDateProxy,
+                "collection-date-proxy",
+                "DFB|A|B|1-0"))
+            .ToArray();
+        return new BundesligaHistoryPlayedDateCollectionResult(true, documents, resolutions, [])
+        {
+            DistinctTupleGroupCount = tupleGroupCount
+        };
+    }
+
+    private static string NormalizeWhitespace(string value) =>
+        string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
 
     private static async Task<int> ExecuteProfileCountCommand(CollectContextKicktippCommandTestContext context)
     {

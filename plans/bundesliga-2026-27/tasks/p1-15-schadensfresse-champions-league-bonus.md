@@ -1,8 +1,10 @@
 # P1-15 — Deliver frozen Schadensfresse Champions-League bonus
 
-- Status: In progress — authenticated production evidence invalidated both singleton form-action assumptions; the ADR-0071 correction and its platform-neutral rooted-action parser fix pass local validation, while independent correction review, publication CI, fresh read-only preflight, and any new production gate remain pending
+- Status: Complete — all three frozen CL answers were verified in Firestore and Kicktipp after one strict POST; redirect-shape follow-up is non-urgent
 - Outcome: place the three exact deadline-bound CL answers through a target-owned manual route without importing P1-10/P1-13 global typing.
 - Depends on: [ADR-0069](../decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md), [ADR-0070](../decisions/0070-isolate-the-strict-cl-bonus-mutation-transport.md), [ADR-0071](../decisions/0071-bind-strict-cl-post-to-stable-advertised-action.md), frozen candidate `6ab7a3548dd5e56e2dcb360de8bc2dde9a9e902fc291cb0955da5f10fff4020a`
+
+The historical implementation checkpoints below are retained as evidence only. The completion state above and the terminal recovery evidence supersede their former publication/preflight-pending wording.
 
 ## Contract
 
@@ -19,6 +21,8 @@
 - Root review/CI and separate mutation authority complete before model, Firestore, Langfuse, or Kicktipp writes.
 
 ## Local validation checkpoint
+
+- [Workflow run 33961092255](https://github.com/ehonda/KicktippAi/actions/runs/33961092255) stored all three frozen answers through one POST. Exact recovery verification at `497e1a5552b148a2098862a436f6e6a356590545` exited `0` and read back all three answers from Firestore and Kicktipp. The accepted `302`/`303` redirect shape remains a non-urgent transport observation; do not reopen or rerun this deadline-bound task for it.
 
 - Release solution build at the complete transport checkpoint exited `0` with zero errors (`.tmp/cl-test-results/transport-final-7.binlog` and `transport-final-build-7.log`). The final review correction's Release Orchestrator project build also exited `0` with zero errors (`finalcorrection-orchestrator-build.binlog` and `finalcorrection-orchestrator-build.log`).
 - Focused filters at the complete transport checkpoint: strict transport `24/24`, strict route `26/26`, generic reauthentication `4/4`, production factory `7/7`, Firebase CL lineage `7/7`, CL command `7/7`, CL verification `4/4`, and prompt/service tuple `50/50` (`129/129`, all exit `0`; ignored JSON reports under `.tmp/cl-test-results/final-*`).

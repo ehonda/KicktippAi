@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Microsoft.Extensions.Logging;
@@ -190,8 +191,11 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             return;
         }
 
-        var documents = isBundesliga2026
-            ? await ApplyBundesligaHistoryGateAsync(
+        BundesligaHistoryGateResult? historyGate = null;
+        var documents = collection.Documents;
+        if (isBundesliga2026)
+        {
+            historyGate = await ApplyBundesligaHistoryGateAsync(
                 settings,
                 competition,
                 collection.Documents,
@@ -199,8 +203,9 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 BundesligaOrdinaryOutcomeMatchdayCount,
                 requireCompleteFrozenMap: false,
                 cancellationToken,
-                contextRepository)
-            : collection.Documents;
+                contextRepository);
+            documents = historyGate.Documents;
+        }
 
         _console.MarkupLine($"[green]Collected {documents.Count} unique context documents[/]");
         await PublishOrdinaryAsync(
@@ -209,6 +214,10 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             isBundesliga2026,
             documents,
             cancellationToken);
+        if (historyGate is not null)
+        {
+            ReportBundesligaHistoryCoverage(settings, historyGate.Collection);
+        }
     }
 
     private async Task ExecuteFullSeasonCollectionAsync(
@@ -264,7 +273,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             competition,
             cancellationToken);
         PrintOutcomeCollectionSummary(outcomeCollectionResult, settings);
-        var documents = await ApplyBundesligaHistoryGateAsync(
+        var historyGate = await ApplyBundesligaHistoryGateAsync(
             settings,
             competition,
             collection.Documents,
@@ -272,6 +281,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             matchdayCount,
             requireCompleteFrozenMap: true,
             cancellationToken);
+        var documents = historyGate.Documents;
         ValidateExactDocumentSet(
             "dated full-season Kicktipp context",
             documents.Keys,
@@ -279,6 +289,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
         _console.MarkupLine($"[green]Collected and validated {documents.Count} exact full-season context documents[/]");
         await PublishFullSeasonAtomicallyAsync(settings, contextRepository, documents, cancellationToken);
+        ReportBundesligaHistoryCoverage(settings, historyGate.Collection);
     }
 
     private async Task<CollectedContextDocuments> CollectFullSeasonContextDocumentsAsync(
@@ -707,7 +718,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         return new CollectedContextDocuments(documents, selectedHistoryNames);
     }
 
-    private async Task<Dictionary<string, string>> ApplyBundesligaHistoryGateAsync(
+    private async Task<BundesligaHistoryGateResult> ApplyBundesligaHistoryGateAsync(
         CollectContextKicktippSettings settings,
         string competition,
         IReadOnlyDictionary<string, string> documents,
@@ -761,17 +772,72 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 $"Bundesliga history played-date gate failed; no context documents were saved.{Environment.NewLine}{details}");
         }
 
+        return new(
+            collection.Documents.ToDictionary(
+            document => document.Name,
+            document => document.Content,
+            StringComparer.Ordinal),
+            collection);
+    }
+
+    private void ReportBundesligaHistoryCoverage(
+        CollectContextKicktippSettings settings,
+        BundesligaHistoryPlayedDateCollectionResult collection)
+    {
+        var fixedMapSources = BundesligaHistoryCommandSupport.FormatFixedSourceCounts(collection);
         _console.MarkupLine(
             $"[green]Bundesliga history played-date gate passed:[/] {collection.Resolutions.Count} completed occurrence(s), " +
             $"tuple-groups={collection.DistinctTupleGroupCount}; " +
             $"existing={collection.PreservedCount}, Kicktipp={collection.KicktippCount}, fixed-map={collection.FixedMapCount}, " +
             $"collection-date-proxy={collection.CollectionDateProxyCount}, excluded-incomplete={collection.ExcludedIncompleteRowCount}; " +
-            $"fixed-map sources: {Markup.Escape(BundesligaHistoryCommandSupport.FormatFixedSourceCounts(collection))}");
-        return collection.Documents.ToDictionary(
-            document => document.Name,
-            document => document.Content,
-            StringComparer.Ordinal);
+            $"fixed-map sources: {Markup.Escape(fixedMapSources)}");
+
+        var proxyTupleGroups = collection.Resolutions
+            .Where(resolution => resolution.SourceClass == BundesligaHistoryPlayedDateSourceClass.CollectionDateProxy)
+            .GroupBy(resolution => resolution.TupleGroupIdentity, StringComparer.Ordinal)
+            .Select(group => new { Tuple = group.Key, Ordinal = group.Min(resolution => resolution.RowOrdinal) })
+            .OrderBy(group => group.Ordinal)
+            .ThenBy(group => group.Tuple, StringComparer.Ordinal)
+            .ToArray();
+        if (proxyTupleGroups.Length > 0)
+        {
+            _console.MarkupLine(
+                $"[yellow]Warning: {collection.CollectionDateProxyCount} collection-date proxy occurrence(s) across {proxyTupleGroups.Length} tuple group(s); review the checked-in maintenance procedure.[/]");
+            _console.WriteLine(
+                $"::warning title=Bundesliga history date maintenance::{collection.CollectionDateProxyCount} collection-date proxy occurrence(s) across {proxyTupleGroups.Length} tuple group(s); review the checked-in maintenance procedure.");
+        }
+
+        if (string.IsNullOrWhiteSpace(settings.MarkdownSummaryOutput))
+        {
+            return;
+        }
+
+        var lines = new List<string>
+        {
+            "### Bundesliga history date coverage",
+            string.Empty,
+            $"- **Completed occurrences:** {collection.Resolutions.Count}",
+            $"- **Distinct tuple groups:** {collection.DistinctTupleGroupCount}",
+            $"- **Existing resolutions:** {collection.PreservedCount}",
+            $"- **Kicktipp exact resolutions:** {collection.KicktippCount}",
+            $"- **Fixed-map exact resolutions:** {collection.FixedMapCount}",
+            $"- **Collection-date proxy occurrences:** {collection.CollectionDateProxyCount}",
+            $"- **Excluded incomplete rows:** {collection.ExcludedIncompleteRowCount}",
+            $"- **Fixed-map sources:** {fixedMapSources}"
+        };
+        if (proxyTupleGroups.Length > 0)
+        {
+            lines.Add(string.Empty);
+            lines.Add("> [!WARNING]");
+            lines.Add("> Collection-date proxies are continuity markers, not exact played dates. Follow the [manual weekly refresh procedure](https://github.com/ehonda/KicktippAi/blob/main/data/bundesliga-2026-27/history/SOURCES.md#manual-weekly-refresh-procedure).");
+            lines.Add("- **Proxy tuple groups:**");
+            lines.AddRange(proxyTupleGroups.Select(group => $"  - `{EscapeMarkdownCode(group.Tuple)}`"));
+        }
+        lines.Add(string.Empty);
+        File.AppendAllLines(settings.MarkdownSummaryOutput.Trim(), lines, new UTF8Encoding(false));
     }
+
+    private static string EscapeMarkdownCode(string value) => value.Replace("`", "\\`", StringComparison.Ordinal);
 
     private static async Task<IReadOnlyDictionary<string, string?>> LoadPriorSelectedHistoryDocumentContentsAsync(
         IContextRepository contextRepository,
@@ -1169,4 +1235,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private sealed record CollectedContextDocuments(
         Dictionary<string, string> Documents,
         HashSet<string> ExpectedSelectedHistoryDocumentNames);
+
+    private sealed record BundesligaHistoryGateResult(
+        Dictionary<string, string> Documents,
+        BundesligaHistoryPlayedDateCollectionResult Collection);
 }

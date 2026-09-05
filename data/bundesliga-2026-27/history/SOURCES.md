@@ -51,3 +51,23 @@ Only the factual match identity and played date are recorded. No UEFA page or PD
 ## Manual corroboration
 
 The official DFB Data Center's 2025/26 2. Bundesliga schedule and individual match pages were used only for manual factual corroboration: <https://datencenter.dfb.de/competitions/2-bundesliga/seasons/2025-2026>. No DFB content is automatically extracted or redistributed. The DFB portal terms restrict automated scraping and non-private reuse: <https://www.dfb.de/nutzungsbedingungen>.
+
+## Manual weekly refresh procedure
+
+The standing [maintenance issue](https://github.com/ehonda/KicktippAi/issues/101) is the sole weekly audit record. Next review: `2026-W37`.
+
+1. Triage the latest natural production summary. A zero-proxy result needs only the issue's current-week result marker; a proxy warning starts this procedure immediately. Never use this procedure to generate predictions, collect bonus context, or write production context.
+2. With the `pes-squad` credential profile, run the read-only ordered current-matchday export required to cover all 54 selected documents (the current `3,4,2` order is a checkpoint, not runtime authority). Record its document count, raw CSV hash, and capture time; the export alone is not source evidence.
+
+   ```powershell
+   $historyRefreshStamp = [DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssZ')
+   $historyRefreshRoot = Join-Path (Resolve-Path '.tmp') "buli2627-history-refresh/$historyRefreshStamp"
+   New-Item -ItemType Directory -Path $historyRefreshRoot -Force | Out-Null
+   $historyInventory = Join-Path $historyRefreshRoot 'history-played-dates-inventory.csv'
+   dotnet run --no-build --no-restore --project src/Orchestrator --configuration Release -- bundesliga-history export-inventory --community-context pes-squad --competition bundesliga-2026-27 --from-kicktipp --matchdays 3,4,2 --output $historyInventory
+   $historyNames = @(Import-Csv -LiteralPath $historyInventory | Select-Object -ExpandProperty Document_Name | Sort-Object -Unique)
+   if ($historyNames.Count -ne 54) { throw "Expected 54 selected history documents; found $($historyNames.Count). Choose a sufficient current ordered matchday set." }
+   (Get-FileHash -LiteralPath $historyInventory -Algorithm SHA256).Hash.ToLowerInvariant()
+   ```
+3. A maintainer may manually fetch the required OpenLigaDB DFB response, preserve its raw bytes, and record its hash. Provider failure, identity drift, malformed data, or an exact conflict is fatal; there is no cron, runtime fetch, or automatic retry.
+4. Join only exact competition/team/score identities, retain accumulated reviewed rows, and update the map, raw-source hash, and provenance together in review. Do not fuzzy-match, infer a date, or promote a collection-date proxy. Run the focused history checks and a dry run before closing the weekly issue comment.
