@@ -22,14 +22,18 @@ public sealed record ChampionsLeagueBonusQuestionSnapshot(
 public static class ChampionsLeagueBonusRoute
 {
     private const string PagePathAndQuery = "/schadensfresse/tippabgabe?bonus=true";
-    private const string ActionPath = "/schadensfresse/tippabgabeForm";
+    private const string TippabgabeActionPath = "/schadensfresse/tippabgabe";
+    private const string TippabgabeFormActionPath = "/schadensfresse/tippabgabeForm";
     private static readonly Uri ProductionOrigin = new("https://www.kicktipp.de/");
-    private static readonly (Uri Page, Uri Action) ProductionRoute = CreateExactUrisForValidatedOrigin(ProductionOrigin);
+    private static readonly ExactRouteUris ProductionRoute = CreateExactUrisForValidatedOrigin(ProductionOrigin);
 
     public static readonly Uri ExpectedPage = ProductionRoute.Page;
-    public static readonly Uri ExpectedAction = ProductionRoute.Action;
+    public static readonly Uri ExpectedTippabgabeAction = ProductionRoute.TippabgabeAction;
+    public static readonly Uri ExpectedTippabgabeFormAction = ProductionRoute.TippabgabeFormAction;
 
-    internal static (Uri Page, Uri Action) CreateExactUrisForValidatedOrigin(Uri validatedOrigin)
+    internal static ExactRouteUris ProductionExactRoute => ProductionRoute;
+
+    internal static ExactRouteUris CreateExactUrisForValidatedOrigin(Uri validatedOrigin)
     {
         ArgumentNullException.ThrowIfNull(validatedOrigin);
         if (!validatedOrigin.IsAbsoluteUri
@@ -43,15 +47,34 @@ public static class ChampionsLeagueBonusRoute
                 nameof(validatedOrigin));
         }
 
-        return (new Uri(validatedOrigin, PagePathAndQuery), new Uri(validatedOrigin, ActionPath));
+        return new ExactRouteUris(
+            new Uri(validatedOrigin, PagePathAndQuery),
+            new Uri(validatedOrigin, TippabgabeActionPath),
+            new Uri(validatedOrigin, TippabgabeFormActionPath));
     }
+
+    internal static Uri MapCanonicalActionToRoute(Uri canonicalAction, ExactRouteUris targetRoute) =>
+        targetRoute.GetAction(GetActionMember(canonicalAction, ProductionRoute));
+
+    internal static Uri CanonicalizeAction(Uri action, ExactRouteUris sourceRoute) =>
+        ProductionRoute.GetAction(GetActionMember(action, sourceRoute));
+
+    internal static string GetActionDiagnostic(Uri canonicalAction) =>
+        GetActionMember(canonicalAction, ProductionRoute) switch
+        {
+            0 => "approved-action-member-0",
+            1 => "approved-action-member-1",
+            _ => throw new InvalidOperationException("The approved CL action member is invalid.")
+        };
 
     public static void ValidateSnapshot(ChampionsLeagueBonusFormSnapshot snapshot)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
+        var actionMember = GetActionMember(snapshot.Action, ProductionRoute);
+        var expectedAction = ProductionRoute.GetAction(actionMember);
         if (!snapshot.CanPlace
-            || snapshot.FinalUri != ExpectedPage && snapshot.FinalUri != ExpectedAction
-            || snapshot.Action != ExpectedAction
+            || !HasExactUriComponents(snapshot.FinalUri, ExpectedPage)
+               && !HasExactUriComponents(snapshot.FinalUri, expectedAction)
             || !string.Equals(snapshot.Method, "POST", StringComparison.Ordinal)
             || !string.Equals(snapshot.SubmitterName, "submitbutton", StringComparison.Ordinal))
         {
@@ -101,11 +124,12 @@ public static class ChampionsLeagueBonusRoute
         ValidateSnapshot(initial);
         ValidateSnapshot(current);
         ValidateCompletePredictions(current, predictions);
-        if (!SameDefinitions(initial, current)
+        if (!HasExactUriComponents(initial.Action, current.Action)
+            || !SameDefinitions(initial, current)
             || !initial.Questions.Zip(current.Questions).All(pair =>
                 pair.First.SelectedOptionIds.SequenceEqual(pair.Second.SelectedOptionIds, StringComparer.Ordinal)))
         {
-            throw new InvalidDataException("The frozen CL form definition or target selections changed before POST.");
+            throw new InvalidDataException("The frozen CL form action, definition, or target selections changed before POST.");
         }
 
         if (!overrideKicktipp && current.Questions.Any(question => question.SelectedOptionIds.Any(value => value is not null)))
@@ -174,6 +198,23 @@ public static class ChampionsLeagueBonusRoute
             && string.Equals(pair.First.Question.FormFieldName, pair.Second.Question.FormFieldName, StringComparison.Ordinal)
             && pair.First.Question.Options.SequenceEqual(pair.Second.Question.Options));
 
+    internal static bool HasExactUriComponents(Uri actual, Uri expected) =>
+        string.Equals(actual.Scheme, expected.Scheme, StringComparison.Ordinal)
+        && string.Equals(actual.Host, expected.Host, StringComparison.Ordinal)
+        && actual.Port == expected.Port
+        && string.Equals(actual.UserInfo, expected.UserInfo, StringComparison.Ordinal)
+        && string.Equals(actual.AbsolutePath, expected.AbsolutePath, StringComparison.Ordinal)
+        && string.Equals(actual.Query, expected.Query, StringComparison.Ordinal)
+        && string.Equals(actual.Fragment, expected.Fragment, StringComparison.Ordinal);
+
+    private static int GetActionMember(Uri action, ExactRouteUris route)
+    {
+        ArgumentNullException.ThrowIfNull(action);
+        if (HasExactUriComponents(action, route.TippabgabeAction)) return 0;
+        if (HasExactUriComponents(action, route.TippabgabeFormAction)) return 1;
+        throw new InvalidDataException("The strict CL form action is not an approved exact action member.");
+    }
+
     private static bool CanEncodeUtf8(string value)
     {
         try
@@ -185,5 +226,18 @@ public static class ChampionsLeagueBonusRoute
         {
             return false;
         }
+    }
+
+    internal sealed record ExactRouteUris(
+        Uri Page,
+        Uri TippabgabeAction,
+        Uri TippabgabeFormAction)
+    {
+        internal Uri GetAction(int member) => member switch
+        {
+            0 => TippabgabeAction,
+            1 => TippabgabeFormAction,
+            _ => throw new ArgumentOutOfRangeException(nameof(member))
+        };
     }
 }

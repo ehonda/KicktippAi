@@ -156,6 +156,33 @@ public sealed class BonusCommand_ChampionsLeague_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Initial_to_pre_post_action_drift_prevents_placement(bool oldToForm)
+    {
+        var oldAction = ChampionsLeagueBonusRoute.ExpectedTippabgabeAction;
+        var formAction = ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction;
+        var kicktipp = new Mock<IKicktippClient>(MockBehavior.Strict);
+        kicktipp.SetupSequence(client => client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .ReturnsAsync(CreateSnapshot(placed: false, action: oldToForm ? oldAction : formAction))
+            .ReturnsAsync(CreateSnapshot(placed: false, action: oldToForm ? formAction : oldAction));
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateStrictFirebaseFactory(CreateCurrentRepository()),
+            kicktippClientFactory: CreateMockKicktippClientFactory(kicktipp),
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(),
+            contextProviderFactory: new Mock<IContextProviderFactory>(MockBehavior.Strict));
+        var arguments = ExactArguments();
+        arguments.AddRange(["--max-repredictions", "0"]);
+
+        var exitCode = await context.App.RunAsync(arguments);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        kicktipp.Verify(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+            It.IsAny<string>(), It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+            It.IsAny<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
     public async Task Force_overwrites_all_three_rows_and_posts_one_complete_payload()
     {
         var stored = CreateStoredMetadata();
@@ -352,7 +379,7 @@ public sealed class BonusCommand_ChampionsLeague_Tests : BonusCommandTests_Base
         "--override-kicktipp"
     ];
 
-    private static ChampionsLeagueBonusFormSnapshot CreateSnapshot(bool placed)
+    private static ChampionsLeagueBonusFormSnapshot CreateSnapshot(bool placed, Uri? action = null)
     {
         var questions = SchadensfresseChampionsLeagueBonusSeed.Default.Questions.Select(seed =>
             new ChampionsLeagueBonusQuestionSnapshot(
@@ -369,7 +396,7 @@ public sealed class BonusCommand_ChampionsLeague_Tests : BonusCommandTests_Base
                     : Enumerable.Repeat<string?>(null, seed.FormKeys.Count).ToArray())).ToArray();
         return new ChampionsLeagueBonusFormSnapshot(
             new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true"),
-            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabeForm"),
+            action ?? ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction,
             "POST", questions, [new("csrf", "token")], "submitbutton", "tippsSpeichern", true);
     }
 

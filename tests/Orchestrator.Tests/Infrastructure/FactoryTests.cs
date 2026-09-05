@@ -103,14 +103,18 @@ public class FactoryTests
     }
 
     [Test]
-    public async Task KicktippClientFactory_production_builder_shares_authenticated_cookie_with_single_send_strict_route()
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task KicktippClientFactory_production_builder_maps_each_selected_member_to_injected_origin_and_shares_cookie(
+        string selectedAction,
+        string otherAction)
     {
         Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "user@example.com");
         Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "secret");
         using var server = WireMockServer.Start();
         var origin = new Uri(server.Urls[0] + "/");
-        var blank = CreateChampionsLeagueHtml(placed: false);
-        var placed = CreateChampionsLeagueHtml(placed: true);
+        var blank = CreateChampionsLeagueHtml(placed: false, action: selectedAction);
+        var placed = CreateChampionsLeagueHtml(placed: true, action: selectedAction);
         StubFactoryAuthentication(server);
         var bonusGetCount = 0;
         server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingGet())
@@ -119,7 +123,7 @@ public class FactoryTests
                 var html = bonusGetCount++ < 2 ? blank : placed;
                 return HtmlResponseMessage(html);
             }));
-        server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
+        server.Given(Request.Create().WithPath(selectedAction).UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(200)
                 .WithHeader("Content-Type", "text/html; charset=utf-8")
@@ -140,11 +144,11 @@ public class FactoryTests
             .All(option => option is not null)).IsTrue();
         var actionPosts = server.LogEntries.Where(entry =>
             entry.RequestMessage.Method == "POST"
-            && entry.RequestMessage.Path == "/schadensfresse/tippabgabeForm").ToArray();
+            && entry.RequestMessage.Path == selectedAction).ToArray();
         await Assert.That(actionPosts.Length).IsEqualTo(1);
         await Assert.That(server.LogEntries.Count(entry =>
             entry.RequestMessage.Method == "POST"
-            && entry.RequestMessage.Path == "/schadensfresse/tippabgabe")).IsEqualTo(0);
+            && entry.RequestMessage.Path == otherAction)).IsEqualTo(0);
         await Assert.That(actionPosts[0].RequestMessage.Headers!["Cookie"].Single()).Contains("factory-session=shared");
         var formValues = ParseFormDataMultiValue(actionPosts[0].RequestMessage.Body);
         await Assert.That(SchadensfresseChampionsLeagueBonusSeed.Default.Questions
@@ -173,7 +177,7 @@ public class FactoryTests
         Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "secret");
         using var server = WireMockServer.Start();
         var origin = new Uri(server.Urls[0] + "/");
-        var blank = CreateChampionsLeagueHtml(placed: false);
+        var blank = CreateChampionsLeagueHtml(placed: false, action: "/schadensfresse/tippabgabeForm");
         StubFactoryAuthentication(server);
         server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingGet())
             .RespondWith(Response.Create()
@@ -206,6 +210,43 @@ public class FactoryTests
         await Assert.That(server.LogEntries.Count(entry =>
             entry.RequestMessage.Method == "POST"
             && entry.RequestMessage.Path == "/info/profil/loginaction")).IsEqualTo(1);
+    }
+
+    [Test]
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task KicktippClientFactory_production_builder_rejects_both_action_drift_directions_before_strict_post(
+        string initialAction,
+        string currentAction)
+    {
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "user@example.com");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "secret");
+        using var server = WireMockServer.Start();
+        var origin = new Uri(server.Urls[0] + "/");
+        StubFactoryAuthentication(server);
+        var bonusGetCount = 0;
+        server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingGet())
+            .RespondWith(Response.Create().WithCallback(_ => HtmlResponseMessage(
+                CreateChampionsLeagueHtml(
+                    placed: false,
+                    action: bonusGetCount++ == 0 ? initialAction : currentAction))));
+        var sut = new KicktippClientFactory(
+            new MemoryCache(new MemoryCacheOptions()), CreateLoggerFactory());
+        using var client = sut.BuildClient(origin);
+        var predictions = SchadensfresseChampionsLeagueBonusSeed.Default.Questions.Select(question => (
+            question.KicktippQuestionId,
+            new BonusPrediction(question.Options.Take(question.MaxSelections).Select(option => option.Id).ToList())))
+            .ToArray();
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(() => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", initial, predictions, overridePredictions: true))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(server.LogEntries.Count(entry =>
+            entry.RequestMessage.Method == "POST"
+            && (entry.RequestMessage.Path == "/schadensfresse/tippabgabe"
+                || entry.RequestMessage.Path == "/schadensfresse/tippabgabeForm"))).IsEqualTo(0);
     }
 
     [Test]
@@ -312,11 +353,11 @@ public class FactoryTests
                 .WithBody("<html><body>authenticated</body></html>"));
     }
 
-    private static string CreateChampionsLeagueHtml(bool placed)
+    private static string CreateChampionsLeagueHtml(bool placed, string action)
     {
         var builder = new System.Text.StringBuilder();
         builder.Append("<html><body><form method=\"post\" action=\"")
-            .Append("tippabgabeForm")
+            .Append(action)
             .Append("\"><input type=\"hidden\" name=\"tipperId\" value=\"123\">")
             .Append("<table id=\"tippabgabeFragen\"><tbody>");
         foreach (var seed in SchadensfresseChampionsLeagueBonusSeed.Default.Questions)

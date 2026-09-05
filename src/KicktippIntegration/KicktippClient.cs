@@ -36,7 +36,7 @@ public class KicktippClient : IKicktippClient, IDisposable
 
         using var response = await _httpClient.GetAsync($"{community}/tippabgabe?bonus=true");
         var snapshot = await ParseChampionsLeagueBonusSnapshotAsync(response);
-        if (!HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusPage))
+        if (!HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusRoute.Page))
         {
             throw new InvalidDataException("The strict CL GET did not remain on the exact bonus page.");
         }
@@ -149,7 +149,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                 .Single(select => string.Equals(select.Name, targetKey, StringComparison.Ordinal))
                 .IsDisabled() is false);
         var snapshot = new ChampionsLeagueBonusFormSnapshot(finalUri, action, form.Method.ToUpperInvariant(), questions, controls, submitterName, submitterValue, canPlace);
-        ChampionsLeagueBonusRoute.ValidateSnapshot(ToCanonicalChampionsLeagueSnapshot(snapshot));
+        _ = ToCanonicalChampionsLeagueSnapshot(snapshot);
         return snapshot;
     }
 
@@ -159,48 +159,72 @@ public class KicktippClient : IKicktippClient, IDisposable
             ?? throw new InvalidOperationException(
                 "The strict Champions-League mutation transport is not configured for this Kicktipp client.");
         var current = await GetChampionsLeagueBonusFormSnapshotAsync(community);
+        var canonicalInitial = ToCanonicalChampionsLeagueSnapshot(initialSnapshot);
+        var canonicalCurrent = ToCanonicalChampionsLeagueSnapshot(current);
         var payload = ChampionsLeagueBonusRoute.BuildPostPayload(
-            ToCanonicalChampionsLeagueSnapshot(initialSnapshot),
-            ToCanonicalChampionsLeagueSnapshot(current),
+            canonicalInitial,
+            canonicalCurrent,
             predictions,
             overridePredictions);
-        using var response = await strictTransport.PostAndResolveResponseOnceAsync(payload);
+        var selectedCanonicalAction = canonicalCurrent.Action;
+        var selectedTransportAction = strictTransport.GetActionForCanonicalMember(selectedCanonicalAction);
+        using var response = await strictTransport.PostAndResolveResponseOnceAsync(selectedTransportAction, payload);
         var responseSnapshot = await ParseChampionsLeagueBonusSnapshotAsync(response);
+        var canonicalResponse = ToCanonicalChampionsLeagueSnapshot(responseSnapshot);
+        ValidateSelectedAction(canonicalResponse, selectedCanonicalAction, "POST response");
         ChampionsLeagueBonusRoute.ValidatePlacedSelections(
-            ToCanonicalChampionsLeagueSnapshot(responseSnapshot), predictions);
+            canonicalResponse, predictions);
         using var finalResponse = await strictTransport.GetOnceAsync();
         var final = await ParseChampionsLeagueBonusSnapshotAsync(finalResponse);
         if (!HasExactUriComponents(final.FinalUri, strictTransport.PageUri))
         {
             throw new InvalidDataException("The strict CL final GET did not remain on the exact bonus page.");
         }
-        ChampionsLeagueBonusRoute.ValidatePlacedSelections(ToCanonicalChampionsLeagueSnapshot(final), predictions);
+        var canonicalFinal = ToCanonicalChampionsLeagueSnapshot(final);
+        ValidateSelectedAction(canonicalFinal, selectedCanonicalAction, "final readback");
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(canonicalFinal, predictions);
         return final;
     }
 
-    private Uri ExpectedChampionsLeagueBonusPage =>
-        _championsLeagueBonusStrictTransport?.PageUri ?? ChampionsLeagueBonusRoute.ExpectedPage;
-
-    private Uri ExpectedChampionsLeagueBonusAction =>
-        _championsLeagueBonusStrictTransport?.ActionUri ?? ChampionsLeagueBonusRoute.ExpectedAction;
+    private ChampionsLeagueBonusRoute.ExactRouteUris ExpectedChampionsLeagueBonusRoute =>
+        _championsLeagueBonusStrictTransport?.Route ?? ChampionsLeagueBonusRoute.ProductionExactRoute;
 
     private ChampionsLeagueBonusFormSnapshot ToCanonicalChampionsLeagueSnapshot(
         ChampionsLeagueBonusFormSnapshot snapshot)
     {
-        if (!HasExactUriComponents(snapshot.Action, ExpectedChampionsLeagueBonusAction)
-            || !HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusPage)
-               && !HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusAction))
+        var expectedRoute = ExpectedChampionsLeagueBonusRoute;
+        var canonicalAction = ChampionsLeagueBonusRoute.CanonicalizeAction(snapshot.Action, expectedRoute);
+        var expectedAction = ChampionsLeagueBonusRoute.MapCanonicalActionToRoute(canonicalAction, expectedRoute);
+        var finalIsPage = HasExactUriComponents(snapshot.FinalUri, expectedRoute.Page);
+        if (!finalIsPage && !HasExactUriComponents(snapshot.FinalUri, expectedAction))
         {
             throw new InvalidDataException("The strict CL form is not bound to the configured exact route.");
         }
 
-        return snapshot with
+        var canonical = snapshot with
         {
-            FinalUri = HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusPage)
+            FinalUri = finalIsPage
                 ? ChampionsLeagueBonusRoute.ExpectedPage
-                : ChampionsLeagueBonusRoute.ExpectedAction,
-            Action = ChampionsLeagueBonusRoute.ExpectedAction
+                : canonicalAction,
+            Action = canonicalAction
         };
+        ChampionsLeagueBonusRoute.ValidateSnapshot(canonical);
+        _logger.LogInformation(
+            "Validated strict CL {ApprovedActionMember}.",
+            ChampionsLeagueBonusRoute.GetActionDiagnostic(canonicalAction));
+        return canonical;
+    }
+
+    private static void ValidateSelectedAction(
+        ChampionsLeagueBonusFormSnapshot snapshot,
+        Uri selectedCanonicalAction,
+        string boundary)
+    {
+        if (!HasExactUriComponents(snapshot.Action, selectedCanonicalAction))
+        {
+            throw new InvalidDataException(
+                $"The strict CL {boundary} changed the approved selected action after dispatch.");
+        }
     }
 
     private static bool HasExactUriComponents(Uri actual, Uri expected) =>

@@ -43,32 +43,51 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     }
 
     [Test]
-    public async Task Strict_parser_accepts_relative_and_absolute_representations_of_the_exact_action()
+    [Arguments("tippabgabe", "https://www.kicktipp.de/schadensfresse/tippabgabe")]
+    [Arguments("/schadensfresse/tippabgabe", "https://www.kicktipp.de/schadensfresse/tippabgabe")]
+    [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabe", "https://www.kicktipp.de/schadensfresse/tippabgabe")]
+    [Arguments("tippabgabeForm", "https://www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "https://www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabeForm", "https://www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    public async Task Strict_parser_accepts_relative_and_absolute_representations_of_each_approved_action(
+        string action,
+        string expected)
     {
-        using var relativeClient = new HttpClient(new StaticHtmlHandler(CreateHtml()))
-        {
-            BaseAddress = new Uri("https://www.kicktipp.de/")
-        };
-        using var absoluteClient = new HttpClient(new StaticHtmlHandler(
-            CreateHtml(
-                action: ChampionsLeagueBonusRoute.ExpectedAction.AbsoluteUri,
-                baseHref: "https://www.kicktipp.de/other/")))
+        using var httpClient = new HttpClient(new StaticHtmlHandler(CreateHtml(action: action)))
         {
             BaseAddress = new Uri("https://www.kicktipp.de/")
         };
 
-        var relative = await CreateClient(relativeClient)
-            .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
-        var absolute = await CreateClient(absoluteClient)
+        var snapshot = await CreateClient(httpClient)
             .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
 
-        await Assert.That(relative.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedAction);
-        await Assert.That(absolute.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedAction);
+        await Assert.That(snapshot.Action).IsEqualTo(new Uri(expected));
     }
 
     [Test]
-    [Arguments("tippabgabe")]
+    [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabe")]
+    [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    public async Task Absolute_approved_action_is_independent_of_a_drifting_document_base(string action)
+    {
+        using var httpClient = new HttpClient(new StaticHtmlHandler(CreateHtml(
+            action: action,
+            baseHref: "https://www.kicktipp.de/other/")))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        var snapshot = await CreateClient(httpClient)
+            .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(snapshot.Action).IsEqualTo(new Uri(action));
+    }
+
+    [Test]
     [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true")]
+    [Arguments("tippabgabe?bonus=true")]
+    [Arguments("tippabgabe#fragment")]
+    [Arguments("Tippabgabe")]
+    [Arguments("tippabgabe/")]
     [Arguments("TippabgabeForm")]
     [Arguments("tippabgabeForm/")]
     [Arguments("tippabgabe%2FForm")]
@@ -88,6 +107,44 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         await Assert.That(() => CreateClient(httpClient)
                 .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
             .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    [Arguments("tippabgabe", "approved-action-member-0")]
+    [Arguments("tippabgabeForm", "approved-action-member-1")]
+    public async Task Approved_action_diagnostic_uses_only_the_distinct_code_owned_member(
+        string action,
+        string diagnostic)
+    {
+        var logger = new FakeLogger<KicktippClient>();
+        using var httpClient = new HttpClient(new StaticHtmlHandler(CreateHtml(action: action)))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+        using var client = new KicktippClient(httpClient, logger, new MemoryCache(new MemoryCacheOptions()));
+
+        _ = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        var messages = logger.Collector.GetSnapshot().Select(record => record.Message).ToArray();
+        await Assert.That(messages.Count(message => message.Contains(diagnostic, StringComparison.Ordinal))).IsEqualTo(1);
+        await Assert.That(messages.Any(message => message.Contains("https://", StringComparison.Ordinal))).IsFalse();
+    }
+
+    [Test]
+    public async Task Unknown_action_fails_before_any_approved_member_diagnostic()
+    {
+        var logger = new FakeLogger<KicktippClient>();
+        using var httpClient = new HttpClient(new StaticHtmlHandler(CreateHtml(action: "unapproved")))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+        using var client = new KicktippClient(httpClient, logger, new MemoryCache(new MemoryCacheOptions()));
+
+        await Assert.That(() => client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(logger.Collector.GetSnapshot().Any(record =>
+            record.Message.Contains("approved-action-member", StringComparison.Ordinal))).IsFalse();
     }
 
     [Test]
@@ -155,7 +212,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         var snapshot = await CreateClient(httpClient)
             .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
 
-        await Assert.That(snapshot.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedAction);
+        await Assert.That(snapshot.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction);
     }
 
     [Test]
@@ -331,15 +388,19 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     }
 
     [Test]
-    public async Task Strict_client_posts_once_then_validates_response_and_fresh_get_readback()
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task Strict_client_posts_once_to_each_selected_action_then_validates_response_and_fresh_get_readback(
+        string selectedAction,
+        string otherAction)
     {
         var origin = new Uri(ServerUrl + "/");
         StubBonusGets(
-            CreateHtml(origin: origin),
-            CreateHtml(origin: origin),
-            CreateHtml(placed: true, origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
-            .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin)));
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(placed: true, origin: origin, action: selectedAction));
+        Server.Given(Request.Create().WithPath(selectedAction).UsingPost())
+            .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin, action: selectedAction)));
         using var client = CreateStrictClient(origin);
         var predictions = CreatePredictions();
         var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
@@ -349,9 +410,9 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
 
         await Assert.That(final.Questions.SelectMany(question => question.SelectedOptionIds).All(value => value is not null)).IsTrue();
         var post = Server.LogEntries.Single(entry => entry.RequestMessage.Method == "POST");
-        await Assert.That(post.RequestMessage.Path).IsEqualTo("/schadensfresse/tippabgabeForm");
+        await Assert.That(post.RequestMessage.Path).IsEqualTo(selectedAction);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
-                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+                                                   && entry.RequestMessage.Path == otherAction))
             .IsEqualTo(0);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "GET"
                                                    && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
@@ -365,16 +426,124 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     }
 
     [Test]
-    [Arguments(302)]
-    [Arguments(303)]
-    public async Task Strict_client_follows_one_exact_safe_redirect_as_get_then_performs_final_get(int statusCode)
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task Strict_client_rejects_action_drift_before_transport_with_zero_posts(
+        string initialAction,
+        string currentAction)
     {
         var origin = new Uri(ServerUrl + "/");
         StubBonusGets(
-            CreateHtml(origin: origin),
-            CreateHtml(origin: origin),
-            CreateHtml(placed: true, origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
+            CreateHtml(origin: origin, action: initialAction),
+            CreateHtml(origin: origin, action: currentAction));
+        using var client = CreateStrictClient(origin);
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(() => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", initial, CreatePredictions(), overridePredictions: true))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST")).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task Strict_client_rejects_direct_response_action_change_without_repost(
+        string selectedAction,
+        string otherAction)
+    {
+        var origin = new Uri(ServerUrl + "/");
+        StubBonusGets(
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(origin: origin, action: selectedAction));
+        Server.Given(Request.Create().WithPath(selectedAction).UsingPost())
+            .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin, action: otherAction)));
+        using var client = CreateStrictClient(origin);
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(() => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", initial, CreatePredictions(), overridePredictions: true))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == selectedAction)).IsEqualTo(1);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == otherAction)).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task Strict_client_rejects_followed_page_action_change_without_repost(
+        string selectedAction,
+        string otherAction)
+    {
+        var origin = new Uri(ServerUrl + "/");
+        StubBonusGets(
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(placed: true, origin: origin, action: otherAction));
+        Server.Given(Request.Create().WithPath(selectedAction).UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(302)
+                .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
+        using var client = CreateStrictClient(origin);
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(() => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", initial, CreatePredictions(), overridePredictions: true))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == selectedAction)).IsEqualTo(1);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == otherAction)).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments("/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task Strict_client_rejects_final_readback_action_change_without_repost(
+        string selectedAction,
+        string otherAction)
+    {
+        var origin = new Uri(ServerUrl + "/");
+        StubBonusGets(
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(placed: true, origin: origin, action: otherAction));
+        Server.Given(Request.Create().WithPath(selectedAction).UsingPost())
+            .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin, action: selectedAction)));
+        using var client = CreateStrictClient(origin);
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(() => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", initial, CreatePredictions(), overridePredictions: true))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == selectedAction)).IsEqualTo(1);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == otherAction)).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments(302, "/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments(302, "/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    [Arguments(303, "/schadensfresse/tippabgabe", "/schadensfresse/tippabgabeForm")]
+    [Arguments(303, "/schadensfresse/tippabgabeForm", "/schadensfresse/tippabgabe")]
+    public async Task Strict_client_follows_one_exact_safe_redirect_as_get_then_performs_final_get(
+        int statusCode,
+        string selectedAction,
+        string otherAction)
+    {
+        var origin = new Uri(ServerUrl + "/");
+        StubBonusGets(
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(origin: origin, action: selectedAction),
+            CreateHtml(placed: true, origin: origin, action: selectedAction));
+        Server.Given(Request.Create().WithPath(selectedAction).UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
@@ -387,10 +556,10 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         await Assert.That(final.Questions.SelectMany(question => question.SelectedOptionIds).All(value => value is not null)).IsTrue();
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST")).IsEqualTo(1);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
-                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabeForm"))
+                                                   && entry.RequestMessage.Path == selectedAction))
             .IsEqualTo(1);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
-                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+                                                   && entry.RequestMessage.Path == otherAction))
             .IsEqualTo(0);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "GET"
                                                    && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
@@ -590,6 +759,37 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     }
 
     [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Pre_post_action_member_change_fails_before_payload_construction(bool oldToForm)
+    {
+        var oldAction = ChampionsLeagueBonusRoute.ExpectedTippabgabeAction;
+        var formAction = ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction;
+        var initial = CreateSnapshot(oldToForm ? oldAction : formAction);
+        var current = CreateSnapshot(oldToForm ? formAction : oldAction);
+
+        await Assert.That(() => ChampionsLeagueBonusRoute.BuildPostPayload(
+                initial, current, CreatePredictions(), overrideKicktipp: true))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Exact_payload_accepts_each_stable_approved_action_member(bool useFormAction)
+    {
+        var action = useFormAction
+            ? ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction
+            : ChampionsLeagueBonusRoute.ExpectedTippabgabeAction;
+        var snapshot = CreateSnapshot(action);
+
+        var payload = ChampionsLeagueBonusRoute.BuildPostPayload(
+            snapshot, snapshot, CreatePredictions(), overrideKicktipp: false);
+
+        await Assert.That(payload.Count).IsEqualTo(10);
+    }
+
+    [Test]
     public async Task Partial_existing_selections_require_explicit_override()
     {
         var current = CreateSnapshot(selected: ("1662326752", 0, FirstOptionId()));
@@ -633,6 +833,11 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
 
     private static ChampionsLeagueBonusFormSnapshot CreateSnapshot(
         params (string QuestionId, int slot, string option)[] selected)
+        => CreateSnapshot(ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction, selected);
+
+    private static ChampionsLeagueBonusFormSnapshot CreateSnapshot(
+        Uri action,
+        params (string QuestionId, int slot, string option)[] selected)
     {
         var selectedBySlot = selected.ToDictionary(value => (value.QuestionId, value.slot), value => value.option);
         var questions = SchadensfresseChampionsLeagueBonusSeed.Default.Questions.Select(seed =>
@@ -651,7 +856,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         }).ToArray();
         return new ChampionsLeagueBonusFormSnapshot(
             new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true"),
-            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabeForm"),
+            action,
             "POST",
             questions,
             [new("csrf", "token"), new("kept", "first"), new("kept", "second")],

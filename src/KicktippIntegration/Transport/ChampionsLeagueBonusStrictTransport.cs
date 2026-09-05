@@ -11,6 +11,7 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
     private readonly HttpClient _httpClient;
+    private readonly ChampionsLeagueBonusRoute.ExactRouteUris _route;
 
     public ChampionsLeagueBonusStrictTransport(
         Uri origin,
@@ -20,9 +21,10 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
         ArgumentNullException.ThrowIfNull(origin);
         ArgumentNullException.ThrowIfNull(cookieContainer);
         Origin = ValidateOrigin(origin);
-        var route = ChampionsLeagueBonusRoute.CreateExactUrisForValidatedOrigin(Origin);
-        ActionUri = route.Action;
-        PageUri = route.Page;
+        _route = ChampionsLeagueBonusRoute.CreateExactUrisForValidatedOrigin(Origin);
+        PageUri = _route.Page;
+        TippabgabeActionUri = _route.TippabgabeAction;
+        TippabgabeFormActionUri = _route.TippabgabeFormAction;
 
         var primaryHandler = new HttpClientHandler
         {
@@ -40,16 +42,24 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
 
     public Uri Origin { get; }
 
-    public Uri ActionUri { get; }
+    public Uri TippabgabeActionUri { get; }
+
+    public Uri TippabgabeFormActionUri { get; }
 
     public Uri PageUri { get; }
 
+    internal ChampionsLeagueBonusRoute.ExactRouteUris Route => _route;
+
     public async Task<HttpResponseMessage> PostAndResolveResponseOnceAsync(
+        Uri selectedAction,
         IReadOnlyList<KeyValuePair<string, string>> formValues,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(selectedAction);
         ArgumentNullException.ThrowIfNull(formValues);
-        using var request = new HttpRequestMessage(HttpMethod.Post, ActionUri)
+        var canonicalAction = ChampionsLeagueBonusRoute.CanonicalizeAction(selectedAction, _route);
+        var exactSelectedAction = ChampionsLeagueBonusRoute.MapCanonicalActionToRoute(canonicalAction, _route);
+        using var request = new HttpRequestMessage(HttpMethod.Post, exactSelectedAction)
         {
             Content = new FormUrlEncodedContent(formValues)
         };
@@ -68,7 +78,7 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
 
         try
         {
-            ValidateResponseRequestUri(response, ActionUri, "POST");
+            ValidateResponseRequestUri(response, exactSelectedAction, "POST");
             if (response.StatusCode == HttpStatusCode.OK)
             {
                 return response;
@@ -78,7 +88,7 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
             {
                 var location = response.Headers.Location;
                 if (location is null
-                    || !Uri.TryCreate(ActionUri, location, out var resolved)
+                    || !Uri.TryCreate(exactSelectedAction, location, out var resolved)
                     || !HasExactComponents(resolved, PageUri))
                 {
                     throw new InvalidDataException(
@@ -103,6 +113,9 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
 
     public Task<HttpResponseMessage> GetOnceAsync(CancellationToken cancellationToken = default) =>
         SendGetOnceAsync(PageUri, "final verification", cancellationToken);
+
+    internal Uri GetActionForCanonicalMember(Uri canonicalAction) =>
+        ChampionsLeagueBonusRoute.MapCanonicalActionToRoute(canonicalAction, _route);
 
     public void Dispose() => _httpClient.Dispose();
 
@@ -162,11 +175,5 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
     }
 
     private static bool HasExactComponents(Uri actual, Uri expected) =>
-        string.Equals(actual.Scheme, expected.Scheme, StringComparison.Ordinal)
-        && string.Equals(actual.Host, expected.Host, StringComparison.Ordinal)
-        && actual.Port == expected.Port
-        && string.Equals(actual.UserInfo, expected.UserInfo, StringComparison.Ordinal)
-        && string.Equals(actual.AbsolutePath, expected.AbsolutePath, StringComparison.Ordinal)
-        && string.Equals(actual.Query, expected.Query, StringComparison.Ordinal)
-        && string.Equals(actual.Fragment, expected.Fragment, StringComparison.Ordinal);
+        ChampionsLeagueBonusRoute.HasExactUriComponents(actual, expected);
 }

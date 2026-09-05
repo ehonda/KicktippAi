@@ -19,9 +19,10 @@ does not add an option or authorize an identity in the current seed.
 
 - The strict Kicktipp adapter requires the authenticated Schadensfresse bonus
   page at exact GET URI
-  `https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true`, the distinct
-  exact HTTPS POST action
-  `https://www.kicktipp.de/schadensfresse/tippabgabeForm`, unique intended
+  `https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true`, one action
+  advertised consistently across the initial and every immediate pre-POST read
+  from the unordered exact HTTPS POST pair
+  `/schadensfresse/tippabgabe` and `/schadensfresse/tippabgabeForm`, unique intended
   submitter, editable target controls, seeded definitions, and valid current
   selections. It keeps the initial selection vector as the
   optimistic-concurrency baseline. A
@@ -61,10 +62,14 @@ does not add an option or authorize an identity in the current seed.
   the action POST once, accepts a direct `200` or one exact `302`/`303`
   post/redirect/get as a bodyless GET, rejects every other status or target,
   and performs response and final reads without ever re-entering the ordinary
-  handler. An exception after dispatch is an unknown outcome and requires a
+  handler. It maps the concurrency-checked canonical selected-action member by
+  stable index to the injected transport origin, validates membership before
+  dispatch, and binds the direct response, followed page, and final page to
+  that same member. It never tries the other approved member. An exception or
+  action drift after dispatch is an unknown outcome and requires a
   later read-only recovery inspection, never an automatic repost.
 
-The exact page and action path components have one immutable owner in the
+The exact page and two action path components have one immutable owner in the
 strict route. Production identities and loopback identities are derived from
 those components plus a validated authority-only origin; the semantic form
 validator and the mutation transport cannot carry independent path literals.
@@ -76,18 +81,20 @@ Production workflow run `33953252166` at source
 verification process and generation process while parsing the first
 authenticated form. It did not reach a model call, Firestore prediction write,
 or Kicktipp answer POST. Four useful fresh authenticated observations,
-including two with the exact production User-Agent, confirmed that the final
-bonus page is unchanged but the raw relative action is now
-`tippabgabeForm`, resolving to the exact action above with no query, fragment,
-user-info, or document-base alteration.
+including two with the exact production User-Agent, exposed relative action
+`tippabgabeForm`, resolving to its exact approved member with no query,
+fragment, user-info, or document-base alteration. The later observation below
+invalidated only the assumption that this one member was globally stable.
 
 The older sanitized snapshot
 `4299e240f7909f24c2b7f4d2eeeaef564beaea4a3539fe87984867fa890205b0`
-remains the reviewed source for the frozen question/option seed. Its former
-`/schadensfresse/tippabgabe` action is superseded only as live route-identity
-evidence and is rejected rather than retained as a fallback. ADR-0069 and
-ADR-0070 remain unchanged because the exact-route and single-attempt/no-replay
-decisions are preserved.
+remains the reviewed source for the frozen question/option seed. A later
+production-assembly observation after green CI exposed that snapshot's exact
+`/schadensfresse/tippabgabe` action again, while the earlier refreshed sessions
+exposed `tippabgabeForm`. ADR-0071 therefore treats both as finite approved
+identities without preference, preserves the one observed member across all
+pre-dispatch reads, and forbids alternate-member fallback. ADR-0069's business
+scope and ADR-0070's single-attempt/no-replay transport remain unchanged.
 
 The hosted prompt was already reviewed, published, and read back as immutable
 v1/`production`. During an availability-only transport, timeout, TLS/DNS, or

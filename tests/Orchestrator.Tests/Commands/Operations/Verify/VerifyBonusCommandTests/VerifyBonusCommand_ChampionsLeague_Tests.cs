@@ -9,10 +9,16 @@ namespace Orchestrator.Tests.Commands.Operations.Verify.VerifyBonusCommandTests;
 public sealed class VerifyBonusCommand_ChampionsLeague_Tests : VerifyBonusCommandTests_Base
 {
     [Test]
-    public async Task Exact_three_firestore_rows_and_full_kicktipp_readback_pass()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Exact_three_firestore_rows_and_full_kicktipp_readback_pass_for_either_approved_action(
+        bool useFormAction)
     {
         var (repository, firebaseFactory) = CreateRepository(missingQuestionId: null);
-        var kicktipp = CreateKicktipp(CreateSnapshot(placedQuestionCount: 3));
+        var action = useFormAction
+            ? ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction
+            : ChampionsLeagueBonusRoute.ExpectedTippabgabeAction;
+        var kicktipp = CreateKicktipp(CreateSnapshot(placedQuestionCount: 3, action: action));
         var context = CreateVerifyBonusCommandApp(
             firebaseServiceFactory: firebaseFactory,
             kicktippClientFactory: CreateMockKicktippClientFactory(kicktipp));
@@ -23,6 +29,24 @@ public sealed class VerifyBonusCommand_ChampionsLeague_Tests : VerifyBonusComman
         await Assert.That(output).Contains("All three strict CL bonus predictions match");
         repository.Verify(value => value.GetCurrentAsync(
             It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
+    [Test]
+    public async Task Unknown_action_fails_route_admission_before_lineage_reads()
+    {
+        var (repository, firebaseFactory) = CreateRepository(missingQuestionId: null);
+        var kicktipp = CreateKicktipp(CreateSnapshot(
+            placedQuestionCount: 3,
+            action: new Uri("https://www.kicktipp.de/schadensfresse/unapproved")));
+        var context = CreateVerifyBonusCommandApp(
+            firebaseServiceFactory: firebaseFactory,
+            kicktippClientFactory: CreateMockKicktippClientFactory(kicktipp));
+
+        var (exitCode, _) = await RunCommandAsync(context.App, context.Console, ExactArguments().ToArray());
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        repository.Verify(value => value.GetCurrentAsync(
+            It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -85,7 +109,7 @@ public sealed class VerifyBonusCommand_ChampionsLeague_Tests : VerifyBonusComman
         return client;
     }
 
-    private static ChampionsLeagueBonusFormSnapshot CreateSnapshot(int placedQuestionCount)
+    private static ChampionsLeagueBonusFormSnapshot CreateSnapshot(int placedQuestionCount, Uri? action = null)
     {
         var questions = SchadensfresseChampionsLeagueBonusSeed.Default.Questions.Select((seed, index) =>
             new ChampionsLeagueBonusQuestionSnapshot(
@@ -102,7 +126,7 @@ public sealed class VerifyBonusCommand_ChampionsLeague_Tests : VerifyBonusComman
                     : Enumerable.Repeat<string?>(null, seed.FormKeys.Count).ToArray())).ToArray();
         return new ChampionsLeagueBonusFormSnapshot(
             new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true"),
-            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabeForm"),
+            action ?? ChampionsLeagueBonusRoute.ExpectedTippabgabeFormAction,
             "POST", questions, [], "submitbutton", "tippsSpeichern", true);
     }
 

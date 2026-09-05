@@ -10,44 +10,53 @@ namespace KicktippIntegration.Tests.Transport;
 public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
 {
     [Test]
-    public async Task Direct_ok_posts_once_to_the_exact_action_and_shared_cookie_is_sent()
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Direct_ok_posts_once_to_the_selected_exact_action_and_shared_cookie_is_sent(bool useFormAction)
     {
         var origin = Origin();
+        var selectedPath = useFormAction ? "/schadensfresse/tippabgabeForm" : "/schadensfresse/tippabgabe";
+        var otherPath = useFormAction ? "/schadensfresse/tippabgabe" : "/schadensfresse/tippabgabeForm";
         var cookies = new CookieContainer();
         cookies.Add(origin, new Cookie("session", "shared", "/"));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
+        Server.Given(Request.Create().WithPath(selectedPath).UsingPost())
             .RespondWith(Response.Create().WithStatusCode(200));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, cookies);
+        var selectedAction = useFormAction ? transport.TippabgabeFormActionUri : transport.TippabgabeActionUri;
 
-        using var response = await transport.PostAndResolveResponseOnceAsync([new("field", "value")]);
+        using var response = await transport.PostAndResolveResponseOnceAsync(selectedAction, [new("field", "value")]);
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         var request = Server.LogEntries.Single();
         await Assert.That(request.RequestMessage.Method).IsEqualTo("POST");
-        await Assert.That(request.RequestMessage.Path).IsEqualTo("/schadensfresse/tippabgabeForm");
+        await Assert.That(request.RequestMessage.Path).IsEqualTo(selectedPath);
         await Assert.That(request.RequestMessage.Query?.Count ?? 0).IsEqualTo(0);
         await Assert.That(request.RequestMessage.Body).IsEqualTo("field=value");
         await Assert.That(request.RequestMessage.Headers!["Cookie"].Single()).Contains("session=shared");
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
-                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+                                                   && entry.RequestMessage.Path == otherPath))
             .IsEqualTo(0);
     }
 
     [Test]
-    [Arguments(302)]
-    [Arguments(303)]
-    public async Task Safe_redirect_is_followed_once_with_a_bodyless_get(int statusCode)
+    [Arguments(302, false)]
+    [Arguments(302, true)]
+    [Arguments(303, false)]
+    [Arguments(303, true)]
+    public async Task Safe_redirect_is_followed_once_with_a_bodyless_get(int statusCode, bool useFormAction)
     {
         var origin = Origin();
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
+        var selectedPath = useFormAction ? "/schadensfresse/tippabgabeForm" : "/schadensfresse/tippabgabe";
+        Server.Given(Request.Create().WithPath(selectedPath).UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
         Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingGet())
             .RespondWith(Response.Create().WithStatusCode(200));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
+        var selectedAction = useFormAction ? transport.TippabgabeFormActionUri : transport.TippabgabeActionUri;
 
-        using var response = await transport.PostAndResolveResponseOnceAsync([new("field", "value")]);
+        using var response = await transport.PostAndResolveResponseOnceAsync(selectedAction, [new("field", "value")]);
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST")).IsEqualTo(1);
@@ -76,11 +85,33 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
 
-        await Assert.That(() => transport.PostAndResolveResponseOnceAsync([new("field", "value")]))
+        await Assert.That(() => transport.PostAndResolveResponseOnceAsync(transport.TippabgabeFormActionUri, [new("field", "value")]))
             .Throws<HttpRequestException>();
 
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST")).IsEqualTo(1);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "GET")).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Failure_on_either_selected_member_never_falls_back_to_the_other(bool useFormAction)
+    {
+        var origin = Origin();
+        var selectedPath = useFormAction ? "/schadensfresse/tippabgabeForm" : "/schadensfresse/tippabgabe";
+        var otherPath = useFormAction ? "/schadensfresse/tippabgabe" : "/schadensfresse/tippabgabeForm";
+        Server.Given(Request.Create().WithPath(selectedPath).UsingPost())
+            .RespondWith(Response.Create().WithStatusCode(500));
+        using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
+        var selectedAction = useFormAction ? transport.TippabgabeFormActionUri : transport.TippabgabeActionUri;
+
+        await Assert.That(() => transport.PostAndResolveResponseOnceAsync(selectedAction, [new("field", "value")]))
+            .Throws<HttpRequestException>();
+
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == selectedPath)).IsEqualTo(1);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == otherPath)).IsEqualTo(0);
     }
 
     [Test]
@@ -95,7 +126,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
             .RespondWith(Response.Create().WithStatusCode(302).WithHeader("Location", location));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
 
-        await Assert.That(() => transport.PostAndResolveResponseOnceAsync([new("field", "value")]))
+        await Assert.That(() => transport.PostAndResolveResponseOnceAsync(transport.TippabgabeFormActionUri, [new("field", "value")]))
             .Throws<InvalidDataException>();
 
         await Assert.That(Server.LogEntries.Count).IsEqualTo(1);
@@ -109,7 +140,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
             .RespondWith(Response.Create().WithStatusCode(303));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
 
-        await Assert.That(() => transport.PostAndResolveResponseOnceAsync([new("field", "value")]))
+        await Assert.That(() => transport.PostAndResolveResponseOnceAsync(transport.TippabgabeFormActionUri, [new("field", "value")]))
             .Throws<InvalidDataException>();
 
         await Assert.That(Server.LogEntries.Count).IsEqualTo(1);
@@ -147,7 +178,10 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
             }));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
         using var cancellation = new CancellationTokenSource();
-        var post = transport.PostAndResolveResponseOnceAsync([new("field", "value")], cancellation.Token);
+        var post = transport.PostAndResolveResponseOnceAsync(
+            transport.TippabgabeFormActionUri,
+            [new("field", "value")],
+            cancellation.Token);
         await requestObserved.Task.WaitAsync(TimeSpan.FromSeconds(3));
         cancellation.Cancel();
 
@@ -169,6 +203,20 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
         await Assert.That(() => new ChampionsLeagueBonusStrictTransport(
                 new Uri(value), new CookieContainer()))
             .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task Unknown_selected_action_fails_before_sending_any_request()
+    {
+        var origin = Origin();
+        using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
+
+        await Assert.That(() => transport.PostAndResolveResponseOnceAsync(
+                new Uri(origin, "/schadensfresse/unapproved"),
+                [new("field", "value")]))
+            .Throws<InvalidDataException>();
+
+        await Assert.That(Server.LogEntries.Count).IsEqualTo(0);
     }
 
     private Uri Origin() => new(ServerUrl + "/");
