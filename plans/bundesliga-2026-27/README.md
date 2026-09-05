@@ -25,7 +25,7 @@ evidence is in [P0-21](tasks/p0-21-production-activation.md).
 
 This closeout supersedes later statements in this plan that call P0-21 or the
 first scheduled observation open. Work now proceeds in P1. ADR-0058 makes
-P1-10 the deadline-critical `schadensfresse` primary conversion and fully
+P1-10 the final `schadensfresse` primary conversion and fully
 absorbs/supersedes P1-08; unattended Club Elo network refresh and exploratory
 model follow-ups are also non-P0 work.
 
@@ -33,7 +33,7 @@ model follow-ups are also non-P0 work.
 
 - Bundesliga 2026/27 is the only live Bundesliga runtime target in scope. We are not preserving 2025/26 workflows, prompt routes, defaults, or implicit storage behavior.
 - Transfer documents are retired. Club Elo provides current strength context; current rosters and squad summaries provide membership and squad context.
-- Recent, home, and away history must carry exact played dates: current-season Bundesliga rows come from the competition-scoped Kicktipp schedule/results, while intervening cup, UEFA, friendly, and other fixtures use an accepted source with explicit provenance. Head-to-head already carries dates and is not rewritten.
+- Recent, home, and away history carries exact, source-attributed played dates where available: current-season Bundesliga rows come from the competition-scoped Kicktipp schedule/results, while intervening fixtures use an accepted source with explicit provenance. ADR-0067 permits a clearly non-exact collection-date proxy only for its bounded external labels. Head-to-head already carries dates and is not rewritten.
 - DuckDB is the primary roster-membership source per club once it explicitly represents 2026/27 and passes strict gates. A complete, source-dated 18-club seed and last-known-good snapshots cover missing, stale, partial, or suspicious data without ongoing manual maintenance.
 - Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
 - The required production scope is `pes-squad`, `schadensfresse`,
@@ -157,8 +157,8 @@ ADR-0062 temporarily restores `schadensfresse-context` and
 recovery contract is eight pairs/16 jobs at the unchanged
 cron/concurrency/order/failure/no-bonus boundary. It uses target-owned context,
 `pes-squad` source context, target credentials, zero expected copy model calls,
-and fail-closed compatibility. It sunsets at `2026-09-08T12:00:00Z`; it is not
-manual-copy authority or target-primary activation.
+and fail-closed compatibility. ADR-0068 keeps it until a reviewed successor
+replaces or terminates it; it is not manual-copy authority or target-primary activation.
 
 The activation contract forbids dispatching the outer lane before activation:
 completed leaf validation plus static/review/CI evidence is sufficient, while a
@@ -201,10 +201,10 @@ milestones may proceed while the remaining frontier stays `needs-interview`.
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
 | [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
-| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical** | Recovery `main` temporarily restores the 8-pair source-copy lane through `2026-09-08T12:00:00Z`; preserve the full implementation for an atomic target-primary PR that replaces/terminates it | P0-21; absorbs P1-08 |
+| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) | Recovery `main` retains the 8-pair source-copy lane until a reviewed successor replaces/terminates it; preserve the full implementation for an atomic target-primary PR | P0-21; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
-| [P1-14](tasks/p1-14-history-source-continuity.md) **Urgent** | Restore exact selected-history source continuity; defer proxy and full-season capture redesign | P0-22, P0-21 |
+| [P1-14](tasks/p1-14-history-source-continuity.md) **Urgent** | Restore exact selected-history provenance and collection-date proxy continuity; defer full-season capture redesign | P0-22, P0-21 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -215,7 +215,7 @@ contract:
 
 - all 18 teams map one-to-one across Kicktipp, document slugs, roster sources, and the accepted Club Elo snapshot;
 - all production reads and writes use `bundesliga-2026-27` and cannot fall back to the old unscoped Bundesliga identity;
-- every selected recent/home/away history row has an exact source-attributed played date; collection timestamps and inferred league order are never presented as played dates, and head-to-head dates remain intact;
+- every selected recent/home/away history row has exact source-attributed played-date evidence or ADR-0067's explicit, bounded collection-date proxy; collection timestamps and inferred league order are never presented as exact played dates, and head-to-head dates remain intact;
 - match and bonus context use explicit live allowlists, contain the required Elo/roster/squad documents, and exclude stale team/manager, transfer, old-season, and cross-competition documents;
 - bonus context is question-aware and bounded before the only pre-season bonus predictions are generated;
 - a partial matchday is not complete before all nine matches are complete;
@@ -280,6 +280,8 @@ contract:
 - [ADR-0043: Freeze historical experiment aliases and the context-eligible pool](decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md) — refines ADR-0040's document-name and sampling-pool contract
 - [ADR-0044: Select canonical preseason history sources](decisions/0044-select-canonical-preseason-history-sources.md)
 - [ADR-0066: Refresh the rolling Bundesliga history source checkpoint](decisions/0066-refresh-history-source-checkpoint.md)
+- [ADR-0067: Tolerate unresolved external history dates with a collection-date proxy](decisions/0067-tolerate-unresolved-external-history-dates.md)
+- [ADR-0068: Replace the copy calendar sunset with a reviewed replacement condition](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md)
 - [ADR-0045: Verify versioned prompt promotion before validation](decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
 - [ADR-0046: Bind cost usage to exact Langfuse dataset runs](decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
 - [ADR-0047: Observe one temporary arena Luna scheduled cycle](decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)
@@ -297,4 +299,4 @@ contract:
 - [ADR-0059: Bind schadensfresse rules to a structured semantic record](decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md) — narrowly supersedes ADR-0058's legacy normalized rules hash as the semantic publication/freshness gate; preserves it as historical evidence and makes the structured v1 record canonical
 - [ADR-0060: Separate generation provenance from current rules attestation](decisions/0060-separate-generation-manifest-from-current-rules-attestation.md) — keeps generation manifests immutable while a directly keyed, exact-publication binding may refresh unchanged authenticated rules evidence for zero-call, zero-mutation reuse
 - [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — replaces the earlier fixed-capacity orchestration/Git rules with phase preview, fully grilled runnable milestones, semantic scope gates, resource admission, and production-safe milestone publication
-- [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery through `2026-09-08T12:00:00Z`; preserves the final P1-10 implementation for an atomic PR
+- [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery; ADR-0068 replaces only its calendar sunset with a reviewed replacement condition

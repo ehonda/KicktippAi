@@ -2,6 +2,7 @@ using System.Globalization;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Microsoft.Extensions.Logging;
+using NodaTime;
 using Orchestrator.Commands.Operations.BundesligaHistory;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
@@ -197,7 +198,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 collection.ExpectedSelectedHistoryDocumentNames,
                 BundesligaOrdinaryOutcomeMatchdayCount,
                 requireCompleteFrozenMap: false,
-                cancellationToken)
+                cancellationToken,
+                contextRepository)
             : collection.Documents;
 
         _console.MarkupLine($"[green]Collected {documents.Count} unique context documents[/]");
@@ -712,20 +714,45 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         IReadOnlySet<string> expectedSelectedHistoryDocumentNames,
         int outcomeMatchdayCount,
         bool requireCompleteFrozenMap,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IContextRepository? contextRepository = null)
     {
+        BundesligaHistoryPlayedDateCollectionOptions? proxyOptions = null;
+        if (!requireCompleteFrozenMap)
+        {
+            if (contextRepository is null)
+            {
+                throw new InvalidOperationException("Ordinary Bundesliga history collection requires a context repository for strict prior reads.");
+            }
+            var collectionInstant = Instant.FromDateTimeOffset(_timeProvider.GetUtcNow());
+            var priorContents = await LoadPriorSelectedHistoryDocumentContentsAsync(
+                contextRepository,
+                settings.CommunityContext,
+                expectedSelectedHistoryDocumentNames,
+                cancellationToken);
+            proxyOptions = new BundesligaHistoryPlayedDateCollectionOptions(priorContents, collectionInstant);
+        }
         var matchOutcomes = await LoadBundesligaMatchOutcomesAsync(
             settings.CommunityContext,
             competition,
             outcomeMatchdayCount,
             cancellationToken);
         var dateMap = BundesligaHistoryPlayedDateMap.Default.Entries;
-        var collection = _historyPlayedDateCollector.Collect(
-            competition,
-            documents.Select(pair => new BundesligaHistoryDocument(pair.Key, pair.Value)).ToArray(),
-            dateMap,
-            matchOutcomes,
-            expectedSelectedHistoryDocumentNames);
+        var incomingDocuments = documents.Select(pair => new BundesligaHistoryDocument(pair.Key, pair.Value)).ToArray();
+        var collection = proxyOptions is null
+            ? _historyPlayedDateCollector.Collect(
+                competition,
+                incomingDocuments,
+                dateMap,
+                matchOutcomes,
+                expectedSelectedHistoryDocumentNames)
+            : _historyPlayedDateCollector.Collect(
+                competition,
+                incomingDocuments,
+                dateMap,
+                matchOutcomes,
+                expectedSelectedHistoryDocumentNames,
+                proxyOptions);
         if (!collection.Succeeded)
         {
             var details = string.Join(Environment.NewLine, collection.Diagnostics.Take(20)
@@ -735,14 +762,35 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         }
 
         _console.MarkupLine(
-            $"[green]Bundesliga history played-date gate passed:[/] {collection.Resolutions.Count} completed row(s); " +
+            $"[green]Bundesliga history played-date gate passed:[/] {collection.Resolutions.Count} completed occurrence(s), " +
+            $"tuple-groups={collection.DistinctTupleGroupCount}; " +
             $"existing={collection.PreservedCount}, Kicktipp={collection.KicktippCount}, fixed-map={collection.FixedMapCount}, " +
-            $"excluded-incomplete={collection.ExcludedIncompleteRowCount}; " +
+            $"collection-date-proxy={collection.CollectionDateProxyCount}, excluded-incomplete={collection.ExcludedIncompleteRowCount}; " +
             $"fixed-map sources: {Markup.Escape(BundesligaHistoryCommandSupport.FormatFixedSourceCounts(collection))}");
         return collection.Documents.ToDictionary(
             document => document.Name,
             document => document.Content,
             StringComparer.Ordinal);
+    }
+
+    private static async Task<IReadOnlyDictionary<string, string?>> LoadPriorSelectedHistoryDocumentContentsAsync(
+        IContextRepository contextRepository,
+        string communityContext,
+        IReadOnlySet<string> expectedSelectedHistoryDocumentNames,
+        CancellationToken cancellationToken)
+    {
+        var contents = new Dictionary<string, string?>(StringComparer.Ordinal);
+        foreach (var documentName in expectedSelectedHistoryDocumentNames.Order(StringComparer.Ordinal))
+        {
+            var prior = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext, cancellationToken);
+            if (prior is not null && !string.Equals(prior.DocumentName, documentName, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Latest selected-history document read returned '{prior.DocumentName}' for requested '{documentName}'.");
+            }
+            contents.Add(documentName, prior?.Content);
+        }
+        return contents;
     }
 
     private async Task PublishFullSeasonAtomicallyAsync(

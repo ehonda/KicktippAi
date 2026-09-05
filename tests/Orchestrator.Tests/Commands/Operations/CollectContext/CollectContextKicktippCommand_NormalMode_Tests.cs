@@ -289,7 +289,37 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
                 "home-history-fcb.csv",
                 "recent-history-bvb.csv",
                 "recent-history-fcb.csv"
-            }))), Times.Once);
+            })),
+            It.Is<BundesligaHistoryPlayedDateCollectionOptions>(options =>
+                options.PriorSelectedDocumentContents.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(new[]
+                {
+                    "away-history-bvb.csv",
+                    "home-history-fcb.csv",
+                    "recent-history-bvb.csv",
+                    "recent-history-fcb.csv"
+                }))), Times.Once);
+    }
+
+    [Test]
+    public async Task Bundesliga_prior_selected_history_read_failure_prevents_context_publication()
+    {
+        var ctx = CreateCollectContextCommandApp();
+        ctx.ContextRepository.Setup(repository => repository.GetLatestContextDocumentAsync(
+                It.IsAny<string>(),
+                "ehonda-dev-buli-2627",
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("prior selected history read failed"));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("prior selected history read failed");
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

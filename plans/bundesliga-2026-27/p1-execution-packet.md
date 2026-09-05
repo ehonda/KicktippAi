@@ -17,16 +17,17 @@ work. The recovery runtime baseline is
 
 This packet is not a P1-10 completion claim. P1-08 remains superseded, WM26 is
 isolated, and the full target-primary implementation stays on archival/future
-PR history. The recovery's temporary copy route sunsets at
-`2026-09-08T12:00:00Z`.
+PR history. ADR-0068 retains the temporary copy route until a reviewed
+successor replaces or terminates it; it makes no runtime-topology change.
 
 ## Urgent source repair
 
-P1-14 is a separately safe exact-date repair under ADR-0066: it refreshes the
-captured DFB source, preserves the accumulated map, and removes rolling-map
-count equality from the history gate. Proxy continuity and the closed-input
-historical full-season collector are deferred; this packet does not authorize
-their redesign.
+P1-14's exact-date repair under ADR-0066 is integrated. Its urgent successor
+under ADR-0067 permits only explicit collection-date proxies for supported
+external competitions, preserving selected-history atomic publication and
+fatal structural/conflict guards. The closed-input historical full-season
+collector and CL-specific context remain deferred; this packet does not
+authorize their redesign.
 
 ## Frozen delivery topology
 

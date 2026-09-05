@@ -547,13 +547,106 @@ public class BundesligaHistoryPlayedDateCollectorTests
         }).Throws<InvalidDataException>();
     }
 
+    [Test]
+    public async Task Supported_external_competitions_use_one_berlin_collection_date_without_a_missing_row_cap()
+    {
+        var content = Undated(
+            "DFB,Alpha,Bravo,1:0,\n" +
+            "CL,Charlie,Delta,1:0,\n" +
+            "EL,Echo,Foxtrot,1:0,\n" +
+            "ConfL,Golf,Hotel,1:0,\n" +
+            "2.BL,India,Juliet,1:0,\n" +
+            "Releg,Kilo,Lima,1:0,");
+
+        var result = CollectWithProxy(content, [], priorContent: null, instant: Instant.FromUtc(2026, 1, 1, 23, 30));
+
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(result.CollectionDateProxyCount).IsEqualTo(6);
+        await Assert.That(result.DistinctTupleGroupCount).IsEqualTo(6);
+        await Assert.That(result.Documents[0].Content).Contains("collection-date-proxy:2026-01-02");
+    }
+
+    [Test]
+    public async Task Proxy_is_stable_from_a_strict_prior_document_and_exact_map_evidence_upgrades_it()
+    {
+        const string incoming = "DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,";
+        var first = CollectWithProxy(Undated(incoming), [], priorContent: null, instant: Instant.FromUtc(2026, 1, 1, 23, 30));
+        var stable = CollectWithProxy(Undated(incoming), [], first.Documents[0].Content, Instant.FromUtc(2026, 1, 2, 23, 30));
+        var exact = CollectWithProxy(Undated(incoming),
+            [Map(1, "DFB", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2025-05-09")],
+            first.Documents[0].Content,
+            Instant.FromUtc(2026, 1, 2, 23, 30));
+
+        await Assert.That(first.Succeeded).IsTrue();
+        await Assert.That(stable.Succeeded).IsTrue();
+        await Assert.That(stable.Documents[0].Content).Contains("collection-date-proxy:2026-01-02");
+        await Assert.That(exact.Succeeded).IsTrue();
+        await Assert.That(exact.CollectionDateProxyCount).IsEqualTo(0);
+        await Assert.That(exact.Documents[0].Content).Contains("DFB,2025-05-09,Bayer 04 Leverkusen,VfB Stuttgart,3:1,");
+    }
+
+    [Test]
+    public async Task Unresolved_league_unknown_prior_schema_and_conflicting_proxies_fail_closed()
+    {
+        var league = CollectWithProxy(Undated("1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [], null, Instant.FromUtc(2026, 1, 1, 12, 0));
+        var unknown = CollectWithProxy(Undated("Cup,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [], null, Instant.FromUtc(2026, 1, 1, 12, 0));
+        var malformedPrior = CollectWithProxy(Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
+            Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), Instant.FromUtc(2026, 1, 1, 12, 0));
+        var conflict = CollectWithProxy(
+            Dated("DFB,collection-date-proxy:2026-01-01,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
+            Dated("DFB,collection-date-proxy:2026-01-02,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), Instant.FromUtc(2026, 1, 1, 12, 0));
+        var unsupportedPriorProxy = CollectWithProxy(
+            Undated("1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
+            Dated("1.BL,collection-date-proxy:2026-01-01,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), Instant.FromUtc(2026, 1, 1, 12, 0));
+        var incompletePrior = CollectWithProxy(
+            Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
+            Dated("DFB,2026-01-01,Bayer 04 Leverkusen,VfB Stuttgart,,"), Instant.FromUtc(2026, 1, 1, 12, 0));
+
+        await Assert.That(league.Succeeded).IsFalse();
+        await Assert.That(unknown.Succeeded).IsFalse();
+        await Assert.That(malformedPrior.Succeeded).IsFalse();
+        await Assert.That(conflict.Succeeded).IsFalse();
+        await Assert.That(unsupportedPriorProxy.Succeeded).IsFalse();
+        await Assert.That(incompletePrior.Succeeded).IsFalse();
+    }
+
+    [Test]
+    public async Task Proxy_collection_leaves_head_to_head_and_wm26_outside_the_bundesliga_history_contract()
+    {
+        const string headToHead = "League,Matchday,Played_At,Home_Team,Away_Team,Score,Annotation\n1.BL,1,2025-08-01T20:30:00+02:00,A,B,1:0,";
+        var options = new BundesligaHistoryPlayedDateCollectionOptions(new Dictionary<string, string?>(), Instant.FromUtc(2026, 1, 1, 12, 0));
+        var headToHeadResult = Collector.Collect(CompetitionIds.Bundesliga2026_27,
+            [new BundesligaHistoryDocument("head-to-head-b04-vs-vfb.csv", headToHead)], [], [],
+            new HashSet<string>(StringComparer.Ordinal), options);
+        var wm26Result = Collector.Collect(CompetitionIds.FifaWorldCup2026,
+            [new BundesligaHistoryDocument(DocumentName, Undated("DFB,A,B,1:0,"))], [], [],
+            new HashSet<string>([DocumentName], StringComparer.Ordinal), options);
+
+        await Assert.That(headToHeadResult.Succeeded).IsTrue();
+        await Assert.That(headToHeadResult.Documents[0].Content).IsEqualTo(headToHead);
+        await Assert.That(wm26Result.Succeeded).IsFalse();
+    }
+
     private static BundesligaHistoryPlayedDateCollectionResult Collect(string content,
         IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> map,
         IReadOnlyList<PersistedMatchOutcome>? outcomes = null) =>
         Collector.Collect(CompetitionIds.Bundesliga2026_27, [new(DocumentName, content)], map, outcomes ?? []);
 
+    private static BundesligaHistoryPlayedDateCollectionResult CollectWithProxy(
+        string content,
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> map,
+        string? priorContent,
+        Instant instant) =>
+        Collector.Collect(CompetitionIds.Bundesliga2026_27, [new(DocumentName, content)], map, [],
+            new HashSet<string>([DocumentName], StringComparer.Ordinal),
+            new BundesligaHistoryPlayedDateCollectionOptions(
+                new Dictionary<string, string?> { [DocumentName] = priorContent }, instant));
+
     private static string Undated(string rows) =>
         "Competition,Home_Team,Away_Team,Score,Annotation\n" + rows;
+
+    private static string Dated(string rows) =>
+        "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\n" + rows;
 
     private static BundesligaHistoryPlayedDateMapEntry Map(int ordinal, string competition, string home, string away,
         string score, string playedAt, string sourceMatchId = "4634534",

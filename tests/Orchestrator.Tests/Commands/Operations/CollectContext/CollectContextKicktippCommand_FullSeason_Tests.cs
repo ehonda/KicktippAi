@@ -127,7 +127,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(context.Console.Output)
-            .Contains("completed row(s)")
+            .Contains("completed occurrence(s)")
             .And.Contains("excluded-incomplete=42");
         context.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
             It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);

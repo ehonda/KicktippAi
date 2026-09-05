@@ -231,6 +231,17 @@ public class CollectContextDevCommandTests
             .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
                 IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
                 IReadOnlySet<string> _) => new BundesligaHistoryPlayedDateCollectionResult(true, documents, [], []));
+        historyCollector.Setup(collector => collector.Collect(
+                CompetitionIds.Bundesliga2026_27,
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>(),
+                It.IsAny<BundesligaHistoryPlayedDateCollectionOptions>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _, BundesligaHistoryPlayedDateCollectionOptions _) =>
+                new BundesligaHistoryPlayedDateCollectionResult(true, documents, [], []));
 
         var clubEloSource = new Mock<IBundesligaClubEloSource>();
         clubEloSource.Setup(source => source.GetLatestAsync(It.IsAny<CancellationToken>()))
@@ -305,7 +316,15 @@ public class CollectContextDevCommandTests
                 "recent-history-bvb.csv",
                 "home-history-fcb.csv",
                 "away-history-bvb.csv"
-            }))), Times.Once);
+            })),
+            It.Is<BundesligaHistoryPlayedDateCollectionOptions>(options =>
+                options.PriorSelectedDocumentContents.Keys.ToHashSet(StringComparer.Ordinal).SetEquals(new[]
+                {
+                    "recent-history-fcb.csv",
+                    "recent-history-bvb.csv",
+                    "home-history-fcb.csv",
+                    "away-history-bvb.csv"
+                }))), Times.Once);
         clubEloSource.Verify(source => source.GetLatestAsync(It.IsAny<CancellationToken>()), Times.Once);
         rosterSource.Verify(source => source.CollectAsync(
             It.IsAny<BundesligaRosterSourceRequest>(),

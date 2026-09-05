@@ -3,9 +3,9 @@
 - Status: Accepted execution strategy; P0 complete, P1 restarts under ADR-0061
 - Last updated: 2026-08-31
 - Implementation state: P0-01 through P0-25 are complete. The failing P1-10
-  runtime is preserved for an atomic future PR; recovery `main` temporarily
-  restores the eight-pair source-copy lane under ADR-0062 through
-  `2026-09-08T12:00:00Z`.
+  runtime is preserved for an atomic future PR; recovery `main` retains the
+  eight-pair source-copy lane under ADR-0062 until ADR-0068's reviewed
+  replacement condition is met.
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -42,8 +42,8 @@ model follow-ups also remain outside P0.
   `pes-squad` source-compatible copy match after `pes-squad-matchday`, then
   make relaxdays depend on it. Preserve the eight-pair serial topology, exact
   ADR-0053 cadence/concurrency/failure/no-bonus/rollback contract, and
-  manual-only leaves. The route expires at `2026-09-08T12:00:00Z`; no manual
-  copy contingency or primary activation follows from it.
+  manual-only leaves. ADR-0068 requires a reviewed successor before the route
+  is replaced or terminated; no manual copy contingency or primary activation follows from it.
 
 ## Execution waves
 
@@ -208,7 +208,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
-| Activation | Every leaf caller remains manual-only; ADR-0062 temporarily restores the scheduled Schadensfresse context/copy pair, giving eight pairs/16 jobs at `7 2,9 * * *` through `2026-09-08T12:00:00Z`; historical natural observation `33143114280` closed P0-21 |
+| Activation | Every leaf caller remains manual-only; ADR-0062 temporarily restores the scheduled Schadensfresse context/copy pair, giving eight pairs/16 jobs at `7 2,9 * * *` until ADR-0068's reviewed replacement condition; historical natural observation `33143114280` closed P0-21 |
 
 ## Prerequisite state
 
@@ -236,7 +236,7 @@ These are not ambiguities agents may decide on their own:
 | Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Configuration is live and its first natural scheduled verification is green |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | P1-04 after launch | Continue the accepted dated seed and last-known-good behavior until resolved |
 | Exact production schedules, spacing, rollback trigger, and activation | ADR-0062 temporarily restores ADR-0054/0055's eight-pair copy lane while preserving ADR-0053's operating contract | Observe the recovered natural lane; final P1-10 primary activation remains separately reviewed and owner-controlled |
-| `schadensfresse` primary routing | P1-10 atomic PR must replace/terminate temporary copy mode by `2026-09-08T12:00:00Z`; P1-08 is superseded | Implement typed identities and Accepted rules-only DFB/CL profiles on the future PR; do not treat recovery copy as primary activation |
+| `schadensfresse` primary routing | A reviewed successor must replace/terminate temporary copy mode under ADR-0068; P1-08 is superseded | Implement typed identities and Accepted rules-only DFB/CL profiles on the future PR; do not treat recovery copy as primary activation |
 
 ADR-0052 settled final model selection from the completed experiments and
 whole-season estimates. New-season outcomes did not exist at selection time,
@@ -256,8 +256,8 @@ Apply ADR-0062's temporary recovery while preserving ADR-0053's outer-lane and
 manual-only contracts; do not infer bonus or mixed-competition schedule
 authority. The frozen [P1 recovery execution packet](p1-execution-packet.md)
 and [P1-10 production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md)
-require an atomic P1-10 PR to replace or terminate copy mode by
-`2026-09-08T12:00:00Z`. P1-10 continues to own every `schadensfresse`
+require an atomic P1-10 PR and ADR-0068's reviewed successor condition to
+replace or terminate copy mode. P1-10 continues to own every `schadensfresse`
 Bundesliga/DFB/CL match and bonus route, fully absorbs P1-08, and retains later
 owner-controlled prompt/replacement/cost/force/cutoff/activation gates. P1-04
 owns any unattended Club Elo network refresh decision.

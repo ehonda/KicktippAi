@@ -11,7 +11,8 @@ public enum BundesligaHistoryPlayedDateSourceClass
 {
     ExistingPlayedAt,
     KicktippOutcome,
-    FixedExternalMap
+    FixedExternalMap,
+    CollectionDateProxy
 }
 
 public sealed record BundesligaHistoryPlayedDateResolution(
@@ -19,7 +20,8 @@ public sealed record BundesligaHistoryPlayedDateResolution(
     int RowOrdinal,
     string PlayedAt,
     BundesligaHistoryPlayedDateSourceClass SourceClass,
-    string SourceIdentity);
+    string SourceIdentity,
+    string TupleGroupIdentity = "");
 
 public sealed record BundesligaHistoryPlayedDateDiagnostic(string DocumentName, int? RowOrdinal, string Message);
 
@@ -33,7 +35,13 @@ public sealed record BundesligaHistoryPlayedDateCollectionResult(
     public int PreservedCount => Resolutions.Count(value => value.SourceClass == BundesligaHistoryPlayedDateSourceClass.ExistingPlayedAt);
     public int KicktippCount => Resolutions.Count(value => value.SourceClass == BundesligaHistoryPlayedDateSourceClass.KicktippOutcome);
     public int FixedMapCount => Resolutions.Count(value => value.SourceClass == BundesligaHistoryPlayedDateSourceClass.FixedExternalMap);
+    public int CollectionDateProxyCount => Resolutions.Count(value => value.SourceClass == BundesligaHistoryPlayedDateSourceClass.CollectionDateProxy);
+    public int DistinctTupleGroupCount { get; init; }
 }
+
+public sealed record BundesligaHistoryPlayedDateCollectionOptions(
+    IReadOnlyDictionary<string, string?> PriorSelectedDocumentContents,
+    Instant CollectionInstant);
 
 public interface IBundesligaHistoryPlayedDateCollector
 {
@@ -49,6 +57,14 @@ public interface IBundesligaHistoryPlayedDateCollector
         IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
         IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
         IReadOnlySet<string> expectedSelectedDocumentNames);
+
+    BundesligaHistoryPlayedDateCollectionResult Collect(
+        string competition,
+        IReadOnlyList<BundesligaHistoryDocument> documents,
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
+        IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
+        IReadOnlySet<string> expectedSelectedDocumentNames,
+        BundesligaHistoryPlayedDateCollectionOptions options);
 }
 
 public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPlayedDateCollector
@@ -60,6 +76,8 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
     private static readonly string[] LegacyHeaders = ["Competition", "Data_Collected_At", "Home_Team", "Away_Team", "Score", "Annotation"];
     private static readonly string[] DatedHeaders = ["Competition", "Played_At", "Home_Team", "Away_Team", "Score", "Annotation"];
     private static readonly string[] TimestampFormats = ["yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz"];
+    private static readonly HashSet<string> ProxySupportedCompetitions =
+        ["DFB", "CL", "EL", "ConfL", "2.BL", "Releg"];
 
     public BundesligaHistoryPlayedDateCollectionResult Collect(
         string competition,
@@ -79,12 +97,26 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         return CollectCore(competition, documents, dateMap, matchOutcomes, expectedSelectedDocumentNames);
     }
 
+    public BundesligaHistoryPlayedDateCollectionResult Collect(
+        string competition,
+        IReadOnlyList<BundesligaHistoryDocument> documents,
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
+        IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
+        IReadOnlySet<string> expectedSelectedDocumentNames,
+        BundesligaHistoryPlayedDateCollectionOptions options)
+    {
+        ArgumentNullException.ThrowIfNull(expectedSelectedDocumentNames);
+        ArgumentNullException.ThrowIfNull(options);
+        return CollectCore(competition, documents, dateMap, matchOutcomes, expectedSelectedDocumentNames, options);
+    }
+
     private static BundesligaHistoryPlayedDateCollectionResult CollectCore(
         string competition,
         IReadOnlyList<BundesligaHistoryDocument> documents,
         IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
         IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
-        IReadOnlySet<string>? expectedSelectedDocumentNames)
+        IReadOnlySet<string>? expectedSelectedDocumentNames,
+        BundesligaHistoryPlayedDateCollectionOptions? options = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         ArgumentNullException.ThrowIfNull(documents);
@@ -139,6 +171,17 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         var mapByIdentity = dateMap
             .GroupBy(FixedMapIdentityFor)
             .ToDictionary(group => group.Key, group => group.ToArray());
+        IReadOnlyDictionary<FixedMapIdentity, HistoryRow[]> priorByIdentity;
+        try
+        {
+            priorByIdentity = options is null
+                ? new Dictionary<FixedMapIdentity, HistoryRow[]>()
+                : ParsePriorRows(options);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or KeyNotFoundException)
+        {
+            return Failure(documents, string.Empty, null, exception.Message);
+        }
 
         foreach (var document in documents)
         {
@@ -184,7 +227,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                 var resolvedRows = new List<HistoryRow>(rows.Length);
                 foreach (var row in rows)
                 {
-                    var resolution = Resolve(document.Name, row, mapByIdentity, matchOutcomes, diagnostics);
+                    var resolution = Resolve(document.Name, row, mapByIdentity, priorByIdentity, matchOutcomes, options, diagnostics);
                     if (resolution is null)
                     {
                         resolvedRows.Add(row);
@@ -209,7 +252,10 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return new(false, documents.ToArray(), Array.Empty<BundesligaHistoryPlayedDateResolution>(), diagnostics.AsReadOnly(), excludedIncompleteRowCount);
         }
 
-        return new(true, rendered.AsReadOnly(), resolutions.AsReadOnly(), Array.Empty<BundesligaHistoryPlayedDateDiagnostic>(), excludedIncompleteRowCount);
+        return new(true, rendered.AsReadOnly(), resolutions.AsReadOnly(), Array.Empty<BundesligaHistoryPlayedDateDiagnostic>(), excludedIncompleteRowCount)
+        {
+            DistinctTupleGroupCount = resolutions.Select(resolution => resolution.TupleGroupIdentity).Distinct(StringComparer.Ordinal).Count()
+        };
     }
 
     public static bool IsSelectedDocumentName(string documentName) =>
@@ -265,7 +311,9 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         string documentName,
         HistoryRow row,
         IReadOnlyDictionary<FixedMapIdentity, BundesligaHistoryPlayedDateMapEntry[]> map,
+        IReadOnlyDictionary<FixedMapIdentity, HistoryRow[]> prior,
         IReadOnlyList<PersistedMatchOutcome> outcomes,
+        BundesligaHistoryPlayedDateCollectionOptions? options,
         List<BundesligaHistoryPlayedDateDiagnostic> diagnostics)
     {
         var normalizedScore = NormalizeScore(row.Score);
@@ -289,46 +337,165 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return null;
         }
 
+        prior.TryGetValue(FixedMapIdentityFor(documentName, row), out var priorMatches);
+        priorMatches ??= [];
+        if (priorMatches.Length > 1)
+        {
+            diagnostics.Add(new(documentName, row.Ordinal, "Multiple prior selected-history rows match this exact row identity"));
+            return null;
+        }
+
         var outcomeDate = outcomeMatches.Length == 1
             ? outcomeMatches[0].StartsAt.WithZone(Berlin).Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : null;
         var mapDate = mapMatches.SingleOrDefault()?.PlayedAt;
-        if (IsExactPlayedAt(row.PlayedAt))
+        var incomingPlayedAt = ParsePlayedAt(row.PlayedAt, documentName, row.Ordinal);
+        var priorPlayedAt = priorMatches.Length == 1
+            ? ParsePlayedAt(priorMatches[0].PlayedAt, documentName, priorMatches[0].Ordinal)
+            : PlayedAtValue.Empty;
+        if ((incomingPlayedAt.IsProxy || priorPlayedAt.IsProxy)
+            && !ProxySupportedCompetitions.Contains(row.HistoryCompetition))
         {
-            if (outcomeDate is not null && !SameCalendarDate(row.PlayedAt, outcomeDate)
-                || mapDate is not null && !SameCalendarDate(row.PlayedAt, mapDate))
-            {
-                diagnostics.Add(new(documentName, row.Ordinal,
-                    $"Existing Played_At '{row.PlayedAt}' conflicts with exact source evidence"));
-                return null;
-            }
-            return new(documentName, row.Ordinal, row.PlayedAt,
-                BundesligaHistoryPlayedDateSourceClass.ExistingPlayedAt, $"{documentName}#{row.Ordinal}");
-        }
-        if (outcomeDate is not null && mapDate is not null && !string.Equals(outcomeDate, mapDate, StringComparison.Ordinal))
-        {
-            diagnostics.Add(new(documentName, row.Ordinal, $"Conflicting Kicktipp '{outcomeDate}' and map '{mapDate}' evidence"));
+            diagnostics.Add(new(documentName, row.Ordinal,
+                $"Collection-date proxy is unsupported for competition '{row.HistoryCompetition}'"));
             return null;
+        }
+        var exactCandidates = new List<ExactPlayedAtCandidate>();
+        if (incomingPlayedAt.IsExact) exactCandidates.Add(new(row.PlayedAt, "incoming"));
+        if (priorPlayedAt.IsExact) exactCandidates.Add(new(priorMatches[0].PlayedAt, "prior"));
+        if (outcomeDate is not null) exactCandidates.Add(new(outcomeDate, "Kicktipp"));
+        if (mapDate is not null) exactCandidates.Add(new(mapDate, "fixed map"));
+        if (exactCandidates.Select(candidate => CalendarDate(candidate.Value)).Distinct(StringComparer.Ordinal).Skip(1).Any())
+        {
+            diagnostics.Add(new(documentName, row.Ordinal,
+                $"Conflicting exact Played_At evidence [{string.Join(',', exactCandidates.Select(candidate => candidate.Source))}]"));
+            return null;
+        }
+        if (incomingPlayedAt.IsExact)
+        {
+            return Resolution(row.PlayedAt, BundesligaHistoryPlayedDateSourceClass.ExistingPlayedAt, $"{documentName}#{row.Ordinal}");
+        }
+        if (priorPlayedAt.IsExact)
+        {
+            return Resolution(priorMatches[0].PlayedAt, BundesligaHistoryPlayedDateSourceClass.ExistingPlayedAt,
+                $"prior:{documentName}#{priorMatches[0].Ordinal}");
         }
         if (outcomeDate is not null)
         {
             var outcome = outcomeMatches[0];
-            return new(documentName, row.Ordinal, outcomeDate, BundesligaHistoryPlayedDateSourceClass.KicktippOutcome,
+            return Resolution(outcomeDate, BundesligaHistoryPlayedDateSourceClass.KicktippOutcome,
                 $"matchday={outcome.Matchday};tippSpielId={outcome.TippSpielId ?? "N/A"}");
         }
         if (mapDate is not null)
         {
             var entry = mapMatches[0];
-            return new(documentName, row.Ordinal, mapDate, BundesligaHistoryPlayedDateSourceClass.FixedExternalMap,
+            return Resolution(mapDate, BundesligaHistoryPlayedDateSourceClass.FixedExternalMap,
                 $"{entry.SourceName}@{entry.SourceRevision}:{entry.SourceMatchId}");
+        }
+
+        if (options is not null)
+        {
+            if (!ProxySupportedCompetitions.Contains(row.HistoryCompetition))
+            {
+                diagnostics.Add(new(documentName, row.Ordinal,
+                    $"No exact played-date source for unsupported proxy competition '{row.HistoryCompetition}'"));
+                return null;
+            }
+
+            var proxyDates = new[] { incomingPlayedAt, priorPlayedAt }
+                .Where(value => value.IsProxy)
+                .Select(value => value.Value)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (proxyDates.Length > 1)
+            {
+                diagnostics.Add(new(documentName, row.Ordinal, "Conflicting incoming and prior collection-date proxies"));
+                return null;
+            }
+
+            var proxyDate = proxyDates.SingleOrDefault()
+                ?? "collection-date-proxy:" + options.CollectionInstant.InZone(Berlin).Date
+                    .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var proxySource = priorPlayedAt.IsProxy
+                ? $"prior:{documentName}#{priorMatches[0].Ordinal}"
+                : incomingPlayedAt.IsProxy ? $"incoming:{documentName}#{row.Ordinal}" : "collection instant";
+            return Resolution(proxyDate, BundesligaHistoryPlayedDateSourceClass.CollectionDateProxy, proxySource);
         }
 
         diagnostics.Add(new(documentName, row.Ordinal,
             $"No exact played-date source for {row.HistoryCompetition} | {row.HomeTeam} vs {row.AwayTeam} | {row.Score} | {row.Annotation}"));
         return null;
+
+        BundesligaHistoryPlayedDateResolution Resolution(
+            string playedAt,
+            BundesligaHistoryPlayedDateSourceClass sourceClass,
+            string sourceIdentity) => new(documentName, row.Ordinal, playedAt, sourceClass, sourceIdentity, TupleGroupIdentityFor(row));
     }
 
-    private static List<HistoryRow> ParseRows(BundesligaHistoryDocument document, bool allowMissingScore = false)
+    private static IReadOnlyDictionary<FixedMapIdentity, HistoryRow[]> ParsePriorRows(
+        BundesligaHistoryPlayedDateCollectionOptions options)
+    {
+        var rowsByIdentity = new Dictionary<FixedMapIdentity, List<HistoryRow>>();
+        foreach (var (documentName, content) in options.PriorSelectedDocumentContents.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            ValidateSelectedDocumentName(documentName);
+            if (content is null)
+            {
+                continue;
+            }
+
+            var document = new BundesligaHistoryDocument(documentName, content);
+            var rows = ParseRows(document, allowMissingScore: true, requireDatedHeader: true);
+            var incompleteRows = rows.Where(row => string.IsNullOrWhiteSpace(row.Score)).ToArray();
+            foreach (var incompleteRow in incompleteRows.Where(row => !string.IsNullOrWhiteSpace(row.PlayedAt)))
+            {
+                throw new InvalidDataException(
+                    $"Prior selected history '{documentName}' row {incompleteRow.Ordinal} requires a blank Played_At when incomplete");
+            }
+            var duplicateIncomplete = incompleteRows.GroupBy(RowIdentity, StringComparer.Ordinal)
+                .FirstOrDefault(group => group.Count() > 1);
+            if (duplicateIncomplete is not null)
+            {
+                throw new InvalidDataException(
+                    $"Ambiguous duplicate incomplete prior selected-history row identity '{duplicateIncomplete.Key}'");
+            }
+
+            var completedRows = rows.Where(row => !string.IsNullOrWhiteSpace(row.Score)).ToArray();
+            if (completedRows.Length == 0)
+            {
+                throw new InvalidDataException(
+                    $"Prior selected history '{documentName}' must contain at least one completed result row");
+            }
+            foreach (var row in completedRows)
+            {
+                var playedAt = ParsePlayedAt(row.PlayedAt, documentName, row.Ordinal);
+                if (playedAt.IsProxy && !ProxySupportedCompetitions.Contains(row.HistoryCompetition))
+                {
+                    throw new InvalidDataException(
+                        $"Prior selected history '{documentName}' row {row.Ordinal} has a collection-date proxy for unsupported competition '{row.HistoryCompetition}'");
+                }
+                var identity = FixedMapIdentityFor(documentName, row);
+                if (!rowsByIdentity.TryGetValue(identity, out var matches))
+                {
+                    matches = [];
+                    rowsByIdentity.Add(identity, matches);
+                }
+                matches.Add(row);
+            }
+        }
+
+        var duplicates = rowsByIdentity.FirstOrDefault(pair => pair.Value.Count > 1);
+        if (duplicates.Value is not null)
+        {
+            throw new InvalidDataException($"Ambiguous duplicate prior selected-history row identity '{duplicates.Key}'");
+        }
+        return rowsByIdentity.ToDictionary(pair => pair.Key, pair => pair.Value.ToArray());
+    }
+
+    private static List<HistoryRow> ParseRows(
+        BundesligaHistoryDocument document,
+        bool allowMissingScore = false,
+        bool requireDatedHeader = false)
     {
         var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
         {
@@ -341,6 +508,10 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             if (!csv.Read() || !csv.ReadHeader()) throw new InvalidDataException("Header row is required");
             var headers = csv.HeaderRecord ?? [];
             var hasPlayedAt = headers.SequenceEqual(DatedHeaders, StringComparer.Ordinal);
+            if (requireDatedHeader && !hasPlayedAt)
+            {
+                throw new InvalidDataException($"Prior selected history '{document.Name}' requires the six-column Played_At schema");
+            }
             if (!hasPlayedAt && !headers.SequenceEqual(UndatedHeaders, StringComparer.Ordinal)
                 && !headers.SequenceEqual(LegacyHeaders, StringComparer.Ordinal))
             {
@@ -401,6 +572,13 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         row.Score,
         row.Annotation);
 
+    private static string TupleGroupIdentityFor(HistoryRow row) => string.Join('|',
+        row.HistoryCompetition,
+        row.HomeTeam,
+        row.AwayTeam,
+        row.Score,
+        row.Annotation);
+
     private static string RowIdentity(HistoryRow row) => string.Join('|', row.HistoryCompetition, row.HomeTeam, row.AwayTeam, row.Score, row.Annotation);
 
     private static string NormalizeScore(string score)
@@ -414,16 +592,33 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         return $"{home}:{away}";
     }
 
-    private static bool IsExactPlayedAt(string value) =>
-        DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
-        || DateTimeOffset.TryParseExact(value, TimestampFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out _);
+    private static PlayedAtValue ParsePlayedAt(string value, string documentName, int ordinal)
+    {
+        if (string.IsNullOrEmpty(value)) return PlayedAtValue.Empty;
+        if (DateOnly.TryParseExact(value, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out _)
+            || DateTimeOffset.TryParseExact(value, TimestampFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out _))
+        {
+            return new(value, IsExact: true, IsProxy: false);
+        }
 
-    private static bool SameCalendarDate(string playedAt, string expectedDate)
+        const string proxyPrefix = "collection-date-proxy:";
+        if (value.StartsWith(proxyPrefix, StringComparison.Ordinal)
+            && DateOnly.TryParseExact(value[proxyPrefix.Length..], "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out _))
+        {
+            return new(value, IsExact: false, IsProxy: true);
+        }
+
+        throw new InvalidDataException($"{documentName} row {ordinal} has invalid Played_At '{value}'");
+    }
+
+    private static string CalendarDate(string playedAt)
     {
         if (DateOnly.TryParseExact(playedAt, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
-            return string.Equals(date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), expectedDate, StringComparison.Ordinal);
-        return DateTimeOffset.TryParseExact(playedAt, TimestampFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var timestamp)
-               && string.Equals(timestamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), expectedDate, StringComparison.Ordinal);
+            return date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        if (DateTimeOffset.TryParseExact(playedAt, TimestampFormats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var timestamp))
+            return timestamp.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        throw new InvalidDataException($"Invalid exact Played_At '{playedAt}'");
     }
 
     private static string Required(CsvReader csv, string field, string documentName, int ordinal)
@@ -439,6 +634,11 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             new[] { new BundesligaHistoryPlayedDateDiagnostic(documentName, ordinal, message) });
 
     private sealed record HistoryRow(int Ordinal, string HistoryCompetition, string PlayedAt, string HomeTeam, string AwayTeam, string Score, string Annotation);
+    private sealed record PlayedAtValue(string Value, bool IsExact, bool IsProxy)
+    {
+        public static readonly PlayedAtValue Empty = new(string.Empty, false, false);
+    }
+    private sealed record ExactPlayedAtCandidate(string Value, string Source);
     private sealed record FixedMapIdentity(
         string DocumentName,
         string HistoryCompetition,
