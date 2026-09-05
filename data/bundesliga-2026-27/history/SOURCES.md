@@ -97,6 +97,8 @@ The standing [maintenance issue](https://github.com/ehonda/KicktippAi/issues/101
    ```powershell
    $filter = '/*/*/BundesligaHistoryPlayedDateCollectorTests/**'
    dotnet run --project tests/Core.Tests --configuration Release -- --treenode-filter $filter
+   $filter = '/*/*/OpenLigaDbHistorySnapshotValidatorTests/**'
+   dotnet run --project tests/Core.Tests --configuration Release -- --treenode-filter $filter
    $filter = '/*/*/BundesligaHistoryCommandTests/**'
    dotnet run --project tests/Orchestrator.Tests --configuration Release -- --reflection --treenode-filter $filter
    dotnet run --no-build --no-restore --project src/Orchestrator --configuration Release -- collect-context profile --community-context pes-squad --competition bundesliga-2026-27 --dry-run --verbose
