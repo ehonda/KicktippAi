@@ -1,6 +1,6 @@
 # P1-15 — Deliver frozen Schadensfresse Champions-League bonus
 
-- Status: In progress — reviewed corrections and strict transport pass the latest logged Release build and 129 focused tests; final affected-suite rerun, independent re-review, CI, and production execution gates remain pending
+- Status: In progress — strict transport and the final review corrections pass the latest logged Release builds and affected suites; exact correction re-review, CI, and production execution gates remain pending
 - Outcome: place the three exact deadline-bound CL answers through a target-owned manual route without importing P1-10/P1-13 global typing.
 - Depends on: [ADR-0069](../decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md), [ADR-0070](../decisions/0070-isolate-the-strict-cl-bonus-mutation-transport.md), frozen candidate `6ab7a3548dd5e56e2dcb360de8bc2dde9a9e902fc291cb0955da5f10fff4020a`
 
@@ -19,7 +19,7 @@
 
 ## Local validation checkpoint
 
-- Latest source/test tip: Release solution build exit `0`, zero errors, with ignored evidence in `.tmp/cl-test-results/transport-final-7.binlog` and `transport-final-build-7.log`.
-- Latest focused filters: strict transport `24/24`, strict route `26/26`, generic reauthentication `4/4`, production factory `7/7`, Firebase CL lineage `7/7`, CL command `7/7`, CL verification `4/4`, and prompt/service tuple `50/50` (`129/129`, all exit `0`; ignored JSON reports under `.tmp/cl-test-results/final-*`).
-- The real-handler loopback journal proves shared authentication cookies, the selected target payload, redirect method/count rules, and the single POST boundary. Repeated-name ordered-multimap serialization remains covered by the in-process request-capture test because WireMock.Net 2.14 cannot journal repeated URL-encoded form names without returning an unmatched `500`.
-- The earlier affected-project baseline (`2257/2257`), workflow contract, and actionlint passes were collected on the pre-review transport baseline. The workflow files are unchanged, but affected project suites must be rerun against the final reviewed transport tip before completion.
+- Release solution build at the complete transport checkpoint exited `0` with zero errors (`.tmp/cl-test-results/transport-final-7.binlog` and `transport-final-build-7.log`). The final review correction's Release Orchestrator project build also exited `0` with zero errors (`finalcorrection-orchestrator-build.binlog` and `finalcorrection-orchestrator-build.log`).
+- Focused filters at the complete transport checkpoint: strict transport `24/24`, strict route `26/26`, generic reauthentication `4/4`, production factory `7/7`, Firebase CL lineage `7/7`, CL command `7/7`, CL verification `4/4`, and prompt/service tuple `50/50` (`129/129`, all exit `0`; ignored JSON reports under `.tmp/cl-test-results/final-*`).
+- The real-handler loopback journal proves shared authentication cookies, the selected target payload, redirect method/count rules, and the single POST boundary. Parser-retention assertions plus exact ordered payload-list construction cover repeated-name ordered-multimap preservation because WireMock.Net 2.14 cannot journal repeated URL-encoded form names without returning an unmatched `500`.
+- Full affected suites are green: Firebase `300/300` and Kicktipp `251/251` at the accepted transport checkpoint, Orchestrator `1217/1217` after the final correction, and unchanged Core `309/309` plus OpenAI `234/234` baselines (`2311/2311` total). The workflow-contract and actionlint passes predate the source-only corrections; workflow files remain unchanged and publication CI is still pending.

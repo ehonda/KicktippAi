@@ -676,6 +676,38 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
+    public async Task Ordinary_schadensfresse_bonus_without_a_cl_marker_retains_the_generic_service_path()
+    {
+        var predictionService = new Mock<IPredictionService>();
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+        openAiFactory
+            .Setup(factory => factory.CreatePredictionService(
+                "gpt-5.6-luna",
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()))
+            .Returns(predictionService.Object);
+
+        var result = PredictionServiceCommandSupport.CreatePredictionService(
+            openAiFactory.Object,
+            langfuseClient: null,
+            new Mock<IAnsiConsole>().Object,
+            "gpt-5.6-luna",
+            CompetitionIds.Bundesliga2026_27,
+            SchadensfresseChampionsLeagueBonusProfile.Community,
+            SchadensfresseChampionsLeagueBonusProfile.Community,
+            CompetitionResolver.LocalPromptSource,
+            CompetitionResolver.BundesligaBonusPromptName,
+            langfusePromptLabel: null,
+            langfusePromptVersion: null,
+            reasoningEffort: "none",
+            maxOutputTokenCount: 10_000,
+            bonusPrompt: true);
+
+        await Assert.That(result).IsSameReferenceAs(predictionService.Object);
+        openAiFactory.VerifyAll();
+    }
+
+    [Test]
     public async Task Langfuse_match_fallback_uses_justification_mirror_when_requested()
     {
         var langfuseClient = new Mock<ILangfusePublicApiClient>();

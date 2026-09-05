@@ -53,8 +53,6 @@ internal static class PredictionServiceCommandSupport
                     community,
                     communityContext,
                     langfusePromptName)
-                || string.Equals(community, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal)
-                   && string.Equals(communityContext, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal)
                 || string.Equals(bonusDeadlineAtOrBefore, SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc, StringComparison.Ordinal));
         var isChampionsLeagueBonus = bonusPrompt && SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
             bonusProfile,
