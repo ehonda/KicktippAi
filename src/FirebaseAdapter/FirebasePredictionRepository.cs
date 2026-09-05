@@ -2069,9 +2069,10 @@ public class FirebasePredictionRepository :
 
             foreach (var doc in bonusSnapshot.Documents)
             {
-                if (doc.TryGetValue<string>("model", out var model) && !string.IsNullOrWhiteSpace(model))
+                var prediction = doc.ConvertTo<FirestoreBonusPrediction>();
+                if (IsOrdinaryBonusPrediction(prediction) && !string.IsNullOrWhiteSpace(prediction.Model))
                 {
-                    models.Add(model);
+                    models.Add(prediction.Model);
                 }
             }
 
@@ -2106,7 +2107,11 @@ public class FirebasePredictionRepository :
 
             foreach (var doc in bonusSnapshot.Documents)
             {
-                AddModelConfigIfValid(modelConfigs, doc.ConvertTo<FirestoreBonusPrediction>());
+                var prediction = doc.ConvertTo<FirestoreBonusPrediction>();
+                if (IsOrdinaryBonusPrediction(prediction))
+                {
+                    AddModelConfigIfValid(modelConfigs, prediction);
+                }
             }
 
             return modelConfigs.Values
@@ -2204,9 +2209,10 @@ public class FirebasePredictionRepository :
 
             foreach (var doc in bonusSnapshot.Documents)
             {
-                if (doc.TryGetValue<string>("communityContext", out var context) && !string.IsNullOrWhiteSpace(context))
+                var prediction = doc.ConvertTo<FirestoreBonusPrediction>();
+                if (IsOrdinaryBonusPrediction(prediction) && !string.IsNullOrWhiteSpace(prediction.CommunityContext))
                 {
-                    communityContexts.Add(context);
+                    communityContexts.Add(prediction.CommunityContext);
                 }
             }
 
@@ -2227,7 +2233,7 @@ public class FirebasePredictionRepository :
             .WhereEqualTo("communityContext", SchadensfresseChampionsLeagueBonusProfile.Community);
 
     private static bool IsOrdinaryBonusPrediction(FirestoreBonusPrediction prediction) =>
-        string.IsNullOrWhiteSpace(prediction.SchadensfresseChampionsLeagueBonusManifest);
+        prediction.SchadensfresseChampionsLeagueBonusManifest is null;
 
     private (DocumentSnapshot Document, FirestoreBonusPrediction Prediction)? SelectCurrentClCandidate(
         IEnumerable<DocumentSnapshot> documents,
@@ -2268,8 +2274,8 @@ public class FirebasePredictionRepository :
                 || !string.Equals(candidate.ModelConfigKey, scope.ModelConfig.IdentityKey, StringComparison.Ordinal)
                 || candidate.RepredictionIndex < 0
                 || candidate.ContextDocumentNames is null || candidate.ContextDocumentNames.Length != 0
-                || !string.IsNullOrWhiteSpace(candidate.ResolvedBonusContextManifest)
-                || string.IsNullOrWhiteSpace(candidate.SchadensfresseChampionsLeagueBonusManifest)
+                || candidate.ResolvedBonusContextManifest is not null
+                || candidate.SchadensfresseChampionsLeagueBonusManifest is null
                 || string.IsNullOrWhiteSpace(candidate.BonusQuestionCompatibilityManifest)
                 || candidate.SelectedOptionIds is null || candidate.SelectedOptionTexts is null
                 || string.IsNullOrWhiteSpace(candidate.TokenUsage)

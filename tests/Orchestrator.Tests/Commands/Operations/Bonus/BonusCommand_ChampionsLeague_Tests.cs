@@ -121,6 +121,147 @@ public sealed class BonusCommand_ChampionsLeague_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    public async Task Complete_cache_with_blank_placement_reposts_all_three_without_constructing_model_or_context()
+    {
+        var blank = CreateSnapshot(placed: false);
+        var placed = CreateSnapshot(placed: true);
+        var strictRepository = CreateCurrentRepository();
+        var firebaseFactory = CreateStrictFirebaseFactory(strictRepository);
+        var kicktipp = new Mock<IKicktippClient>(MockBehavior.Strict);
+        kicktipp.Setup(client => client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .ReturnsAsync(blank);
+        kicktipp.Setup(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+                It.Is<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(results => results.Count == 3), true))
+            .ReturnsAsync(placed);
+        var openAiFactory = CreateMockOpenAiServiceFactory();
+        var contextFactory = new Mock<IContextProviderFactory>(MockBehavior.Strict);
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: firebaseFactory,
+            kicktippClientFactory: CreateMockKicktippClientFactory(kicktipp),
+            openAiServiceFactory: openAiFactory,
+            contextProviderFactory: contextFactory);
+
+        var arguments = ExactArguments();
+        arguments.AddRange(["--max-repredictions", "0"]);
+        var exitCode = await context.App.RunAsync(arguments);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        kicktipp.Verify(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+            "schadensfresse", It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+            It.IsAny<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(), true), Times.Once);
+        openAiFactory.Verify(factory => factory.CreatePredictionService(
+            It.IsAny<string>(), It.IsAny<PredictionServiceOptions>(), It.IsAny<IInstructionsTemplateProvider>()), Times.Never);
+        contextFactory.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Force_overwrites_all_three_rows_and_posts_one_complete_payload()
+    {
+        var stored = CreateStoredMetadata();
+        var strictRepository = new Mock<ISchadensfresseChampionsLeagueBonusPredictionRepository>(MockBehavior.Strict);
+        var genericRepository = strictRepository.As<IPredictionRepository>();
+        strictRepository.Setup(repository => repository.GetCurrentAsync(
+                It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SchadensfresseChampionsLeagueBonusPredictionScope scope, CancellationToken _) =>
+                stored.GetValueOrDefault(scope.SeedQuestion.KicktippQuestionId));
+        strictRepository.Setup(repository => repository.SaveAsync(
+                It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<BonusPrediction>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double>(), true, It.IsAny<CancellationToken>()))
+            .Callback((SchadensfresseChampionsLeagueBonusPredictionScope scope, BonusPrediction prediction,
+                string provider, string _, double _, bool _, CancellationToken _) =>
+                stored[scope.SeedQuestion.KicktippQuestionId] = CreateMetadata(scope, prediction, provider))
+            .Returns(Task.CompletedTask);
+        var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+        firebaseFactory.Setup(factory => factory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27))
+            .Returns(genericRepository.Object);
+        var placed = CreateSnapshot(placed: true);
+        var kicktipp = new Mock<IKicktippClient>(MockBehavior.Strict);
+        kicktipp.Setup(client => client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .ReturnsAsync(placed);
+        kicktipp.Setup(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+                It.IsAny<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(), true))
+            .ReturnsAsync(placed);
+        var predictionService = CreateMockPredictionService();
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: firebaseFactory,
+            kicktippClientFactory: CreateMockKicktippClientFactory(kicktipp),
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: predictionService),
+            contextProviderFactory: new Mock<IContextProviderFactory>(MockBehavior.Strict));
+        var arguments = ExactArguments();
+        arguments.Add("--override-database");
+
+        var exitCode = await context.App.RunAsync(arguments);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        strictRepository.Verify(repository => repository.SaveAsync(
+            It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<BonusPrediction>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double>(), true, It.IsAny<CancellationToken>()), Times.Exactly(3));
+        predictionService.Verify(service => service.PredictBonusQuestionAsync(
+            It.IsAny<BonusQuestion>(), It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+        kicktipp.Verify(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+            It.IsAny<string>(), It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+            It.IsAny<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(), true), Times.Once);
+    }
+
+    [Test]
+    public async Task Max_zero_recovers_one_missing_cache_row_at_index_zero_then_posts_complete_three()
+    {
+        var stored = CreateStoredMetadata().Where(pair => pair.Key != "1662326754")
+            .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+        var strictRepository = new Mock<ISchadensfresseChampionsLeagueBonusPredictionRepository>(MockBehavior.Strict);
+        var genericRepository = strictRepository.As<IPredictionRepository>();
+        strictRepository.Setup(repository => repository.GetCurrentAsync(
+                It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SchadensfresseChampionsLeagueBonusPredictionScope scope, CancellationToken _) =>
+                stored.GetValueOrDefault(scope.SeedQuestion.KicktippQuestionId));
+        strictRepository.Setup(repository => repository.GetCurrentRepredictionIndexAsync(
+                It.Is<SchadensfresseChampionsLeagueBonusPredictionScope>(scope => scope.SeedQuestion.KicktippQuestionId == "1662326754"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(-1);
+        strictRepository.Setup(repository => repository.SaveRepredictionAsync(
+                It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<BonusPrediction>(),
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double>(), -1, 0, It.IsAny<CancellationToken>()))
+            .Callback((SchadensfresseChampionsLeagueBonusPredictionScope scope, BonusPrediction prediction,
+                string provider, string _, double _, int _, int _, CancellationToken _) =>
+                stored[scope.SeedQuestion.KicktippQuestionId] = CreateMetadata(scope, prediction, provider))
+            .Returns(Task.CompletedTask);
+        var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+        firebaseFactory.Setup(factory => factory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27))
+            .Returns(genericRepository.Object);
+        var kicktipp = new Mock<IKicktippClient>(MockBehavior.Strict);
+        kicktipp.Setup(client => client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .ReturnsAsync(CreateSnapshot(placed: false));
+        kicktipp.Setup(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+                It.IsAny<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(), true))
+            .ReturnsAsync(CreateSnapshot(placed: true));
+        var predictionService = CreateMockPredictionService();
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: firebaseFactory,
+            kicktippClientFactory: CreateMockKicktippClientFactory(kicktipp),
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: predictionService),
+            contextProviderFactory: new Mock<IContextProviderFactory>(MockBehavior.Strict));
+        var arguments = ExactArguments();
+        arguments.AddRange(["--max-repredictions", "0"]);
+
+        var exitCode = await context.App.RunAsync(arguments);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        strictRepository.Verify(repository => repository.SaveRepredictionAsync(
+            It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<BonusPrediction>(),
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<double>(), -1, 0, It.IsAny<CancellationToken>()), Times.Once);
+        predictionService.Verify(service => service.PredictBonusQuestionAsync(
+            It.IsAny<BonusQuestion>(), It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()), Times.Once);
+        kicktipp.Verify(client => client.PlaceChampionsLeagueBonusPredictionsAsync(
+            It.IsAny<string>(), It.IsAny<ChampionsLeagueBonusFormSnapshot>(),
+            It.IsAny<IReadOnlyList<(string QuestionId, BonusPrediction Prediction)>>(), true), Times.Once);
+    }
+
+    [Test]
     public async Task Complete_exact_cache_and_readback_return_before_context_or_model_construction()
     {
         var snapshot = CreateSnapshot(placed: true);
@@ -244,4 +385,37 @@ public sealed class BonusCommand_ChampionsLeague_Tests : BonusCommandTests_Base
             DateTimeOffset.Parse("2026-09-05T00:00:00Z"),
             [],
             SchadensfresseChampionsLeagueBonusManifest: SchadensfresseChampionsLeagueBonusManifest.Create(scope, provider));
+
+    private static Dictionary<string, BonusPredictionMetadata> CreateStoredMetadata() =>
+        SchadensfresseChampionsLeagueBonusSeed.Default.Questions.ToDictionary(
+            seed => seed.KicktippQuestionId,
+            seed =>
+            {
+                var scope = SchadensfresseChampionsLeagueBonusPredictionScope.Create(
+                    CreateSnapshot(placed: false).Questions.Single(question => question.QuestionId == seed.KicktippQuestionId).Question,
+                    SchadensfresseChampionsLeagueBonusProfile.CreateModelConfig());
+                return CreateMetadata(scope, CreatePrediction(seed), "langfuse");
+            },
+            StringComparer.Ordinal);
+
+    private static Mock<ISchadensfresseChampionsLeagueBonusPredictionRepository> CreateCurrentRepository()
+    {
+        var stored = CreateStoredMetadata();
+        var repository = new Mock<ISchadensfresseChampionsLeagueBonusPredictionRepository>(MockBehavior.Strict);
+        repository.Setup(value => value.GetCurrentAsync(
+                It.IsAny<SchadensfresseChampionsLeagueBonusPredictionScope>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((SchadensfresseChampionsLeagueBonusPredictionScope scope, CancellationToken _) =>
+                stored[scope.SeedQuestion.KicktippQuestionId]);
+        return repository;
+    }
+
+    private static Mock<IFirebaseServiceFactory> CreateStrictFirebaseFactory(
+        Mock<ISchadensfresseChampionsLeagueBonusPredictionRepository> repository)
+    {
+        var genericRepository = repository.As<IPredictionRepository>();
+        var factory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+        factory.Setup(value => value.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27))
+            .Returns(genericRepository.Object);
+        return factory;
+    }
 }

@@ -618,6 +618,64 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
+    public async Task Cl_profile_with_local_prompt_source_fails_before_local_service_construction()
+    {
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+
+        await Assert.That(() => PredictionServiceCommandSupport.CreatePredictionService(
+                openAiFactory.Object,
+                langfuseClient: null,
+                new Mock<IAnsiConsole>().Object,
+                SchadensfresseChampionsLeagueBonusProfile.Model,
+                SchadensfresseChampionsLeagueBonusProfile.Competition,
+                SchadensfresseChampionsLeagueBonusProfile.Community,
+                SchadensfresseChampionsLeagueBonusProfile.Community,
+                "local",
+                SchadensfresseChampionsLeagueBonusProfile.PromptName,
+                SchadensfresseChampionsLeagueBonusProfile.PromptLabel,
+                SchadensfresseChampionsLeagueBonusProfile.PromptVersion,
+                SchadensfresseChampionsLeagueBonusProfile.ReasoningEffort,
+                SchadensfresseChampionsLeagueBonusProfile.MaxOutputTokens,
+                bonusPrompt: true,
+                bonusProfile: SchadensfresseChampionsLeagueBonusProfile.ProfileId,
+                bonusContextDocumentBudget: 0,
+                bonusContextTokenBudget: 0,
+                bonusDeadlineAtOrBefore: SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("complete exact frozen invocation tuple");
+        openAiFactory.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Cl_deadline_alone_without_profile_or_target_cannot_construct_an_ordinary_service()
+    {
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+
+        await Assert.That(() => PredictionServiceCommandSupport.CreatePredictionService(
+                openAiFactory.Object,
+                new Mock<ILangfusePublicApiClient>().Object,
+                new Mock<IAnsiConsole>().Object,
+                "gpt-5.6-luna",
+                SchadensfresseChampionsLeagueBonusProfile.Competition,
+                "pes-squad",
+                "pes-squad",
+                "langfuse",
+                CompetitionResolver.BundesligaBonusPromptName,
+                "production",
+                CompetitionResolver.BundesligaBonusPromptVersion,
+                "none",
+                10_000,
+                bonusPrompt: true,
+                bonusProfile: null,
+                bonusContextDocumentBudget: 20,
+                bonusContextTokenBudget: 32_000,
+                bonusDeadlineAtOrBefore: SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("complete exact frozen invocation tuple");
+        openAiFactory.VerifyNoOtherCalls();
+    }
+
+    [Test]
     public async Task Langfuse_match_fallback_uses_justification_mirror_when_requested()
     {
         var langfuseClient = new Mock<ILangfusePublicApiClient>();

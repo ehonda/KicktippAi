@@ -50,6 +50,9 @@ public sealed class FirebasePredictionRepository_ChampionsLeagueBonus_Tests(Fire
         await Assert.That(await repository.GetAllBonusPredictionsAsync(
             scope.ModelConfig,
             SchadensfresseChampionsLeagueBonusProfile.Community)).IsEmpty();
+        await Assert.That(await repository.GetAvailableModelsAsync()).IsEmpty();
+        await Assert.That(await repository.GetAvailableModelConfigsAsync()).IsEmpty();
+        await Assert.That(await repository.GetAvailableCommunityContextsAsync()).IsEmpty();
     }
 
     [Test]
@@ -77,10 +80,20 @@ public sealed class FirebasePredictionRepository_ChampionsLeagueBonus_Tests(Fire
             row.ResolvedBonusContextManifest = "{}";
             row.RepredictionIndex = 92;
         });
+        await WriteCollisionAsync(stored, "empty-ordinary-manifest", row =>
+        {
+            row.ResolvedBonusContextManifest = "";
+            row.RepredictionIndex = 93;
+        });
+        await WriteCollisionAsync(stored, "whitespace-ordinary-manifest", row =>
+        {
+            row.ResolvedBonusContextManifest = " ";
+            row.RepredictionIndex = 94;
+        });
         await WriteCollisionAsync(stored, "wrong-config", row =>
         {
             row.ModelConfigKey += "-wrong";
-            row.RepredictionIndex = 93;
+            row.RepredictionIndex = 95;
         });
 
         var current = await repository.GetCurrentAsync(scope);
@@ -111,6 +124,60 @@ public sealed class FirebasePredictionRepository_ChampionsLeagueBonus_Tests(Fire
             expectedCurrentRepredictionIndex: -1, maxRepredictions: 0);
 
         await Assert.That(await repository.GetCurrentRepredictionIndexAsync(scope)).IsEqualTo(0);
+    }
+
+    [Test]
+    [Arguments("")]
+    [Arguments(" ")]
+    public async Task Present_but_blank_specialized_manifest_is_neither_cl_lineage_nor_ordinary_data(string malformedManifest)
+    {
+        var repository = CreateRepository(competition: CompetitionIds.Bundesliga2026_27);
+        var scope = CreateScope(0);
+        await repository.SaveAsync(scope, CreatePrediction(scope), "langfuse", "{}", 0.01, overrideExisting: false);
+        var stored = await ReadOnlyStoredRowAsync();
+        stored.SchadensfresseChampionsLeagueBonusManifest = malformedManifest;
+        await Fixture.Db.Collection("bonus-predictions").Document(stored.Id!).SetAsync(stored);
+
+        await Assert.That(await repository.GetCurrentAsync(scope)).IsNull();
+        await Assert.That(await repository.GetBonusPredictionByTextAsync(
+            scope.Question.Text, scope.ModelConfig, SchadensfresseChampionsLeagueBonusProfile.Community)).IsNull();
+        await Assert.That(await repository.GetAllBonusPredictionsAsync(
+            scope.ModelConfig, SchadensfresseChampionsLeagueBonusProfile.Community)).IsEmpty();
+        await Assert.That(await repository.GetAvailableModelsAsync()).IsEmpty();
+        await Assert.That(await repository.GetAvailableModelConfigsAsync()).IsEmpty();
+        await Assert.That(await repository.GetAvailableCommunityContextsAsync()).IsEmpty();
+    }
+
+    [Test]
+    public async Task Ordinary_save_does_not_update_or_replace_a_specialized_row()
+    {
+        var repository = CreateRepository(competition: CompetitionIds.Bundesliga2026_27);
+        var scope = CreateScope(0);
+        var clPrediction = CreatePrediction(scope);
+        await repository.SaveAsync(scope, clPrediction, "langfuse", "{}", 0.01, overrideExisting: false);
+        var ordinaryPrediction = new BonusPrediction([scope.Question.Options[1].Id]);
+        var manifest = CreateOrdinaryManifest();
+
+        await repository.SaveBonusPredictionWithResolvedContextAsync(
+            scope.Question,
+            ordinaryPrediction,
+            scope.ModelConfig,
+            "{}",
+            0.02,
+            SchadensfresseChampionsLeagueBonusProfile.Community,
+            manifest.Documents.Select(document => document.Name),
+            manifest,
+            overrideCreatedAt: true);
+
+        var documents = await Fixture.Db.Collection("bonus-predictions").GetSnapshotAsync();
+        await Assert.That(documents.Documents.Count).IsEqualTo(2);
+        await Assert.That((await repository.GetCurrentAsync(scope))!.BonusPrediction.SelectedOptionIds
+            .SequenceEqual(clPrediction.SelectedOptionIds, StringComparer.Ordinal)).IsTrue();
+        await Assert.That((await repository.GetBonusPredictionByTextAsync(
+            scope.Question.Text,
+            scope.ModelConfig,
+            SchadensfresseChampionsLeagueBonusProfile.Community))!.SelectedOptionIds
+            .SequenceEqual(ordinaryPrediction.SelectedOptionIds, StringComparer.Ordinal)).IsTrue();
     }
 
     [Test]
@@ -146,6 +213,21 @@ public sealed class FirebasePredictionRepository_ChampionsLeagueBonus_Tests(Fire
 
     private static BonusPrediction CreatePrediction(SchadensfresseChampionsLeagueBonusPredictionScope scope) =>
         new(scope.Question.Options.Take(scope.Question.MaxSelections).Select(option => option.Id).ToList());
+
+    private static ResolvedBonusContextManifest CreateOrdinaryManifest() =>
+        ResolvedBonusContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            SchadensfresseChampionsLeagueBonusProfile.Community,
+            [
+                new ResolvedBonusContextDocument(
+                    "Kpi", "club-elo-rankings", 1,
+                    DocumentPublicationContract.ComputeContentSha256("elo")),
+                new ResolvedBonusContextDocument(
+                    "Kpi", "team-squad-summary", 1,
+                    DocumentPublicationContract.ComputeContentSha256("summary"))
+            ],
+            new string('a', DocumentPublicationContract.Sha256HexLength),
+            new string('b', DocumentPublicationContract.Sha256HexLength));
 
     private async Task<FirestoreBonusPrediction> ReadOnlyStoredRowAsync()
     {

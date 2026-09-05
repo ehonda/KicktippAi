@@ -47,6 +47,35 @@ internal static class PredictionServiceCommandSupport
             ReasoningEffort = NormalizeReasoningEffort(reasoningEffort),
             MaxOutputTokenCount = maxOutputTokenCount ?? PredictionServiceOptions.FlexProcessingWithStandardFallback.MaxOutputTokenCount
         };
+        var isPotentialChampionsLeagueBonus = bonusPrompt
+            && (SchadensfresseChampionsLeagueBonusProfile.IsPotentialInvocation(
+                    bonusProfile,
+                    community,
+                    communityContext,
+                    langfusePromptName)
+                || string.Equals(community, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal)
+                   && string.Equals(communityContext, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal)
+                || string.Equals(bonusDeadlineAtOrBefore, SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc, StringComparison.Ordinal));
+        var isChampionsLeagueBonus = bonusPrompt && SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
+            bonusProfile,
+            competition,
+            community,
+            communityContext,
+            promptSource,
+            langfusePromptName,
+            langfusePromptLabel,
+            langfusePromptVersion,
+            model,
+            reasoningEffort,
+            maxOutputTokenCount,
+            bonusContextDocumentBudget,
+            bonusContextTokenBudget,
+            bonusDeadlineAtOrBefore);
+        if (isPotentialChampionsLeagueBonus && !isChampionsLeagueBonus)
+        {
+            throw new InvalidOperationException(
+                "The Schadensfresse Champions-League bonus route requires the complete exact frozen invocation tuple.");
+        }
 
         if (!string.Equals(metadata.PromptSource, CompetitionResolver.LangfusePromptSource, StringComparison.OrdinalIgnoreCase))
         {
@@ -70,32 +99,6 @@ internal static class PredictionServiceCommandSupport
         var fallbackModel = string.IsNullOrWhiteSpace(metadata.FallbackPromptModel)
             ? model
             : metadata.FallbackPromptModel;
-        var isPotentialChampionsLeagueBonus = bonusPrompt
-            && SchadensfresseChampionsLeagueBonusProfile.IsPotentialInvocation(
-                bonusProfile,
-                community,
-                communityContext,
-                langfusePromptName);
-        var isChampionsLeagueBonus = bonusPrompt && SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
-            bonusProfile,
-            competition,
-            community,
-            communityContext,
-            promptSource,
-            langfusePromptName,
-            langfusePromptLabel,
-            langfusePromptVersion,
-            model,
-            reasoningEffort,
-            maxOutputTokenCount,
-            bonusContextDocumentBudget,
-            bonusContextTokenBudget,
-            bonusDeadlineAtOrBefore);
-        if (isPotentialChampionsLeagueBonus && !isChampionsLeagueBonus)
-        {
-            throw new InvalidOperationException(
-                "The Schadensfresse Champions-League bonus route requires the complete exact frozen invocation tuple.");
-        }
 
         var templateProvider = new LangfuseTextPromptTemplateProvider(
             langfuseClient,

@@ -20,7 +20,10 @@ does not add an option or authorize an identity in the current seed.
 - The strict Kicktipp adapter requires the authenticated Schadensfresse bonus
   page, exact HTTPS action and POST method, unique intended submitter, editable
   target controls, seeded definitions, and valid current selections. It keeps
-  the initial selection vector as the optimistic-concurrency baseline.
+  the initial selection vector as the optimistic-concurrency baseline. A
+  form-wide scan rejects any extra or malformed canonical answer key and any
+  reuse of a canonical slot identity by another question while preserving
+  unrelated question controls.
 - The pre-POST read must retain that target baseline and seed identity. Payload
   construction preserves the current form-associated, effectively enabled
   successful non-target controls as an ordered multimap, including repeated
@@ -31,7 +34,9 @@ does not add an option or authorize an identity in the current seed.
   lineage index. Legacy, ordinary, malformed, wrong-config, and both-manifest
   rows remain untouched audit collisions; a missing exact lineage starts at
   index zero. Conversely, ordinary cache, update, existence, aggregate, and
-  cost reads exclude every row carrying the specialized manifest.
+  cost reads exclude every row where the specialized manifest field is
+  present. Empty or whitespace manifest values are malformed audit collisions,
+  not absence, and enter neither specialized nor ordinary reads or updates.
 - The exact lineage has the specialized manifest, no ordinary resolved-context
   manifest, empty context names, canonical question compatibility, exact
   selected IDs/texts, and duplicated prompt/model/service-policy fields that
@@ -41,6 +46,14 @@ does not add an option or authorize an identity in the current seed.
   partial result never reaches Kicktipp. A valid run POSTs once, validates the
   response surface, performs a fresh strict GET, and rereads all three exact
   Firestore rows before success.
+- The ordinary authenticated client and strict mutation transport use distinct
+  real handler chains with one shared cookie container. The strict chain has
+  automatic redirects disabled and no authentication/retry handler. It attempts
+  the action POST once, accepts a direct `200` or one exact `302`/`303`
+  post/redirect/get as a bodyless GET, rejects every other status or target,
+  and performs response and final reads without ever re-entering the ordinary
+  handler. An exception after dispatch is an unknown outcome and requires a
+  later read-only recovery inspection, never an automatic repost.
 
 The hosted prompt was already reviewed, published, and read back as immutable
 v1/`production`. During an availability-only transport, timeout, TLS/DNS, or

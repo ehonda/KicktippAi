@@ -9,6 +9,9 @@ using Moq;
 using Orchestrator.Commands.Utility.Snapshots;
 using Orchestrator.Infrastructure.Factories;
 using OpenAiIntegration;
+using WireMock.RequestBuilders;
+using WireMock.ResponseBuilders;
+using WireMock.Server;
 
 namespace Orchestrator.Tests.Infrastructure;
 
@@ -100,6 +103,106 @@ public class FactoryTests
     }
 
     [Test]
+    public async Task KicktippClientFactory_production_builder_shares_authenticated_cookie_with_single_send_strict_route()
+    {
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "user@example.com");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "secret");
+        using var server = WireMockServer.Start();
+        var origin = new Uri(server.Urls[0] + "/");
+        var blank = CreateChampionsLeagueHtml(origin, placed: false);
+        var placed = CreateChampionsLeagueHtml(origin, placed: true);
+        StubFactoryAuthentication(server);
+        var bonusGetCount = 0;
+        server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingGet())
+            .RespondWith(Response.Create().WithCallback(_ =>
+            {
+                var html = bonusGetCount++ < 2 ? blank : placed;
+                return HtmlResponseMessage(html);
+            }));
+        server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody(placed));
+        var sut = new KicktippClientFactory(
+            new MemoryCache(new MemoryCacheOptions()), CreateLoggerFactory());
+        using var client = sut.BuildClient(origin);
+        var predictions = SchadensfresseChampionsLeagueBonusSeed.Default.Questions.Select(question => (
+            question.KicktippQuestionId,
+            new BonusPrediction(question.Options.Take(question.MaxSelections).Select(option => option.Id).ToList())))
+            .ToArray();
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        var final = await client.PlaceChampionsLeagueBonusPredictionsAsync(
+            "schadensfresse", initial, predictions, overridePredictions: true);
+
+        await Assert.That(final.Questions.SelectMany(question => question.SelectedOptionIds)
+            .All(option => option is not null)).IsTrue();
+        var actionPosts = server.LogEntries.Where(entry =>
+            entry.RequestMessage.Method == "POST"
+            && entry.RequestMessage.Path == "/schadensfresse/tippabgabe").ToArray();
+        await Assert.That(actionPosts.Length).IsEqualTo(1);
+        await Assert.That(actionPosts[0].RequestMessage.Headers!["Cookie"].Single()).Contains("factory-session=shared");
+        var formValues = ParseFormDataMultiValue(actionPosts[0].RequestMessage.Body);
+        await Assert.That(SchadensfresseChampionsLeagueBonusSeed.Default.Questions
+            .SelectMany(question => question.FormKeys).All(formValues.ContainsKey)).IsTrue();
+        foreach (var (questionId, prediction) in predictions)
+        {
+            var seed = SchadensfresseChampionsLeagueBonusSeed.Default.GetQuestion(questionId);
+            for (var index = 0; index < seed.FormKeys.Count; index++)
+            {
+                await Assert.That(formValues[seed.FormKeys[index]])
+                    .IsEquivalentTo([prediction.SelectedOptionIds[index]]);
+            }
+        }
+        await Assert.That(server.LogEntries.Count(entry =>
+            entry.RequestMessage.Method == "POST"
+            && entry.RequestMessage.Path == "/info/profil/loginaction")).IsEqualTo(1);
+        await Assert.That(server.LogEntries.Count(entry =>
+            entry.RequestMessage.Method == "GET"
+            && entry.RequestMessage.Path == "/schadensfresse/tippabgabe")).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task KicktippClientFactory_production_builder_does_not_redirect_or_reauthenticate_strict_post()
+    {
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "user@example.com");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "secret");
+        using var server = WireMockServer.Start();
+        var origin = new Uri(server.Urls[0] + "/");
+        var blank = CreateChampionsLeagueHtml(origin, placed: false);
+        StubFactoryAuthentication(server);
+        server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody(blank));
+        server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(307)
+                .WithHeader("Location", "/schadensfresse/tippabgabe"));
+        var sut = new KicktippClientFactory(
+            new MemoryCache(new MemoryCacheOptions()), CreateLoggerFactory());
+        using var client = sut.BuildClient(origin);
+        var predictions = SchadensfresseChampionsLeagueBonusSeed.Default.Questions.Select(question => (
+            question.KicktippQuestionId,
+            new BonusPrediction(question.Options.Take(question.MaxSelections).Select(option => option.Id).ToList())))
+            .ToArray();
+        var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(() => client.PlaceChampionsLeagueBonusPredictionsAsync(
+                "schadensfresse", initial, predictions, overridePredictions: true))
+            .Throws<HttpRequestException>();
+
+        await Assert.That(server.LogEntries.Count(entry =>
+            entry.RequestMessage.Method == "POST"
+            && entry.RequestMessage.Path == "/schadensfresse/tippabgabe")).IsEqualTo(1);
+        await Assert.That(server.LogEntries.Count(entry =>
+            entry.RequestMessage.Method == "POST"
+            && entry.RequestMessage.Path == "/info/profil/loginaction")).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task ContextProviderFactory_creates_expected_provider_types_and_caches_community_rules_provider()
     {
         var kpiRepository = new Mock<IKpiRepository>();
@@ -183,6 +286,80 @@ public class FactoryTests
     {
         return LoggerFactory.Create(builder => builder.SetMinimumLevel(LogLevel.Debug));
     }
+
+    private static void StubFactoryAuthentication(WireMockServer server)
+    {
+        server.Given(Request.Create().WithPath("/info/profil/login").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody("<html><body><form action=\"/info/profil/loginaction\"><input type=\"hidden\" name=\"_charset_\" value=\"UTF-8\"></form></body></html>"));
+        server.Given(Request.Create().WithPath("/info/profil/loginaction").UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(302)
+                .WithHeader("Location", "/authenticated")
+                .WithHeader("Set-Cookie", "factory-session=shared; Path=/"));
+        server.Given(Request.Create().WithPath("/authenticated").UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody("<html><body>authenticated</body></html>"));
+    }
+
+    private static string CreateChampionsLeagueHtml(Uri origin, bool placed)
+    {
+        var builder = new System.Text.StringBuilder();
+        builder.Append("<html><body><form method=\"post\" action=\"")
+            .Append(new Uri(origin, "/schadensfresse/tippabgabe"))
+            .Append("\"><input type=\"hidden\" name=\"tipperId\" value=\"123\">")
+            .Append("<table id=\"tippabgabeFragen\"><tbody>");
+        foreach (var seed in SchadensfresseChampionsLeagueBonusSeed.Default.Questions)
+        {
+            builder.Append("<tr><td>08.09.26 18:45</td><td>")
+                .Append(System.Net.WebUtility.HtmlEncode(seed.Text))
+                .Append("</td><td>");
+            for (var slot = 0; slot < seed.FormKeys.Count; slot++)
+            {
+                builder.Append("<select name=\"").Append(seed.FormKeys[slot]).Append("\"><option value=\"-1\"");
+                if (!placed) builder.Append(" selected");
+                builder.Append(">--</option>");
+                foreach (var option in seed.Options)
+                {
+                    builder.Append("<option value=\"").Append(option.Id).Append('"');
+                    if (placed && option.Id == seed.Options[slot].Id) builder.Append(" selected");
+                    builder.Append('>')
+                        .Append(System.Net.WebUtility.HtmlEncode(option.Text)).Append("</option>");
+                }
+                builder.Append("</select>");
+            }
+            builder.Append("</td></tr>");
+        }
+        return builder.Append("</tbody></table><button type=\"button\" name=\"submitbutton\" value=\"save\"></button></form></body></html>")
+            .ToString();
+    }
+
+    private static WireMock.ResponseMessage HtmlResponseMessage(string html) => new()
+    {
+        StatusCode = 200,
+        Headers = new Dictionary<string, WireMock.Types.WireMockList<string>>
+        {
+            ["Content-Type"] = new("text/html; charset=utf-8")
+        },
+        BodyData = new WireMock.Util.BodyData
+        {
+            DetectedBodyType = WireMock.Types.BodyType.String,
+            BodyAsString = html
+        }
+    };
+
+    private static Dictionary<string, List<string>> ParseFormDataMultiValue(string? body) =>
+        (body ?? string.Empty).Split('&', StringSplitOptions.RemoveEmptyEntries)
+        .Select(pair => pair.Split('=', 2))
+        .Where(parts => parts.Length == 2)
+        .GroupBy(parts => Uri.UnescapeDataString(parts[0]))
+        .ToDictionary(
+            group => group.Key,
+            group => group.Select(parts => Uri.UnescapeDataString(parts[1])).ToList());
 
     private void RememberEnvironmentVariable(string name)
     {

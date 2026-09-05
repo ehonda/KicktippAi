@@ -9,6 +9,7 @@ using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using NodaTime;
 using NodaTime.Extensions;
+using KicktippIntegration.Transport;
 
 namespace KicktippIntegration;
 
@@ -24,6 +25,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     private readonly ILogger<KicktippClient> _logger;
     private readonly IBrowsingContext _browsingContext;
     private readonly IMemoryCache _cache;
+    private readonly ChampionsLeagueBonusStrictTransport? _championsLeagueBonusStrictTransport;
 
     public async Task<ChampionsLeagueBonusFormSnapshot> GetChampionsLeagueBonusFormSnapshotAsync(string community)
     {
@@ -34,7 +36,7 @@ public class KicktippClient : IKicktippClient, IDisposable
 
         using var response = await _httpClient.GetAsync($"{community}/tippabgabe?bonus=true");
         var snapshot = await ParseChampionsLeagueBonusSnapshotAsync(response);
-        if (snapshot.FinalUri != ChampionsLeagueBonusRoute.ExpectedPage)
+        if (!HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusPage))
         {
             throw new InvalidDataException("The strict CL GET did not remain on the exact bonus page.");
         }
@@ -73,6 +75,7 @@ public class KicktippClient : IKicktippClient, IDisposable
         {
             throw new InvalidDataException("The strict CL form does not use the expected URL-encoded submission format.");
         }
+        ValidateChampionsLeagueAnswerControlKeys(form);
         var rows = document.QuerySelectorAll("#tippabgabeFragen tbody tr");
         var questions = new List<ChampionsLeagueBonusQuestionSnapshot>();
         var targetIds = SchadensfresseChampionsLeagueBonusProfile.OrderedQuestionIds.ToHashSet(StringComparer.Ordinal);
@@ -84,15 +87,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             if (selects.Length == 0) continue;
             var parsedKeys = selects.Select(select => ParseChampionsLeagueTargetKey(select.Name)).ToArray();
             var matching = parsedKeys.Where(key => key is not null && targetIds.Contains(key.Value.QuestionId)).ToArray();
-            if (matching.Length == 0)
-            {
-                if (selects.Any(select => targetIds.Any(questionId =>
-                        select.Name?.StartsWith($"fragetippForms[{questionId}]", StringComparison.Ordinal) == true)))
-                {
-                    throw new InvalidDataException("A strict CL target row contains a malformed target key.");
-                }
-                continue;
-            }
+            if (matching.Length == 0) continue;
             if (matching.Length != selects.Length
                 || matching.Select(key => key!.Value.QuestionId).Distinct(StringComparer.Ordinal).Count() != 1)
             {
@@ -139,27 +134,120 @@ public class KicktippClient : IKicktippClient, IDisposable
                 .Single(select => string.Equals(select.Name, targetKey, StringComparison.Ordinal))
                 .IsDisabled() is false);
         var snapshot = new ChampionsLeagueBonusFormSnapshot(finalUri, action, form.Method.ToUpperInvariant(), questions, controls, submitterName, submitterValue, canPlace);
-        ChampionsLeagueBonusRoute.ValidateSnapshot(snapshot);
+        ChampionsLeagueBonusRoute.ValidateSnapshot(ToCanonicalChampionsLeagueSnapshot(snapshot));
         return snapshot;
     }
 
     public async Task<ChampionsLeagueBonusFormSnapshot> PlaceChampionsLeagueBonusPredictionsAsync(string community, ChampionsLeagueBonusFormSnapshot initialSnapshot, IReadOnlyList<(string QuestionId, BonusPrediction Prediction)> predictions, bool overridePredictions)
     {
+        var strictTransport = _championsLeagueBonusStrictTransport
+            ?? throw new InvalidOperationException(
+                "The strict Champions-League mutation transport is not configured for this Kicktipp client.");
         var current = await GetChampionsLeagueBonusFormSnapshotAsync(community);
-        var payload = ChampionsLeagueBonusRoute.BuildPostPayload(initialSnapshot, current, predictions, overridePredictions);
-        using var response = await _httpClient.PostAsync(current.Action, new FormUrlEncodedContent(payload));
+        var payload = ChampionsLeagueBonusRoute.BuildPostPayload(
+            ToCanonicalChampionsLeagueSnapshot(initialSnapshot),
+            ToCanonicalChampionsLeagueSnapshot(current),
+            predictions,
+            overridePredictions);
+        using var response = await strictTransport.PostAndResolveResponseOnceAsync(payload);
         var responseSnapshot = await ParseChampionsLeagueBonusSnapshotAsync(response);
-        ChampionsLeagueBonusRoute.ValidatePlacedSelections(responseSnapshot, predictions);
-        var final = await GetChampionsLeagueBonusFormSnapshotAsync(community);
-        ChampionsLeagueBonusRoute.ValidatePlacedSelections(final, predictions);
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(
+            ToCanonicalChampionsLeagueSnapshot(responseSnapshot), predictions);
+        using var finalResponse = await strictTransport.GetOnceAsync();
+        var final = await ParseChampionsLeagueBonusSnapshotAsync(finalResponse);
+        if (!HasExactUriComponents(final.FinalUri, strictTransport.PageUri))
+        {
+            throw new InvalidDataException("The strict CL final GET did not remain on the exact bonus page.");
+        }
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(ToCanonicalChampionsLeagueSnapshot(final), predictions);
         return final;
     }
+
+    private Uri ExpectedChampionsLeagueBonusPage =>
+        _championsLeagueBonusStrictTransport?.PageUri ?? ChampionsLeagueBonusRoute.ExpectedPage;
+
+    private Uri ExpectedChampionsLeagueBonusAction =>
+        _championsLeagueBonusStrictTransport?.ActionUri ?? ChampionsLeagueBonusRoute.ExpectedAction;
+
+    private ChampionsLeagueBonusFormSnapshot ToCanonicalChampionsLeagueSnapshot(
+        ChampionsLeagueBonusFormSnapshot snapshot)
+    {
+        if (!HasExactUriComponents(snapshot.Action, ExpectedChampionsLeagueBonusAction)
+            || !HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusPage)
+               && !HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusAction))
+        {
+            throw new InvalidDataException("The strict CL form is not bound to the configured exact route.");
+        }
+
+        return snapshot with
+        {
+            FinalUri = HasExactUriComponents(snapshot.FinalUri, ExpectedChampionsLeagueBonusPage)
+                ? ChampionsLeagueBonusRoute.ExpectedPage
+                : ChampionsLeagueBonusRoute.ExpectedAction,
+            Action = ChampionsLeagueBonusRoute.ExpectedAction
+        };
+    }
+
+    private static bool HasExactUriComponents(Uri actual, Uri expected) =>
+        string.Equals(actual.Scheme, expected.Scheme, StringComparison.Ordinal)
+        && string.Equals(actual.Host, expected.Host, StringComparison.Ordinal)
+        && actual.Port == expected.Port
+        && string.Equals(actual.UserInfo, expected.UserInfo, StringComparison.Ordinal)
+        && string.Equals(actual.AbsolutePath, expected.AbsolutePath, StringComparison.Ordinal)
+        && string.Equals(actual.Query, expected.Query, StringComparison.Ordinal)
+        && string.Equals(actual.Fragment, expected.Fragment, StringComparison.Ordinal);
 
     private static (string QuestionId, string SlotId)? ParseChampionsLeagueTargetKey(string? key)
     {
         if (string.IsNullOrEmpty(key)) return null;
         var match = Regex.Match(key, @"^fragetippForms\[(?<questionId>[0-9]+)\]\.antwortIds\[(?<slotId>[0-9]+)\]$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
         return match.Success ? (match.Groups["questionId"].Value, match.Groups["slotId"].Value) : null;
+    }
+
+    private static void ValidateChampionsLeagueAnswerControlKeys(IHtmlFormElement form)
+    {
+        var seed = SchadensfresseChampionsLeagueBonusSeed.Default;
+        var expectedKeys = seed.Questions.SelectMany(question => question.FormKeys).ToHashSet(StringComparer.Ordinal);
+        var targetIds = seed.Questions.Select(question => question.KicktippQuestionId).ToHashSet(StringComparer.Ordinal);
+        var canonicalSlotIds = expectedKeys.Select(key => ParseChampionsLeagueTargetKey(key)!.Value.SlotId)
+            .ToHashSet(StringComparer.Ordinal);
+        var observedExpectedKeys = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var control in form.Elements.OfType<IHtmlElement>())
+        {
+            var name = control.GetAttribute("name");
+            if (string.IsNullOrEmpty(name)) continue;
+            var parsed = ParseChampionsLeagueTargetKey(name);
+            if (parsed is { } answerKey)
+            {
+                if (targetIds.Contains(answerKey.QuestionId))
+                {
+                    if (!expectedKeys.Contains(name) || control is not IHtmlSelectElement)
+                    {
+                        throw new InvalidDataException("A canonical CL question has an extra or non-select answer control.");
+                    }
+                    observedExpectedKeys[name] = observedExpectedKeys.GetValueOrDefault(name) + 1;
+                }
+                else if (canonicalSlotIds.Contains(answerKey.SlotId))
+                {
+                    throw new InvalidDataException("A canonical CL slot identity is reused by another question.");
+                }
+                continue;
+            }
+
+            if (targetIds.Any(questionId => Regex.IsMatch(
+                    name,
+                    $@"^fragetippForms\[{Regex.Escape(questionId)}(?![0-9])",
+                    System.Text.RegularExpressions.RegexOptions.CultureInvariant)))
+            {
+                throw new InvalidDataException("A canonical CL question has a malformed answer key.");
+            }
+        }
+
+        if (expectedKeys.Any(key => observedExpectedKeys.GetValueOrDefault(key) != 1))
+        {
+            throw new InvalidDataException("The canonical CL answer keys must each occur exactly once in the form.");
+        }
     }
 
     private static List<BonusQuestionOption> ParseStrictOptions(IHtmlSelectElement select)
@@ -241,10 +329,33 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     public KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger, IMemoryCache cache)
+        : this(httpClient, logger, cache, championsLeagueBonusStrictTransport: null, allowMissingStrictTransport: true)
+    {
+    }
+
+    public KicktippClient(
+        HttpClient httpClient,
+        ILogger<KicktippClient> logger,
+        IMemoryCache cache,
+        ChampionsLeagueBonusStrictTransport championsLeagueBonusStrictTransport)
+        : this(httpClient, logger, cache, championsLeagueBonusStrictTransport, allowMissingStrictTransport: false)
+    {
+    }
+
+    private KicktippClient(
+        HttpClient httpClient,
+        ILogger<KicktippClient> logger,
+        IMemoryCache cache,
+        ChampionsLeagueBonusStrictTransport? championsLeagueBonusStrictTransport,
+        bool allowMissingStrictTransport)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _championsLeagueBonusStrictTransport = allowMissingStrictTransport
+            ? championsLeagueBonusStrictTransport
+            : championsLeagueBonusStrictTransport
+              ?? throw new ArgumentNullException(nameof(championsLeagueBonusStrictTransport));
         
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
@@ -3412,6 +3523,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     public void Dispose()
     {
         _httpClient?.Dispose();
+        _championsLeagueBonusStrictTransport?.Dispose();
         _browsingContext?.Dispose();
     }
 }

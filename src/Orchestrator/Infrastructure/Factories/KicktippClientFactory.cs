@@ -1,5 +1,6 @@
 using KicktippIntegration;
 using KicktippIntegration.Authentication;
+using KicktippIntegration.Transport;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,6 +16,10 @@ namespace Orchestrator.Infrastructure.Factories;
 /// </remarks>
 public sealed class KicktippClientFactory : IKicktippClientFactory
 {
+    private static readonly Uri ProductionOrigin = new("https://www.kicktipp.de");
+    private const string BrowserUserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+
     private readonly IMemoryCache _memoryCache;
     private readonly ILoggerFactory _loggerFactory;
     private readonly Lazy<IKicktippClient> _client;
@@ -36,25 +41,9 @@ public sealed class KicktippClientFactory : IKicktippClientFactory
     /// <inheritdoc />
     public HttpClient CreateAuthenticatedHttpClient()
     {
-        var options = Options.Create(_credentials.Value);
-
-        // Create the authentication handler
-        var authLogger = _loggerFactory.CreateLogger<KicktippAuthenticationHandler>();
-        var authHandler = new KicktippAuthenticationHandler(options, authLogger)
-        {
-            InnerHandler = new HttpClientHandler()
-        };
-
-        // Create HttpClient with the auth handler
-        var httpClient = new HttpClient(authHandler)
-        {
-            BaseAddress = new Uri("https://www.kicktipp.de"),
-            Timeout = TimeSpan.FromMinutes(2)
-        };
-        httpClient.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-
-        return httpClient;
+        return CreateGenericAuthenticatedHttpClient(
+            ProductionOrigin,
+            new System.Net.CookieContainer());
     }
 
     /// <inheritdoc />
@@ -87,28 +76,41 @@ public sealed class KicktippClientFactory : IKicktippClientFactory
         };
     }
 
-    private IKicktippClient InitializeClient()
+    private IKicktippClient InitializeClient() => BuildClient(ProductionOrigin);
+
+    internal KicktippClient BuildClient(Uri origin)
     {
-        var options = Options.Create(_credentials.Value);
+        ArgumentNullException.ThrowIfNull(origin);
+        var cookies = new System.Net.CookieContainer();
+        var httpClient = CreateGenericAuthenticatedHttpClient(origin, cookies);
+        var strictTransport = new ChampionsLeagueBonusStrictTransport(origin, cookies, TimeSpan.FromMinutes(2));
+        var clientLogger = _loggerFactory.CreateLogger<KicktippClient>();
+        return new KicktippClient(httpClient, clientLogger, _memoryCache, strictTransport);
+    }
 
-        // Create the authentication handler
-        var authLogger = _loggerFactory.CreateLogger<KicktippAuthenticationHandler>();
-        var authHandler = new KicktippAuthenticationHandler(options, authLogger)
+    private HttpClient CreateGenericAuthenticatedHttpClient(Uri origin, System.Net.CookieContainer cookies)
+    {
+        var primaryHandler = new HttpClientHandler
         {
-            InnerHandler = new HttpClientHandler()
+            CookieContainer = cookies,
+            UseCookies = true,
+            AllowAutoRedirect = true
         };
-
-        // Create HttpClient with the auth handler
+        var options = Options.Create(_credentials.Value);
+        var authLogger = _loggerFactory.CreateLogger<KicktippAuthenticationHandler>();
+        var authHandler = new KicktippAuthenticationHandler(
+            options,
+            authLogger,
+            origin.GetLeftPart(UriPartial.Authority))
+        {
+            InnerHandler = primaryHandler
+        };
         var httpClient = new HttpClient(authHandler)
         {
-            BaseAddress = new Uri("https://www.kicktipp.de"),
+            BaseAddress = origin,
             Timeout = TimeSpan.FromMinutes(2)
         };
-        httpClient.DefaultRequestHeaders.Add("User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-
-        // Create and return the client
-        var clientLogger = _loggerFactory.CreateLogger<KicktippClient>();
-        return new KicktippClient(httpClient, clientLogger, _memoryCache);
+        httpClient.DefaultRequestHeaders.Add("User-Agent", BrowserUserAgent);
+        return httpClient;
     }
 }
