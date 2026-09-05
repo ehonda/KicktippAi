@@ -76,6 +76,8 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
     private static readonly string[] LegacyHeaders = ["Competition", "Data_Collected_At", "Home_Team", "Away_Team", "Score", "Annotation"];
     private static readonly string[] DatedHeaders = ["Competition", "Played_At", "Home_Team", "Away_Team", "Score", "Annotation"];
     private static readonly string[] TimestampFormats = ["yyyy-MM-dd'T'HH:mm:sszzz", "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz"];
+    private static readonly HashSet<string> SupportedHistoryCompetitions =
+        [KicktippHistoryCompetition, "DFB", "CL", "EL", "ConfL", "2.BL", "Releg"];
     private static readonly HashSet<string> ProxySupportedCompetitions =
         ["DFB", "CL", "EL", "ConfL", "2.BL", "Releg"];
 
@@ -316,6 +318,13 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         BundesligaHistoryPlayedDateCollectionOptions? options,
         List<BundesligaHistoryPlayedDateDiagnostic> diagnostics)
     {
+        if (!SupportedHistoryCompetitions.Contains(row.HistoryCompetition))
+        {
+            diagnostics.Add(new(documentName, row.Ordinal,
+                $"Unsupported selected-history competition '{row.HistoryCompetition}'"));
+            return null;
+        }
+
         var normalizedScore = NormalizeScore(row.Score);
         var outcomeMatches = string.Equals(row.HistoryCompetition, KicktippHistoryCompetition, StringComparison.Ordinal)
             ? outcomes.Where(outcome => outcome.HasOutcome
@@ -468,6 +477,16 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             }
             foreach (var row in completedRows)
             {
+                if (!SupportedHistoryCompetitions.Contains(row.HistoryCompetition))
+                {
+                    throw new InvalidDataException(
+                        $"Prior selected history '{documentName}' row {row.Ordinal} has unsupported competition '{row.HistoryCompetition}'");
+                }
+                if (string.IsNullOrEmpty(row.PlayedAt))
+                {
+                    throw new InvalidDataException(
+                        $"Prior selected history '{documentName}' row {row.Ordinal} requires Played_At when completed");
+                }
                 var playedAt = ParsePlayedAt(row.PlayedAt, documentName, row.Ordinal);
                 if (playedAt.IsProxy && !ProxySupportedCompetitions.Contains(row.HistoryCompetition))
                 {

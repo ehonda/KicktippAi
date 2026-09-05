@@ -33,4 +33,9 @@ Unresolved `1.BL`, unknown competitions, malformed rows or prior documents, dupl
 
 ## Supersedes
 
-None.
+This ADR narrowly supersedes ADR-0025's exact-only selected-history rule: its
+unresolved-row failure and collection-time rejection no longer apply to the
+six explicitly listed external labels when no exact evidence exists. It retains
+ADR-0025's exact identity, source, no-runtime-fetch, and fail-closed boundaries.
+ADR-0032's atomic selected-set publication and ADR-0044's exact full-season
+capture contract remain unchanged; this proxy is not full-season authority.

@@ -601,6 +601,14 @@ public class BundesligaHistoryPlayedDateCollectorTests
         var incompletePrior = CollectWithProxy(
             Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
             Dated("DFB,2026-01-01,Bayer 04 Leverkusen,VfB Stuttgart,,"), Instant.FromUtc(2026, 1, 1, 12, 0));
+        var unknownExactIncoming = CollectWithProxy(
+            Dated("Cup,2026-01-01,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [], null, Instant.FromUtc(2026, 1, 1, 12, 0));
+        var unknownExactPrior = CollectWithProxy(
+            Undated("Cup,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
+            Dated("Cup,2026-01-01,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), Instant.FromUtc(2026, 1, 1, 12, 0));
+        var blankCompletedPrior = CollectWithProxy(
+            Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), [],
+            Dated("DFB,,Bayer 04 Leverkusen,VfB Stuttgart,3:1,"), Instant.FromUtc(2026, 1, 1, 12, 0));
 
         await Assert.That(league.Succeeded).IsFalse();
         await Assert.That(unknown.Succeeded).IsFalse();
@@ -608,6 +616,27 @@ public class BundesligaHistoryPlayedDateCollectorTests
         await Assert.That(conflict.Succeeded).IsFalse();
         await Assert.That(unsupportedPriorProxy.Succeeded).IsFalse();
         await Assert.That(incompletePrior.Succeeded).IsFalse();
+        await Assert.That(unknownExactIncoming.Succeeded).IsFalse();
+        await Assert.That(unknownExactPrior.Succeeded).IsFalse();
+        await Assert.That(blankCompletedPrior.Succeeded).IsFalse();
+    }
+
+    [Test]
+    public async Task Same_history_tuple_in_two_selected_documents_reports_two_occurrences_and_one_tuple_group()
+    {
+        const string homeDocumentName = "home-history-fcb.csv";
+        const string row = "DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,";
+        var options = new BundesligaHistoryPlayedDateCollectionOptions(
+            new Dictionary<string, string?> { [DocumentName] = null, [homeDocumentName] = null },
+            Instant.FromUtc(2026, 1, 1, 12, 0));
+
+        var result = Collector.Collect(CompetitionIds.Bundesliga2026_27,
+            [new BundesligaHistoryDocument(DocumentName, Undated(row)), new BundesligaHistoryDocument(homeDocumentName, Undated(row))],
+            [], [], new HashSet<string>([DocumentName, homeDocumentName], StringComparer.Ordinal), options);
+
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(result.Resolutions.Count).IsEqualTo(2);
+        await Assert.That(result.DistinctTupleGroupCount).IsEqualTo(1);
     }
 
     [Test]

@@ -3,7 +3,7 @@
 - Status: Frozen recovery packet for the resumed 2026-08-31 orchestration
 - Scope: Recover the production-live lane to the P1-10 pre-runtime baseline,
   then preserve the completed P1-10 implementation for an atomic draft PR.
-- Authority: [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Authority: [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md) and [ADR-0068](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md)
 
 ## Current state and boundary
 
