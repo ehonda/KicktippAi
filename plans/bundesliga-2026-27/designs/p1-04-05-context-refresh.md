@@ -1,6 +1,6 @@
 # P1-04 / P1-05 context-refresh design
 
-- Status: Frozen implementation design; no runtime implementation or activation
+- Status: Owner-confirmed planning contract; implementation seams/evidence pending
 - Authority: [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
 - Tasks: [P1-04](../tasks/p1-04-club-elo-refresh.md) then [P1-05](../tasks/p1-05-roster-refresh.md)
 
@@ -21,7 +21,7 @@ The bundle contains exact bytes plus descriptor/hash, or one stable rejection.
 Manual profile collection acquires once for that invocation; repeated arena jobs
 do not reacquire. Individual seed/local-file commands remain deterministic
 consumers. A later missed community can use retained exact bundle evidence only
-through separately authorized retry or the next cycle; it grants no refetch.
+through separately authorized retry or the next cycle; it grants no retry authority.
 
 ## Provenance vocabulary
 
@@ -66,15 +66,20 @@ embedded revision. At most one transient retry shares that budget.
 Membership requires explicit 2026/27 club/player rows, all existing
 ADR-0011 gates, and a revision-bound authoritative capture/effective date. The
 current paused upstream therefore rejects a real candidate until its date
-binding is proven. A future descriptor path may be implemented and tested
-without claiming current membership is fresh.
+binding is proven. The maintainer records no ETA and underlying data no newer
+than July 11 in [issue 381](https://github.com/dcaribou/transfermarkt-datasets/issues/381#issuecomment-5550700129), so a recently rebuilt artifact is not current
+source data. A future descriptor path and synthetic readiness tests may be
+implemented without claiming current membership is fresh.
 
 Resolve membership first. For enrichment, carry a missing supplemental value
 only from the prior same stable player ID and preserve its provenance/age; give
 a new unknown player `N/A` plus a warning. Accept genuine consistently sourced
 valuation decreases. Reject candidate-only conflicts; fail on contradictions in
 the final selected complete set. A rejected candidate falls back only for the
-affected club and still passes global 18-club identity and atomic publication.
+affected club and still passes global 18-club identity and atomic publication;
+there is no force bypass. Recurring refresh does not apply P0 fixed launch
+floors such as `464/464/450`: departures leave the denominator while
+complete-set safety and accepted per-club percentage diagnostics remain.
 
 ## Failure, reporting, and recovery
 
@@ -90,9 +95,10 @@ identity/hash, source dates or `unknown`, selected origin/date/age, and carried
 field counts/ages.
 
 One exact-marker reusable issue exists per source. Failed cycles and staleness
-are separate: open after two due-cycle failures, or immediately at Club Elo
-seven days / membership fourteen days / enrichment fourteen days; roster
-severity rises after 30 days. An unchanged valid check cannot advance source
+are separate: open after two due-cycle failures, or immediately when Club Elo
+is strictly older than seven days, membership is strictly older than fourteen
+days, or enrichment is strictly older than fourteen days; roster severity rises
+after 30 days. An unchanged valid check cannot advance source
 dates or clear stale data. Only actual recovery closes the issue.
 
 ## Implementation gates and verification
@@ -100,7 +106,8 @@ dates or clear stale data. Only actual recovery closes the issue.
 Before workflow edits, independently accept the durable per-cycle health and
 artifact-handoff/recovery seam. Keep collector order and production prediction
 topology unchanged; add neither standalone schedules nor prompt attribution.
-README-linked source attribution is a future implementation artifact.
+Repository-root-README-linked source attribution is a future implementation
+artifact.
 
 Development-first tests cover exact bytes/date/name mapping, unchanged/partial
 Elo, retry limits, source-date rejection, paused-versus-fresh roster capture,

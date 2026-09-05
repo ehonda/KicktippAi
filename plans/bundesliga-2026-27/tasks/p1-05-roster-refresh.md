@@ -18,11 +18,11 @@ membership, enrichment, field-effective, or artifact source dates.
 - [ ] Independently accept the minimal per-cycle health/deduplication and artifact-handoff recovery seam before workflow edits.
 - [ ] Add one metadata check per existing context cycle and bounded changed/pending-revision acquisition: temporary stream, hash, revision verification, remote-drift check, five-minute/300-MiB limit, and one in-budget transient retry.
 - [ ] Require explicit 2026/27 membership, existing quality gates, and revision-bound authoritative capture/effective dates. Treat the paused upstream as `UNKNOWN_SOURCE_DATE` until that binding is proven; do not add an alternate provider.
-- [ ] Build deterministic per-club membership selection/fallback and preserve the global complete-18, identity, reconstruction, and atomic-publication gates.
+- [ ] Build a deterministic per-club diff that classifies additions, departures, team changes, coach changes, source changes, and enrichment-only changes; preserve affected-club fallback plus the global complete-18, identity, reconstruction, and atomic-publication gates with no force bypass.
 - [ ] Select enrichment independently by stable ID: carry prior same-ID fields with provenance/age, use `N/A` for new unknowns, accept genuine sourced decreases, reject candidate-only conflicts, and fail final-set contradictions.
 - [ ] Add per-due-cycle warning/summary and reusable-issue reporting without a standalone roster schedule or one issue per community job.
-- [ ] Add development-first changed/unchanged/drifting/oversize/timed-out artifact, revision/date rejection, membership takeover/fallback/departure, enrichment carry/`N/A`/conflict, reconstruction, reuse, dry-run, serial, and copy-compatibility tests.
-- [ ] Add future README-linked source attribution; do not place source attribution in prompt documents.
+- [ ] Add development-first changed/unchanged/drifting/oversize/timed-out artifact, revision/date rejection, loans, renamed players, duplicate membership, unmatched IDs, coach regression, membership takeover/fallback/departure, enrichment carry/`N/A`/conflict, reconstruction, reuse, dry-run, serial, and copy-compatibility tests.
+- [ ] Add future source attribution linked from the repository-root README; do not place source attribution in prompt documents.
 
 ## Validation
 

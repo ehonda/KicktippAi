@@ -20,7 +20,7 @@ weakening dated-seed or last-known-good protection.
 - [ ] Preserve per-community selection and atomic heads; distinguish source observation from source date and do not reset staleness on unchanged data.
 - [ ] Add source-health/issue deduplication and concise summary/warning diagnostics only after the implementation seam is independently reviewed.
 - [ ] Add development-first valid, unchanged, partial, rejected, outage, retry-boundary, same-cycle reuse, dry-run, and serial-descendant tests.
-- [ ] Add future README-linked source attribution; do not place source attribution in prompt documents.
+- [ ] Add future source attribution linked from the repository-root README; do not place source attribution in prompt documents.
 
 ## Validation
 

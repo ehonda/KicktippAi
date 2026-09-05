@@ -191,12 +191,13 @@ The resumed P1-10 recovery is frozen in the
 They govern the temporary recovery and atomic PR delivery; they do not claim
 that the full P1-10 primary implementation is complete. Fully grilled runnable
 milestones may proceed while the remaining frontier stays `needs-interview`.
-P1-10 remains the highest-priority delivery and P1-13 remains the next
-independent planning frontier. The next implementation priorities are P1-04,
-then P1-05, under the accepted planning-only
-[context-refresh design](designs/p1-04-05-context-refresh.md) and
-[ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md);
-neither task is runtime implementation or activation evidence.
+P1-04 is the first next implementation priority and P1-05 is second under the
+accepted planning-only [context-refresh design](designs/p1-04-05-context-refresh.md)
+and [ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md);
+neither task is runtime implementation or activation evidence. Other open P1
+work follows that order. P1-13 remains a prerequisite planning frontier and
+P1-10 is last: its recovery/target-primary delivery stays isolated until its
+own accepted replacement condition and atomic PR gate.
 
 | Task | Outcome | Depends on |
 |---|---|---|

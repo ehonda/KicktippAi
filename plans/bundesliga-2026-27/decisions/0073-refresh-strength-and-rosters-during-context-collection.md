@@ -1,6 +1,7 @@
 # ADR-0073: Refresh strength and rosters during context collection
 
-- Status: Accepted — implementation not started
+- Status: Accepted
+- Implementation: Not started
 - Date: 2026-09-05
 
 ## Context
@@ -22,7 +23,8 @@ its own seed/last-known-good head. There is no Elo-only mode, standalone source
 schedule, hidden refresh command, matrix/`always()` fanout, provider write, or
 production activation in this decision.
 
-Club Elo captures raw CSV bytes and SHA-256 before parsing. A candidate needs
+Club Elo uses the approved direct public Club Elo CSV and captures its raw bytes
+and SHA-256 before parsing. A candidate needs
 the frozen header, one proven coherent provider date, explicit daily-name to
 manifest mapping, all 18 clubs, positive ranks/Elo values, and deterministic
 ordering. It may retry only connection, timeout, 408, 429, and 5xx failures:
@@ -33,7 +35,8 @@ times are not substitutes. A strictly newer proven rating date is required for
 publication; equal or older data remains not-newer, while identical ratings at
 a newer proven date are a valid revalidation.
 
-Roster metadata is checked once per cycle. A changed or still-pending exact
+Roster metadata is checked once per cycle against the accepted dcaribou
+derivative; no alternate provider is in scope. A changed or still-pending exact
 revision is streamed to a temporary file, limited to five minutes and 300 MiB,
 hashed, rechecked for remote-identity drift, opened read-only, and verified
 against its embedded revision before querying. One transient retry fits that
@@ -43,13 +46,18 @@ date. A recent build, upload, `Last-Modified`, `last_season=2026`, or mutable
 object identity never proves that date.
 
 Membership and enrichment are selected independently by stable player ID. A
-valid membership change may publish with rejected enrichment: an existing
-same-ID supplemental field is carried with its original provenance and age; a
-new player without a value is `N/A` and emits a warning. Candidate-only
-cross-club conflicts reject the candidate, while a contradiction in the final
-selected complete set is fatal. Genuine consistently sourced valuation
-decreases are valid. Membership, enrichment, and field-effective dates remain
-separate; observation or publication does not refresh any of them.
+rejected membership candidate falls back only for each affected club, then the
+unchanged complete-18, global-identity, and atomic-publication gates apply;
+there is no force bypass. A valid membership change may publish with rejected
+enrichment: an existing same-ID supplemental field is carried with its original
+provenance and age; a new player without a value is `N/A` and emits a warning.
+Candidate-only cross-club conflicts reject the candidate, while a contradiction
+in the final selected complete set is fatal. Genuine consistently sourced
+valuation decreases are valid. Membership, enrichment, and field-effective
+dates remain separate; observation or publication does not refresh any of them.
+Recurring refresh never applies P0 launch floors such as `464/464/450`;
+departures leave the denominator and complete-set safety plus accepted
+per-club percentage diagnostics remain.
 
 External candidate failure, remote drift, hash/revision mismatch, unknown
 source date, or candidate-only identity conflict retains valid seed/LKG with a
@@ -70,9 +78,19 @@ past 30 days. Counts are per due cycle, not repeated community job. A valid
 unchanged observation may clear a transport streak but cannot clear stale data;
 an issue closes only when every active condition recovers.
 
-Attribution and endpoint/reuse notes belong in the Bundesliga README or a
-README-linked source document, never in prompt CSV content. This planning ADR
-does not add that attribution document or implement any runtime path.
+Attribution and endpoint/reuse notes belong in a source document linked from
+the repository-root README, never in prompt CSV content. This planning ADR does
+not add that attribution document or implement any runtime path.
+
+## Alternatives considered
+
+- **A standalone Club Elo/roster schedule:** Rejected because it duplicates the
+  context cycle and breaks one-observation-per-cycle reuse.
+- **Treating rebuilt dcaribou artifacts as fresh:** Rejected because artifact
+  observation, build, and upload dates do not prove upstream data capture.
+- **Retaining an entire headed roster on enrichment rejection:** Rejected when
+  valid membership and safe same-ID carry/`N/A` enrichment can still satisfy
+  the complete-set and atomic gates.
 
 ## Consequences
 
