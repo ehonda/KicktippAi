@@ -21,8 +21,30 @@ public sealed record ChampionsLeagueBonusQuestionSnapshot(
 
 public static class ChampionsLeagueBonusRoute
 {
-    public static readonly Uri ExpectedPage = new("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true");
-    public static readonly Uri ExpectedAction = new("https://www.kicktipp.de/schadensfresse/tippabgabe");
+    private const string PagePathAndQuery = "/schadensfresse/tippabgabe?bonus=true";
+    private const string ActionPath = "/schadensfresse/tippabgabeForm";
+    private static readonly Uri ProductionOrigin = new("https://www.kicktipp.de/");
+    private static readonly (Uri Page, Uri Action) ProductionRoute = CreateExactUrisForValidatedOrigin(ProductionOrigin);
+
+    public static readonly Uri ExpectedPage = ProductionRoute.Page;
+    public static readonly Uri ExpectedAction = ProductionRoute.Action;
+
+    internal static (Uri Page, Uri Action) CreateExactUrisForValidatedOrigin(Uri validatedOrigin)
+    {
+        ArgumentNullException.ThrowIfNull(validatedOrigin);
+        if (!validatedOrigin.IsAbsoluteUri
+            || validatedOrigin.AbsolutePath != "/"
+            || !string.IsNullOrEmpty(validatedOrigin.Query)
+            || !string.IsNullOrEmpty(validatedOrigin.Fragment)
+            || !string.IsNullOrEmpty(validatedOrigin.UserInfo))
+        {
+            throw new ArgumentException(
+                "The exact Champions-League route requires a validated authority-only origin.",
+                nameof(validatedOrigin));
+        }
+
+        return (new Uri(validatedOrigin, PagePathAndQuery), new Uri(validatedOrigin, ActionPath));
+    }
 
     public static void ValidateSnapshot(ChampionsLeagueBonusFormSnapshot snapshot)
     {

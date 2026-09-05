@@ -43,6 +43,136 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Strict_parser_accepts_relative_and_absolute_representations_of_the_exact_action()
+    {
+        using var relativeClient = new HttpClient(new StaticHtmlHandler(CreateHtml()))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+        using var absoluteClient = new HttpClient(new StaticHtmlHandler(
+            CreateHtml(
+                action: ChampionsLeagueBonusRoute.ExpectedAction.AbsoluteUri,
+                baseHref: "https://www.kicktipp.de/other/")))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        var relative = await CreateClient(relativeClient)
+            .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+        var absolute = await CreateClient(absoluteClient)
+            .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(relative.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedAction);
+        await Assert.That(absolute.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedAction);
+    }
+
+    [Test]
+    [Arguments("tippabgabe")]
+    [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true")]
+    [Arguments("TippabgabeForm")]
+    [Arguments("tippabgabeForm/")]
+    [Arguments("tippabgabe%2FForm")]
+    [Arguments("tippabgabeForm?bonus=true")]
+    [Arguments("tippabgabeForm#fragment")]
+    [Arguments("https://user@www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    [Arguments("http://www.kicktipp.de/schadensfresse/tippabgabeForm")]
+    [Arguments("https://kicktipp.de/schadensfresse/tippabgabeForm")]
+    [Arguments("https://www.kicktipp.de:444/schadensfresse/tippabgabeForm")]
+    public async Task Strict_parser_rejects_form_action_near_matches(string action)
+    {
+        using var httpClient = new HttpClient(new StaticHtmlHandler(CreateHtml(action: action)))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        await Assert.That(() => CreateClient(httpClient)
+                .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Strict_parser_rejects_relative_action_when_document_base_changes_its_resolution()
+    {
+        var html = CreateHtml(
+            action: "tippabgabeForm",
+            baseHref: "https://www.kicktipp.de/other/");
+        using var httpClient = new HttpClient(new StaticHtmlHandler(html))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        await Assert.That(() => CreateClient(httpClient)
+                .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task AngleSharp_1_7_2_uses_other_last_base_after_safe_first_and_exact_guard_rejects()
+    {
+        var html = CreateHtml(
+            action: "tippabgabeForm",
+            baseHref: "https://www.kicktipp.de/schadensfresse/",
+            laterBaseHref: "https://www.kicktipp.de/other/");
+        using var httpClient = new HttpClient(new StaticHtmlHandler(html))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        await Assert.That(() => CreateClient(httpClient)
+                .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task AngleSharp_1_7_2_uses_other_last_base_after_invalid_first_and_exact_guard_rejects()
+    {
+        var html = CreateHtml(
+            action: "tippabgabeForm",
+            baseHref: "http://[",
+            laterBaseHref: "https://www.kicktipp.de/other/");
+        using var httpClient = new HttpClient(new StaticHtmlHandler(html))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        await Assert.That(() => CreateClient(httpClient)
+                .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task AngleSharp_1_7_2_uses_safe_last_base_after_other_first_and_exact_guard_accepts()
+    {
+        var html = CreateHtml(
+            action: "tippabgabeForm",
+            baseHref: "https://www.kicktipp.de/other/",
+            laterBaseHref: "https://www.kicktipp.de/schadensfresse/");
+        using var httpClient = new HttpClient(new StaticHtmlHandler(html))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        var snapshot = await CreateClient(httpClient)
+            .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
+
+        await Assert.That(snapshot.Action).IsEqualTo(ChampionsLeagueBonusRoute.ExpectedAction);
+    }
+
+    [Test]
+    public async Task Strict_parser_rejects_relative_action_when_effective_base_is_not_hierarchical()
+    {
+        var html = CreateHtml(action: "tippabgabeForm", baseHref: "about:blank");
+        using var httpClient = new HttpClient(new StaticHtmlHandler(html))
+        {
+            BaseAddress = new Uri("https://www.kicktipp.de/")
+        };
+
+        await Assert.That(() => CreateClient(httpClient)
+                .GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
     public async Task Strict_parser_rejects_definition_drift_instead_of_returning_an_empty_or_partial_result()
     {
         var html = CreateHtml().Replace("FC Bayern M&#252;nchen", "FC Bayern Muenchen", StringComparison.Ordinal);
@@ -208,7 +338,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
             CreateHtml(origin: origin),
             CreateHtml(origin: origin),
             CreateHtml(placed: true, origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin)));
         using var client = CreateStrictClient(origin);
         var predictions = CreatePredictions();
@@ -219,6 +349,13 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
 
         await Assert.That(final.Questions.SelectMany(question => question.SelectedOptionIds).All(value => value is not null)).IsTrue();
         var post = Server.LogEntries.Single(entry => entry.RequestMessage.Method == "POST");
+        await Assert.That(post.RequestMessage.Path).IsEqualTo("/schadensfresse/tippabgabeForm");
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+            .IsEqualTo(0);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "GET"
+                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+            .IsEqualTo(3);
         var fields = ParseFormDataMultiValue(post.RequestMessage.Body);
         await Assert.That(SchadensfresseChampionsLeagueBonusSeed.Default.Questions.SelectMany(question => question.FormKeys)
             .All(fields.ContainsKey)).IsTrue();
@@ -237,7 +374,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
             CreateHtml(origin: origin),
             CreateHtml(origin: origin),
             CreateHtml(placed: true, origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
@@ -249,6 +386,12 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
 
         await Assert.That(final.Questions.SelectMany(question => question.SelectedOptionIds).All(value => value is not null)).IsTrue();
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST")).IsEqualTo(1);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabeForm"))
+            .IsEqualTo(1);
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+            .IsEqualTo(0);
         await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "GET"
                                                    && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
             .IsEqualTo(4);
@@ -264,7 +407,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     {
         var origin = new Uri(ServerUrl + "/");
         StubBonusGets(CreateHtml(origin: origin), CreateHtml(origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
@@ -286,7 +429,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     {
         var origin = new Uri(ServerUrl + "/");
         StubBonusGets(CreateHtml(origin: origin), CreateHtml(origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create().WithStatusCode(302).WithHeader("Location", "/info/profil/login"));
         using (var wrongRedirectClient = CreateStrictClient(origin))
         {
@@ -301,7 +444,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         Server.ResetLogEntries();
         Server.ResetMappings();
         StubBonusGets(CreateHtml(origin: origin), CreateHtml(origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(HtmlResponse("<html><body><form id=\"loginFormular\"></form></body></html>"));
         using var loginClient = CreateStrictClient(origin);
         var loginInitial = await loginClient.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
@@ -324,7 +467,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
                     ? HtmlResponseMessage(CreateHtml(origin: origin))
                     : new WireMock.ResponseMessage { StatusCode = 500 };
             }));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin)));
         using var client = CreateStrictClient(origin);
         var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
@@ -341,7 +484,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     {
         var origin = new Uri(ServerUrl + "/");
         StubBonusGets(CreateHtml(origin: origin), CreateHtml(origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(HtmlResponse(CreateHtml(origin: origin)));
         using var client = CreateStrictClient(origin);
         var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
@@ -366,7 +509,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
             $"<option value=\"{lastSeed.Options[0].Id}\">",
             StringComparison.Ordinal);
         StubBonusGets(CreateHtml(origin: origin), CreateHtml(origin: origin), partial);
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(HtmlResponse(CreateHtml(placed: true, origin: origin)));
         using var client = CreateStrictClient(origin);
         var initial = await client.GetChampionsLeagueBonusFormSnapshotAsync("schadensfresse");
@@ -383,7 +526,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     {
         var origin = new Uri(ServerUrl + "/");
         StubBonusGets(CreateHtml(origin: origin), CreateHtml(origin: origin));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create().WithCallback(_ =>
             {
                 Thread.Sleep(1_000);
@@ -508,7 +651,7 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
         }).ToArray();
         return new ChampionsLeagueBonusFormSnapshot(
             new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true"),
-            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe"),
+            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabeForm"),
             "POST",
             questions,
             [new("csrf", "token"), new("kept", "first"), new("kept", "second")],
@@ -526,12 +669,31 @@ public sealed class ChampionsLeagueBonusRouteTests : KicktippClientTests_Base
     private static string FirstOptionId() =>
         SchadensfresseChampionsLeagueBonusSeed.Default.Questions[0].Options[0].Id;
 
-    private static string CreateHtml(bool placed = false, Uri? origin = null)
+    private static string CreateHtml(
+        bool placed = false,
+        Uri? origin = null,
+        string action = "tippabgabeForm",
+        string? baseHref = null,
+        string? laterBaseHref = null)
     {
         origin ??= new Uri("https://www.kicktipp.de/");
         var builder = new System.Text.StringBuilder();
-        builder.Append("<html><body><form method=\"post\" action=\"")
-            .Append(new Uri(origin, "/schadensfresse/tippabgabe"))
+        builder.Append("<html>");
+        if (baseHref is not null)
+        {
+            builder.Append("<head><base href=\"")
+                .Append(System.Net.WebUtility.HtmlEncode(baseHref))
+                .Append("\">");
+            if (laterBaseHref is not null)
+            {
+                builder.Append("<base href=\"")
+                    .Append(System.Net.WebUtility.HtmlEncode(laterBaseHref))
+                    .Append("\">");
+            }
+            builder.Append("</head>");
+        }
+        builder.Append("<body><form method=\"post\" action=\"")
+            .Append(System.Net.WebUtility.HtmlEncode(action))
             .Append("\">")
             .Append("<input type=\"hidden\" name=\"tipperId\" value=\"123\">")
             .Append("<input type=\"hidden\" name=\"spieltagIndex\" value=\"0\">")

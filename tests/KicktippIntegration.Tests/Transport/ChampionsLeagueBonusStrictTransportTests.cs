@@ -15,7 +15,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
         var origin = Origin();
         var cookies = new CookieContainer();
         cookies.Add(origin, new Cookie("session", "shared", "/"));
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create().WithStatusCode(200));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, cookies);
 
@@ -24,10 +24,13 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.OK);
         var request = Server.LogEntries.Single();
         await Assert.That(request.RequestMessage.Method).IsEqualTo("POST");
-        await Assert.That(request.RequestMessage.Path).IsEqualTo("/schadensfresse/tippabgabe");
+        await Assert.That(request.RequestMessage.Path).IsEqualTo("/schadensfresse/tippabgabeForm");
         await Assert.That(request.RequestMessage.Query?.Count ?? 0).IsEqualTo(0);
         await Assert.That(request.RequestMessage.Body).IsEqualTo("field=value");
         await Assert.That(request.RequestMessage.Headers!["Cookie"].Single()).Contains("session=shared");
+        await Assert.That(Server.LogEntries.Count(entry => entry.RequestMessage.Method == "POST"
+                                                   && entry.RequestMessage.Path == "/schadensfresse/tippabgabe"))
+            .IsEqualTo(0);
     }
 
     [Test]
@@ -36,7 +39,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
     public async Task Safe_redirect_is_followed_once_with_a_bodyless_get(int statusCode)
     {
         var origin = Origin();
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
@@ -67,7 +70,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
     public async Task Every_non_allowlisted_status_fails_after_one_post_without_following(int statusCode)
     {
         var origin = Origin();
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
                 .WithHeader("Location", "/schadensfresse/tippabgabe?bonus=true"));
@@ -88,7 +91,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
     public async Task Ambiguous_or_wrong_redirect_location_is_never_followed(string location)
     {
         var origin = Origin();
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create().WithStatusCode(302).WithHeader("Location", location));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
 
@@ -102,7 +105,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
     public async Task Missing_redirect_location_is_never_followed()
     {
         var origin = Origin();
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create().WithStatusCode(303));
         using var transport = new ChampionsLeagueBonusStrictTransport(origin, new CookieContainer());
 
@@ -135,7 +138,7 @@ public sealed class ChampionsLeagueBonusStrictTransportTests : WireMockTestBase
     {
         var origin = Origin();
         var requestObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabe").UsingPost())
+        Server.Given(Request.Create().WithPath("/schadensfresse/tippabgabeForm").UsingPost())
             .RespondWith(Response.Create().WithCallback(_ =>
             {
                 requestObserved.TrySetResult();

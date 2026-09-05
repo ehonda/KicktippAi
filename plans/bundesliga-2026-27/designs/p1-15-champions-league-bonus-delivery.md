@@ -18,12 +18,21 @@ does not add an option or authorize an identity in the current seed.
 ## Runtime seams
 
 - The strict Kicktipp adapter requires the authenticated Schadensfresse bonus
-  page, exact HTTPS action and POST method, unique intended submitter, editable
-  target controls, seeded definitions, and valid current selections. It keeps
-  the initial selection vector as the optimistic-concurrency baseline. A
+  page at exact GET URI
+  `https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true`, the distinct
+  exact HTTPS POST action
+  `https://www.kicktipp.de/schadensfresse/tippabgabeForm`, unique intended
+  submitter, editable target controls, seeded definitions, and valid current
+  selections. It keeps the initial selection vector as the
+  optimistic-concurrency baseline. A
   form-wide scan rejects any extra or malformed canonical answer key and any
   reuse of a canonical slot identity by another question while preserving
-  unrelated question controls.
+  unrelated question controls. Relative form actions resolve through
+  AngleSharp's reported effective document base before the unchanged exact-URI
+  guard; absolute actions remain independent of that base, and unusable
+  resolution fails closed. Focused characterization pins AngleSharp 1.7.2's
+  observed last-base result for two-base documents without claiming browser
+  first-base conformance or reimplementing the dependency.
 - The pre-POST read must retain that target baseline and seed identity. Payload
   construction preserves the current form-associated, effectively enabled
   successful non-target controls as an ordered multimap, including repeated
@@ -55,6 +64,31 @@ does not add an option or authorize an identity in the current seed.
   handler. An exception after dispatch is an unknown outcome and requires a
   later read-only recovery inspection, never an automatic repost.
 
+The exact page and action path components have one immutable owner in the
+strict route. Production identities and loopback identities are derived from
+those components plus a validated authority-only origin; the semantic form
+validator and the mutation transport cannot carry independent path literals.
+
+## Refreshed live route evidence
+
+Production workflow run `33953252166` at source
+`0838fce407d144d64ff11cb9010ad0f18ce24779` failed closed in both its initial
+verification process and generation process while parsing the first
+authenticated form. It did not reach a model call, Firestore prediction write,
+or Kicktipp answer POST. Four useful fresh authenticated observations,
+including two with the exact production User-Agent, confirmed that the final
+bonus page is unchanged but the raw relative action is now
+`tippabgabeForm`, resolving to the exact action above with no query, fragment,
+user-info, or document-base alteration.
+
+The older sanitized snapshot
+`4299e240f7909f24c2b7f4d2eeeaef564beaea4a3539fe87984867fa890205b0`
+remains the reviewed source for the frozen question/option seed. Its former
+`/schadensfresse/tippabgabe` action is superseded only as live route-identity
+evidence and is rejected rather than retained as a fallback. ADR-0069 and
+ADR-0070 remain unchanged because the exact-route and single-attempt/no-replay
+decisions are preserved.
+
 The hosted prompt was already reviewed, published, and read back as immutable
 v1/`production`. During an availability-only transport, timeout, TLS/DNS, or
 5xx failure, the normalized-byte-identical dedicated mirror may be used while
@@ -63,7 +97,10 @@ telemetry retains Langfuse prompt version 1 and records actual source
 or content/binding drift is fatal.
 
 The workflow is manual-only and absent from recurring production. Prompt
-publication is complete; model execution, Firestore writes, Kicktipp POST, and
-workflow dispatch remain separate root-controlled production gates after
-review and CI. Rollback is a code/workflow revert and preserves all Firestore
-history.
+publication is complete. The first authorized dispatch is consumed and cannot
+be retried automatically; after the corrected route passes review and CI, a
+fresh authenticated read-only verification must pass form validation and stop
+at the expected first missing exact-lineage row. Any later model execution,
+Firestore writes, Kicktipp POST, or workflow dispatch requires a new separate
+root-controlled production gate. Rollback is a code/workflow revert and
+preserves all Firestore history.

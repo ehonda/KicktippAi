@@ -7,8 +7,6 @@ namespace KicktippIntegration.Transport;
 /// </summary>
 public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
 {
-    private const string ActionPath = "/schadensfresse/tippabgabe";
-    private const string PagePathAndQuery = "/schadensfresse/tippabgabe?bonus=true";
     private const string BrowserUserAgent =
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
@@ -22,8 +20,9 @@ public sealed class ChampionsLeagueBonusStrictTransport : IDisposable
         ArgumentNullException.ThrowIfNull(origin);
         ArgumentNullException.ThrowIfNull(cookieContainer);
         Origin = ValidateOrigin(origin);
-        ActionUri = new Uri(Origin, ActionPath);
-        PageUri = new Uri(Origin, PagePathAndQuery);
+        var route = ChampionsLeagueBonusRoute.CreateExactUrisForValidatedOrigin(Origin);
+        ActionUri = route.Action;
+        PageUri = route.Page;
 
         var primaryHandler = new HttpClientHandler
         {

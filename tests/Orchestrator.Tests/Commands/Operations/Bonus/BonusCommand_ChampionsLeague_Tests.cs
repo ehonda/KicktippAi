@@ -369,7 +369,7 @@ public sealed class BonusCommand_ChampionsLeague_Tests : BonusCommandTests_Base
                     : Enumerable.Repeat<string?>(null, seed.FormKeys.Count).ToArray())).ToArray();
         return new ChampionsLeagueBonusFormSnapshot(
             new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe?bonus=true"),
-            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabe"),
+            new Uri("https://www.kicktipp.de/schadensfresse/tippabgabeForm"),
             "POST", questions, [new("csrf", "token")], "submitbutton", "tippsSpeichern", true);
     }
 
