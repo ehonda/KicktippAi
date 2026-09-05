@@ -229,7 +229,7 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
                 ActualSource: _fallbackSource,
                 LangfusePromptName: _promptName,
                 LangfusePromptLabel: _label,
-                LangfusePromptVersion: null,
+                LangfusePromptVersion: _version,
                 IsFallback: true,
                 PromptPath: fallback.path,
                 ContentSha256: PromptTemplateContentHash.ComputeSha256(fallback.template)));
@@ -252,10 +252,24 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
             return true;
         }
 
+        if (exception is LangfusePublicApiException publicApiException)
+        {
+            return (int)publicApiException.StatusCode is >= 500 and <= 599;
+        }
+
         if (exception is HttpRequestException httpException)
         {
-            return httpException.StatusCode is null or HttpStatusCode.InternalServerError
-                or HttpStatusCode.BadGateway or HttpStatusCode.ServiceUnavailable or HttpStatusCode.GatewayTimeout;
+            return httpException.StatusCode is null || (int)httpException.StatusCode.Value is >= 500 and <= 599;
+        }
+
+        if (exception is OperationCanceledException canceled)
+        {
+            // This provider never supplies a caller cancellation token to the
+            // prompt lookup. Treat HttpClient's timeout shape (or the legacy
+            // token-less shape) as availability failure, but never turn an
+            // explicitly requested cancellation into a mirror fallback.
+            return canceled.InnerException is TimeoutException
+                || !canceled.CancellationToken.IsCancellationRequested;
         }
 
         return exception is TimeoutException

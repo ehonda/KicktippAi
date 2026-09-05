@@ -8,6 +8,17 @@ namespace KicktippIntegration;
 /// </summary>
 public interface IKicktippClient
 {
+    /// <summary>Strict route-only capability for the frozen Schadensfresse CL bonus profile.</summary>
+    Task<ChampionsLeagueBonusFormSnapshot> GetChampionsLeagueBonusFormSnapshotAsync(string community) =>
+        throw new NotSupportedException("This Kicktipp client does not implement the strict Champions-League bonus route.");
+
+    /// <summary>Posts exactly one validated complete CL payload and returns a strict post-response snapshot.</summary>
+    Task<ChampionsLeagueBonusFormSnapshot> PlaceChampionsLeagueBonusPredictionsAsync(
+        string community,
+        ChampionsLeagueBonusFormSnapshot initialSnapshot,
+        IReadOnlyList<(string QuestionId, BonusPrediction Prediction)> predictions,
+        bool overridePredictions) =>
+        throw new NotSupportedException("This Kicktipp client does not implement the strict Champions-League bonus route.");
     /// <summary>
     /// Get open predictions for a specific community
     /// </summary>

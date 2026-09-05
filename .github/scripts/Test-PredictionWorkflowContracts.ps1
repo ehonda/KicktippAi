@@ -967,11 +967,14 @@ Assert-CommandIdentity $bonusBase 'bonus' 1 'base-bonus-predictions.yml'
 Assert-True ([regex]::Matches($bonusBase, '(?m)^\s*dotnet run .* -- verify-bonus\b.*--check-outdated').Count -eq 2) 'Both bonus verification commands must restore ADR-0037 outdated checking.'
 Assert-True $bonusBase.Contains('default: 20', [StringComparison]::Ordinal) 'The accepted 20-document bonus context budget must be surfaced.'
 Assert-True $bonusBase.Contains('default: 32000', [StringComparison]::Ordinal) 'The accepted 32,000-token bonus context budget must be surfaced.'
+Assert-True ([regex]::IsMatch($bonusBase, '(?m)^      bonus_profile:\r?$')) 'The reusable bonus workflow must expose the optional specialized profile.'
 Assert-True ([regex]::IsMatch($bonusBase, '(?m)^      bonus_deadline_at_or_before:\r?$')) 'The reusable bonus workflow must expose the optional deadline ceiling.'
 Assert-True $bonusBase.Contains("        default: ''", [StringComparison]::Ordinal) 'The reusable bonus deadline ceiling must default to the unchanged unfiltered behavior.'
 Assert-True $bonusBase.Contains('--bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET"', [StringComparison]::Ordinal) 'The bonus document budget must reach generation.'
 Assert-True $bonusBase.Contains('--bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET"', [StringComparison]::Ordinal) 'The bonus token budget must reach generation.'
 Assert-True ([regex]::Matches($bonusBase, '--bonus-deadline-at-or-before "\$BONUS_DEADLINE_AT_OR_BEFORE"').Count -eq 3) 'The exact deadline ceiling must reach initial verification, generation, and final verification.'
+Assert-True ([regex]::Matches($bonusBase, '--bonus-profile "\$BONUS_PROFILE"').Count -eq 3) 'The exact specialized profile must reach initial verification, generation, and final verification.'
+Assert-True $bonusBase.Contains('$CL_PROFILE|schadensfresse|schadensfresse|bundesliga-2026-27|gpt-5.6-sol|xhigh|10000|langfuse|$CL_PROMPT|production|1|0|0|$CL_DEADLINE', [StringComparison]::Ordinal) 'The base workflow must admit 0/0 only through the full exact CL tuple.'
 
 $currentBundesligaCallers = @{}
 foreach ($row in @(
@@ -986,13 +989,19 @@ foreach ($row in @(
 )) {
     foreach ($kind in @('matchday', 'bonus')) {
         $fileName = "$($row.BaseName)-$kind.yml"
+        $isClBonus = $fileName -ceq 'buli2627-schadensfresse-gpt-5-6-sol-xhigh-bonus.yml'
         $currentBundesligaCallers[$fileName] = [pscustomobject]@{
             Community = $row.Community
-            Context = $row.Context
+            Context = if ($isClBonus) { 'schadensfresse' } else { $row.Context }
             Model = $row.Model
             Effort = $row.Effort
             SecretStem = $row.SecretStem
             IsBonus = $kind -eq 'bonus'
+            PromptName = if ($isClBonus) { 'kicktippai/bundesliga-2026-27/champions-league/predict-bonus' } elseif ($kind -eq 'bonus') { 'kicktippai/bundesliga-2026-27/predict-bonus' } else { 'kicktippai/bundesliga-2026-27/predict-one-match' }
+            BonusProfile = if ($isClBonus) { 'schadensfresse-champions-league-bonus-context-free-v1' } else { $null }
+            BonusDocumentBudget = if ($isClBonus) { '0' } else { '20' }
+            BonusTokenBudget = if ($isClBonus) { '0' } else { '32000' }
+            BonusDeadline = if ($isClBonus) { '2026-09-08T16:45:00Z' } else { $null }
         }
     }
 }
@@ -1097,7 +1106,7 @@ foreach ($caller in $callerFiles) {
         Assert-True ($maxOutputTokens -eq '10000') "$($caller.Name) must pin the accepted 10000 output cap."
         $isBonus = $caller.Name.EndsWith('-bonus.yml', [StringComparison]::Ordinal)
         Assert-True ($isBonus -eq $expectedCaller.IsBonus) "$($caller.Name) kind does not match its accepted matrix row."
-        $expectedName = if ($isBonus) { 'kicktippai/bundesliga-2026-27/predict-bonus' } else { 'kicktippai/bundesliga-2026-27/predict-one-match' }
+        $expectedName = $expectedCaller.PromptName
         $expectedVersion = if ($isBonus) { '1' } else { '3' }
         Assert-True ((Get-WithValue $content 'langfuse_prompt_name' $caller.Name) -eq $expectedName) "$($caller.Name) has the wrong Bundesliga prompt name."
         Assert-True ((Get-WithValue $content 'langfuse_prompt_version' $caller.Name) -eq $expectedVersion) "$($caller.Name) has the wrong accepted Bundesliga prompt version."
@@ -1106,14 +1115,17 @@ foreach ($caller in $callerFiles) {
         Assert-True ((Get-WithValue $content 'force_prediction' $caller.Name) -eq '${{ inputs.force_prediction }}') "$($caller.Name) must pass through force_prediction."
         Assert-True ((Get-WithValue $content 'max_repredictions' $caller.Name) -eq '${{ fromJSON(inputs.max_repredictions) }}') "$($caller.Name) must preserve zero while converting max_repredictions to a number."
         if ($isBonus) {
-            Assert-True ((Get-WithValue $content 'bonus_context_document_budget' $caller.Name) -eq '20') "$($caller.Name) must pin the accepted 20-document bonus budget."
-            Assert-True ((Get-WithValue $content 'bonus_context_token_budget' $caller.Name) -eq '32000') "$($caller.Name) must pin the accepted 32000-token bonus budget."
+            Assert-True ((Get-WithValue $content 'bonus_context_document_budget' $caller.Name) -eq $expectedCaller.BonusDocumentBudget) "$($caller.Name) has the wrong exact bonus document budget."
+            Assert-True ((Get-WithValue $content 'bonus_context_token_budget' $caller.Name) -eq $expectedCaller.BonusTokenBudget) "$($caller.Name) has the wrong exact bonus token budget."
+            $profile = Get-WithValue $content 'bonus_profile' $caller.Name $false
             $deadlineCeiling = Get-WithValue $content 'bonus_deadline_at_or_before' $caller.Name $false
-            if ($caller.Name -ceq 'buli2627-schadensfresse-gpt-5-6-sol-xhigh-bonus.yml') {
-                Assert-True ($deadlineCeiling -eq '${{ inputs.bonus_deadline_at_or_before }}') "$($caller.Name) must pass through its audited initial Bundesliga deadline ceiling."
-                Assert-True $content.Contains("        default: '2026-08-28T18:30:00Z'", [StringComparison]::Ordinal) "$($caller.Name) must default to the exact initial Bundesliga bonus cutoff."
+            if ($null -ne $expectedCaller.BonusProfile) {
+                Assert-True ($profile -ceq $expectedCaller.BonusProfile) "$($caller.Name) must pin the exact specialized profile."
+                Assert-True ($deadlineCeiling -ceq $expectedCaller.BonusDeadline) "$($caller.Name) must pin the exact CL deadline."
+                Assert-True (-not $content.Contains('bonus_deadline_at_or_before:', [StringComparison]::Ordinal) -or $deadlineCeiling -ceq $expectedCaller.BonusDeadline) "$($caller.Name) must not expose a mutable CL deadline."
             }
             else {
+                Assert-True ($null -eq $profile) "$($caller.Name) must not opt into the specialized CL profile."
                 Assert-True ($null -eq $deadlineCeiling) "$($caller.Name) must retain the reusable workflow's unfiltered default."
             }
         }
@@ -1133,5 +1145,7 @@ Assert-True ($wm26Count -eq 14) "Expected 14 historical WM26 callers, found $wm2
 Assert-True ($retiredBundesligaCount -eq 12) "Expected 12 retired Bundesliga 2025/26 callers, found $retiredBundesligaCount."
 $expectedCurrentBundesligaCount = $currentBundesligaCallers.Count
 Assert-True ($currentBundesligaCount -eq $expectedCurrentBundesligaCount) "Expected $expectedCurrentBundesligaCount exact current Bundesliga prediction callers, found $currentBundesligaCount."
+Assert-True (-not $matchBase.Contains('champions-league/predict-bonus', [StringComparison]::Ordinal)) 'The strict CL bonus route must not enter the matchday reusable workflow.'
+Assert-True (-not (Get-Content -Raw -LiteralPath (Join-Path $workflowDirectory $productionLiveFileName)).Contains('buli2627-schadensfresse-gpt-5-6-sol-xhigh-bonus.yml', [StringComparison]::Ordinal)) 'The strict CL bonus leaf must remain absent from recurring production.'
 
 Write-Output "Prediction workflow contract validation passed: 2 bases, $wm26Count callable WM26 callers, $retiredBundesligaCount explicitly retired Bundesliga callers, $currentBundesligaCount current Bundesliga callers."

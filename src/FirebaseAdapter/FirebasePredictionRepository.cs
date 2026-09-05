@@ -17,7 +17,8 @@ public class FirebasePredictionRepository :
     IPredictionRepository,
     IResolvedMatchContextPredictionRepository,
     IResolvedBonusContextPredictionRepository,
-    IBonusPredictionCopyRepository
+    IBonusPredictionCopyRepository,
+    ISchadensfresseChampionsLeagueBonusPredictionRepository
 {
     private static readonly JsonSerializerOptions JustificationSerializerOptions = new()
     {
@@ -131,6 +132,7 @@ public class FirebasePredictionRepository :
         PredictionModelConfig modelConfig)
     {
         return predictions
+            .Where(IsOrdinaryBonusPrediction)
             .Select(prediction => new
             {
                 Prediction = prediction,
@@ -658,6 +660,107 @@ public class FirebasePredictionRepository :
         }
     }
 
+    public async Task<BonusPredictionMetadata?> GetCurrentAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        EnsureClRepositoryScope();
+        var snapshot = await CreateClCandidateQuery(scope).GetSnapshotAsync(cancellationToken);
+        var current = SelectCurrentClCandidate(snapshot.Documents, scope);
+        return current is null ? null : CreateClMetadata(current.Value.Prediction, scope);
+    }
+
+    public async Task<int> GetCurrentRepredictionIndexAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        EnsureClRepositoryScope();
+        var snapshot = await CreateClCandidateQuery(scope).GetSnapshotAsync(cancellationToken);
+        return SelectCurrentClCandidate(snapshot.Documents, scope)?.Prediction.RepredictionIndex ?? -1;
+    }
+
+    public async Task SaveAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        BonusPrediction prediction,
+        string promptProvider,
+        string tokenUsage,
+        double cost,
+        bool overrideExisting,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateClWrite(scope, prediction, promptProvider, tokenUsage, cost);
+        await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var candidates = await transaction.GetSnapshotAsync(CreateClCandidateQuery(scope));
+            var current = SelectCurrentClCandidate(candidates.Documents, scope);
+            if (current is not null && !overrideExisting)
+            {
+                throw new InvalidOperationException("A current CL lineage row appeared before initial save; explicit database override is required.");
+            }
+
+            var now = Timestamp.GetCurrentTimestamp();
+            if (current is null)
+            {
+                var reference = _firestoreDb.Collection(_bonusPredictionsCollection).Document(Guid.NewGuid().ToString());
+                transaction.Create(reference, CreateClFirestorePrediction(reference.Id, scope, prediction, promptProvider, tokenUsage, cost, 0, now, now));
+            }
+            else
+            {
+                transaction.Set(current.Value.Document.Reference, CreateClFirestorePrediction(
+                    current.Value.Document.Id,
+                    scope,
+                    prediction,
+                    promptProvider,
+                    tokenUsage,
+                    cost,
+                    current.Value.Prediction.RepredictionIndex,
+                    now,
+                    now));
+            }
+            return 0;
+        }, cancellationToken: cancellationToken);
+    }
+
+    public async Task SaveRepredictionAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        BonusPrediction prediction,
+        string promptProvider,
+        string tokenUsage,
+        double cost,
+        int expectedCurrentRepredictionIndex,
+        int maxRepredictions,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateClWrite(scope, prediction, promptProvider, tokenUsage, cost);
+        if (expectedCurrentRepredictionIndex < -1 || maxRepredictions < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(expectedCurrentRepredictionIndex));
+        }
+
+        await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var candidates = await transaction.GetSnapshotAsync(CreateClCandidateQuery(scope));
+            var current = SelectCurrentClCandidate(candidates.Documents, scope);
+            var actualIndex = current?.Prediction.RepredictionIndex ?? -1;
+            if (actualIndex != expectedCurrentRepredictionIndex)
+            {
+                throw new InvalidOperationException($"CL reprediction concurrency conflict: expected {expectedCurrentRepredictionIndex}, found {actualIndex}.");
+            }
+            if (actualIndex == int.MaxValue || checked(actualIndex + 1) > maxRepredictions)
+            {
+                throw new InvalidOperationException("The CL reprediction limit does not permit another lineage row.");
+            }
+
+            var nextIndex = actualIndex + 1;
+            var reference = _firestoreDb.Collection(_bonusPredictionsCollection).Document(Guid.NewGuid().ToString());
+            var now = Timestamp.GetCurrentTimestamp();
+            transaction.Create(reference, CreateClFirestorePrediction(reference.Id, scope, prediction, promptProvider, tokenUsage, cost, nextIndex, now, now));
+            return nextIndex;
+        }, cancellationToken: cancellationToken);
+    }
+
     public Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
     {
         return SaveBonusPredictionAsync(
@@ -752,7 +855,11 @@ public class FirebasePredictionRepository :
 
             var existingDoc = snapshot.Documents
                 .FirstOrDefault(document =>
-                    GetConfigMatchKind(document.ConvertTo<FirestoreBonusPrediction>(), modelConfig) == PredictionConfigMatchKind.Exact);
+                {
+                    var prediction = document.ConvertTo<FirestoreBonusPrediction>();
+                    return IsOrdinaryBonusPrediction(prediction)
+                           && GetConfigMatchKind(prediction, modelConfig) == PredictionConfigMatchKind.Exact;
+                });
 
             if (existingDoc is not null)
             {
@@ -1031,7 +1138,8 @@ public class FirebasePredictionRepository :
             foreach (var document in snapshot.Documents)
             {
                 var firestoreBonusPrediction = document.ConvertTo<FirestoreBonusPrediction>();
-                if (GetConfigMatchKind(firestoreBonusPrediction, modelConfig) == PredictionConfigMatchKind.None)
+                if (!IsOrdinaryBonusPrediction(firestoreBonusPrediction)
+                    || GetConfigMatchKind(firestoreBonusPrediction, modelConfig) == PredictionConfigMatchKind.None)
                 {
                     continue;
                 }
@@ -1068,7 +1176,8 @@ public class FirebasePredictionRepository :
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             return snapshot.Documents
                 .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
-                .Any(prediction => GetConfigMatchKind(prediction, modelConfig) != PredictionConfigMatchKind.None);
+                .Any(prediction => IsOrdinaryBonusPrediction(prediction)
+                                   && GetConfigMatchKind(prediction, modelConfig) != PredictionConfigMatchKind.None);
         }
         catch (Exception ex)
         {
@@ -1876,7 +1985,8 @@ public class FirebasePredictionRepository :
                 if (doc.Exists)
                 {
                     var prediction = doc.ConvertTo<FirestoreBonusPrediction>();
-                    if (GetConfigMatchKind(prediction, modelConfig) == PredictionConfigMatchKind.None)
+                    if (!IsOrdinaryBonusPrediction(prediction)
+                        || GetConfigMatchKind(prediction, modelConfig) == PredictionConfigMatchKind.None)
                     {
                         continue;
                     }
@@ -2107,6 +2217,209 @@ public class FirebasePredictionRepository :
             _logger.LogError(ex, "Failed to get available community contexts");
             throw;
         }
+    }
+
+    private Query CreateClCandidateQuery(SchadensfresseChampionsLeagueBonusPredictionScope scope) =>
+        _firestoreDb.Collection(_bonusPredictionsCollection)
+            .WhereEqualTo("questionText", scope.Question.Text)
+            .WhereEqualTo("competition", SchadensfresseChampionsLeagueBonusProfile.Competition)
+            .WhereEqualTo("model", scope.ModelConfig.Model)
+            .WhereEqualTo("communityContext", SchadensfresseChampionsLeagueBonusProfile.Community);
+
+    private static bool IsOrdinaryBonusPrediction(FirestoreBonusPrediction prediction) =>
+        string.IsNullOrWhiteSpace(prediction.SchadensfresseChampionsLeagueBonusManifest);
+
+    private (DocumentSnapshot Document, FirestoreBonusPrediction Prediction)? SelectCurrentClCandidate(
+        IEnumerable<DocumentSnapshot> documents,
+        SchadensfresseChampionsLeagueBonusPredictionScope scope)
+    {
+        var matching = documents
+            .Select(document => (Document: document, Prediction: document.ConvertTo<FirestoreBonusPrediction>()))
+            .Where(candidate => MatchesCurrentClLineage(candidate.Prediction, scope))
+            .ToArray();
+        var duplicateIndex = matching.GroupBy(candidate => candidate.Prediction.RepredictionIndex)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateIndex is not null)
+        {
+            throw new InvalidDataException($"Duplicate exact CL lineage rows exist at reprediction index {duplicateIndex.Key}.");
+        }
+        return matching.Length == 0
+            ? null
+            : matching.OrderByDescending(candidate => candidate.Prediction.RepredictionIndex).First();
+    }
+
+    private bool MatchesCurrentClLineage(
+        FirestoreBonusPrediction candidate,
+        SchadensfresseChampionsLeagueBonusPredictionScope scope)
+    {
+        try
+        {
+            if (!string.Equals(_competition, SchadensfresseChampionsLeagueBonusProfile.Competition, StringComparison.Ordinal)
+                || !string.Equals(candidate.Competition, SchadensfresseChampionsLeagueBonusProfile.Competition, StringComparison.Ordinal)
+                || !string.Equals(candidate.CommunityContext, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal)
+                || !string.Equals(candidate.QuestionId, scope.SeedQuestion.KicktippQuestionId, StringComparison.Ordinal)
+                || !string.Equals(candidate.QuestionText, scope.Question.Text, StringComparison.Ordinal)
+                || !string.Equals(candidate.QuestionDeadline, SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc, StringComparison.Ordinal)
+                || !string.Equals(candidate.Model, scope.ModelConfig.Model, StringComparison.Ordinal)
+                || !string.Equals(candidate.ReasoningEffort, scope.ModelConfig.ReasoningEffort, StringComparison.Ordinal)
+                || candidate.MaxOutputTokenCount != scope.ModelConfig.MaxOutputTokenCount
+                || !string.Equals(candidate.PromptName, scope.ModelConfig.PromptName, StringComparison.Ordinal)
+                || candidate.PromptVersion != scope.ModelConfig.PromptVersion
+                || !string.Equals(candidate.ModelConfigKey, scope.ModelConfig.IdentityKey, StringComparison.Ordinal)
+                || candidate.RepredictionIndex < 0
+                || candidate.ContextDocumentNames is null || candidate.ContextDocumentNames.Length != 0
+                || !string.IsNullOrWhiteSpace(candidate.ResolvedBonusContextManifest)
+                || string.IsNullOrWhiteSpace(candidate.SchadensfresseChampionsLeagueBonusManifest)
+                || string.IsNullOrWhiteSpace(candidate.BonusQuestionCompatibilityManifest)
+                || candidate.SelectedOptionIds is null || candidate.SelectedOptionTexts is null
+                || string.IsNullOrWhiteSpace(candidate.TokenUsage)
+                || double.IsNaN(candidate.Cost) || double.IsInfinity(candidate.Cost) || candidate.Cost < 0)
+            {
+                return false;
+            }
+
+            SchadensfresseChampionsLeagueBonusProfile.ValidatePrediction(
+                scope.Question,
+                new BonusPrediction(candidate.SelectedOptionIds.ToList()));
+            var optionTexts = scope.Question.Options.ToDictionary(option => option.Id, option => option.Text, StringComparer.Ordinal);
+            if (!candidate.SelectedOptionTexts.SequenceEqual(candidate.SelectedOptionIds.Select(id => optionTexts[id]), StringComparer.Ordinal))
+            {
+                return false;
+            }
+
+            var compatibility = DeserializeBonusQuestionCompatibilityManifest(candidate.BonusQuestionCompatibilityManifest, tolerateInvalid: false);
+            var expectedCompatibility = BonusQuestionCompatibilityManifest.Create(scope.Question);
+            if (compatibility is null
+                || !string.Equals(
+                    SerializeBonusQuestionCompatibilityManifest(compatibility),
+                    SerializeBonusQuestionCompatibilityManifest(expectedCompatibility),
+                    StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var manifest = DeserializeClManifest(candidate.SchadensfresseChampionsLeagueBonusManifest);
+            manifest.Validate(scope);
+            return true;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or JsonException or ArgumentException or KeyNotFoundException)
+        {
+            return false;
+        }
+    }
+
+    private void ValidateClWrite(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        BonusPrediction prediction,
+        string promptProvider,
+        string tokenUsage,
+        double cost)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        ArgumentNullException.ThrowIfNull(prediction);
+        EnsureClRepositoryScope();
+        SchadensfresseChampionsLeagueBonusProfile.ValidatePrediction(scope.Question, prediction);
+        var manifest = SchadensfresseChampionsLeagueBonusManifest.Create(scope, promptProvider);
+        manifest.Validate(scope);
+        if (string.IsNullOrWhiteSpace(tokenUsage) || double.IsNaN(cost) || double.IsInfinity(cost) || cost < 0)
+        {
+            throw new InvalidDataException("CL token usage and cost must be valid persisted metadata.");
+        }
+    }
+
+    private void EnsureClRepositoryScope()
+    {
+        if (!string.Equals(_competition, SchadensfresseChampionsLeagueBonusProfile.Competition, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The specialized CL bonus repository is available only in bundesliga-2026-27.");
+        }
+    }
+
+    private static FirestoreBonusPrediction CreateClFirestorePrediction(
+        string documentId,
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        BonusPrediction prediction,
+        string promptProvider,
+        string tokenUsage,
+        double cost,
+        int repredictionIndex,
+        Timestamp createdAt,
+        Timestamp updatedAt)
+    {
+        var optionTexts = scope.Question.Options.ToDictionary(option => option.Id, option => option.Text, StringComparer.Ordinal);
+        return new FirestoreBonusPrediction
+        {
+            Id = documentId,
+            QuestionId = scope.SeedQuestion.KicktippQuestionId,
+            QuestionText = scope.Question.Text,
+            QuestionDeadline = SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc,
+            SelectedOptionIds = prediction.SelectedOptionIds.ToArray(),
+            SelectedOptionTexts = prediction.SelectedOptionIds.Select(id => optionTexts[id]).ToArray(),
+            CreatedAt = createdAt,
+            UpdatedAt = updatedAt,
+            Competition = SchadensfresseChampionsLeagueBonusProfile.Competition,
+            Model = scope.ModelConfig.Model,
+            ModelConfigKey = scope.ModelConfig.IdentityKey,
+            ReasoningEffort = scope.ModelConfig.ReasoningEffort,
+            MaxOutputTokenCount = scope.ModelConfig.MaxOutputTokenCount,
+            PromptName = scope.ModelConfig.PromptName,
+            PromptVersion = scope.ModelConfig.PromptVersion,
+            TokenUsage = tokenUsage,
+            Cost = cost,
+            CommunityContext = SchadensfresseChampionsLeagueBonusProfile.Community,
+            ContextDocumentNames = [],
+            ResolvedBonusContextManifest = null,
+            SchadensfresseChampionsLeagueBonusManifest = SerializeClManifest(
+                SchadensfresseChampionsLeagueBonusManifest.Create(scope, promptProvider)),
+            BonusQuestionCompatibilityManifest = SerializeBonusQuestionCompatibilityManifest(
+                BonusQuestionCompatibilityManifest.Create(scope.Question)),
+            RepredictionIndex = repredictionIndex
+        };
+    }
+
+    private BonusPredictionMetadata CreateClMetadata(
+        FirestoreBonusPrediction prediction,
+        SchadensfresseChampionsLeagueBonusPredictionScope scope)
+    {
+        var manifest = DeserializeClManifest(prediction.SchadensfresseChampionsLeagueBonusManifest);
+        manifest.Validate(scope);
+        return new BonusPredictionMetadata(
+            new BonusPrediction(prediction.SelectedOptionIds.ToList()),
+            prediction.CreatedAt.ToDateTimeOffset(),
+            [],
+            null,
+            DeserializeBonusQuestionCompatibilityManifest(prediction.BonusQuestionCompatibilityManifest, tolerateInvalid: false),
+            prediction.Id,
+            manifest);
+    }
+
+    private static readonly string[] ClManifestProperties =
+    [
+        "schemaVersion", "profileId", "competition", "communityContext", "kicktippQuestionId", "deadline",
+        "questionSetSha256", "questionDefinitionSha256", "sourceSnapshotSha256", "historicalEvidenceQuestionSetSha256",
+        "promptName", "promptVersion", "promptLabel", "promptNormalizedSha256", "promptProvider", "model",
+        "reasoningEffort", "maxOutputTokens", "modelConfigKey", "servicePolicyId", "documents"
+    ];
+
+    private static string SerializeClManifest(SchadensfresseChampionsLeagueBonusManifest manifest) =>
+        JsonSerializer.Serialize(manifest, ResolvedContextManifestSerializerOptions);
+
+    private static SchadensfresseChampionsLeagueBonusManifest DeserializeClManifest(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized)) throw new InvalidDataException("The specialized CL manifest is absent.");
+        using var json = JsonDocument.Parse(serialized);
+        if (json.RootElement.ValueKind != JsonValueKind.Object
+            || !json.RootElement.EnumerateObject().Select(property => property.Name).SequenceEqual(ClManifestProperties, StringComparer.Ordinal))
+        {
+            throw new InvalidDataException("The specialized CL manifest has unknown, missing, duplicate, or out-of-order fields.");
+        }
+        var manifest = JsonSerializer.Deserialize<SchadensfresseChampionsLeagueBonusManifest>(serialized, ResolvedContextManifestSerializerOptions)
+            ?? throw new InvalidDataException("The specialized CL manifest cannot be null.");
+        if (!string.Equals(SerializeClManifest(manifest), serialized, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("The specialized CL manifest is not canonical JSON.");
+        }
+        return manifest;
     }
 
     private static string SerializeResolvedBonusContextManifest(ResolvedBonusContextManifest manifest)

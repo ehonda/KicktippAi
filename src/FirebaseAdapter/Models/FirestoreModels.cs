@@ -245,6 +245,14 @@ public class FirestoreBonusPrediction
     [FirestoreProperty("questionText")]
     public string QuestionText { get; set; } = string.Empty;
 
+    /// <summary>Optional exact Kicktipp question ID for specialized profiles.</summary>
+    [FirestoreProperty("questionId")]
+    public string? QuestionId { get; set; }
+
+    /// <summary>Optional exact UTC deadline token for specialized profiles.</summary>
+    [FirestoreProperty("questionDeadline")]
+    public string? QuestionDeadline { get; set; }
+
     /// <summary>
     /// Selected option IDs for the bonus question.
     /// </summary>

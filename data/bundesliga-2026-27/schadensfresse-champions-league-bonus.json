@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 1,
+  "profileId": "schadensfresse-champions-league-bonus-context-free-v1",
+  "sourceSnapshotSha256": "4299e240f7909f24c2b7f4d2eeeaef564beaea4a3539fe87984867fa890205b0",
+  "questions": [
+    {
+      "kicktippQuestionId": "1662326752",
+      "text": "CL: Welche Mannschaft stellt den Spieler mit den meisten Toren?",
+      "deadline": "2026-09-08T16:45:00Z",
+      "maxSelections": 1,
+      "formKeys": [
+        "fragetippForms[1662326752].antwortIds[1795788]"
+      ],
+      "optionCount": 36,
+      "options": [
+        {
+          "id": "15413244",
+          "text": "AEK Athen"
+        },
+        {
+          "id": "14958532",
+          "text": "AS Rom"
+        },
+        {
+          "id": "14958534",
+          "text": "Aston Villa"
+        },
+        {
+          "id": "14958538",
+          "text": "Atletico Madrid"
+        },
+        {
+          "id": "14958551",
+          "text": "Borussia Dortmund"
+        },
+        {
+          "id": "14958547",
+          "text": "Como Calcio"
+        },
+        {
+          "id": "14958540",
+          "text": "FC Arsenal"
+        },
+        {
+          "id": "14958531",
+          "text": "FC Barcelona"
+        },
+        {
+          "id": "14958475",
+          "text": "FC Bayern München"
+        },
+        {
+          "id": "14958476",
+          "text": "FC Brügge"
+        },
+        {
+          "id": "14958550",
+          "text": "FC Liverpool"
+        },
+        {
+          "id": "15413250",
+          "text": "FC Porto"
+        },
+        {
+          "id": "14958541",
+          "text": "FC Villarreal"
+        },
+        {
+          "id": "15413253",
+          "text": "Fenerbahce Istanbul"
+        },
+        {
+          "id": "14958537",
+          "text": "Feyenoord Rotterdam"
+        },
+        {
+          "id": "15413241",
+          "text": "FK Bodö/Glimt"
+        },
+        {
+          "id": "14958474",
+          "text": "Galatasaray Istanbul"
+        },
+        {
+          "id": "14958544",
+          "text": "Inter Mailand"
+        },
+        {
+          "id": "15413247",
+          "text": "Linzer ASK"
+        },
+        {
+          "id": "14958548",
+          "text": "Manchester City"
+        },
+        {
+          "id": "14958549",
+          "text": "Manchester United"
+        },
+        {
+          "id": "14958545",
+          "text": "OSC Lille"
+        },
+        {
+          "id": "14958542",
+          "text": "Paris St. Germain"
+        },
+        {
+          "id": "14958535",
+          "text": "PSV Eindhoven"
+        },
+        {
+          "id": "14958530",
+          "text": "RB Leipzig"
+        },
+        {
+          "id": "14958477",
+          "text": "RC Lens"
+        },
+        {
+          "id": "14958528",
+          "text": "Real Betis Sevilla"
+        },
+        {
+          "id": "14958529",
+          "text": "Real Madrid"
+        },
+        {
+          "id": "15416582",
+          "text": "Sabah FK"
+        },
+        {
+          "id": "15413256",
+          "text": "Schachtjor Donezk"
+        },
+        {
+          "id": "15405461",
+          "text": "SK Slovan Bratislava"
+        },
+        {
+          "id": "14958546",
+          "text": "Slavia Prag"
+        },
+        {
+          "id": "14958533",
+          "text": "Sporting Lissabon"
+        },
+        {
+          "id": "14958539",
+          "text": "SSC Neapel"
+        },
+        {
+          "id": "14958536",
+          "text": "VfB Stuttgart"
+        },
+        {
+          "id": "15416579",
+          "text": "Viking Stavanger"
+        }
+      ],
+      "liveEvidenceOptionArraySha256": "393ebf1e6282e73cb72676fbc9ea3a1964a471eb5ea1bf14557d88e690f1a73f",
+      "definitionSha256": "642d2f1fa973fe8f32a5dfebcc8945615fa2dd27e24613b4552b99b47cc9e6d6"
+    },
+    {
+      "kicktippQuestionId": "1662326753",
+      "text": "CL: Wer erreicht das Halbfinale?",
+      "deadline": "2026-09-08T16:45:00Z",
+      "maxSelections": 4,
+      "formKeys": [
+        "fragetippForms[1662326753].antwortIds[1795789]",
+        "fragetippForms[1662326753].antwortIds[1795790]",
+        "fragetippForms[1662326753].antwortIds[1795791]",
+        "fragetippForms[1662326753].antwortIds[1795792]"
+      ],
+      "optionCount": 36,
+      "options": [
+        {
+          "id": "15413245",
+          "text": "AEK Athen"
+        },
+        {
+          "id": "14958560",
+          "text": "AS Rom"
+        },
+        {
+          "id": "14958562",
+          "text": "Aston Villa"
+        },
+        {
+          "id": "14958566",
+          "text": "Atletico Madrid"
+        },
+        {
+          "id": "14958579",
+          "text": "Borussia Dortmund"
+        },
+        {
+          "id": "14958575",
+          "text": "Como Calcio"
+        },
+        {
+          "id": "14958568",
+          "text": "FC Arsenal"
+        },
+        {
+          "id": "14958559",
+          "text": "FC Barcelona"
+        },
+        {
+          "id": "14958553",
+          "text": "FC Bayern München"
+        },
+        {
+          "id": "14958554",
+          "text": "FC Brügge"
+        },
+        {
+          "id": "14958578",
+          "text": "FC Liverpool"
+        },
+        {
+          "id": "15413251",
+          "text": "FC Porto"
+        },
+        {
+          "id": "14958569",
+          "text": "FC Villarreal"
+        },
+        {
+          "id": "15413254",
+          "text": "Fenerbahce Istanbul"
+        },
+        {
+          "id": "14958565",
+          "text": "Feyenoord Rotterdam"
+        },
+        {
+          "id": "15413242",
+          "text": "FK Bodö/Glimt"
+        },
+        {
+          "id": "14958552",
+          "text": "Galatasaray Istanbul"
+        },
+        {
+          "id": "14958572",
+          "text": "Inter Mailand"
+        },
+        {
+          "id": "15413248",
+          "text": "Linzer ASK"
+        },
+        {
+          "id": "14958576",
+          "text": "Manchester City"
+        },
+        {
+          "id": "14958577",
+          "text": "Manchester United"
+        },
+        {
+          "id": "14958573",
+          "text": "OSC Lille"
+        },
+        {
+          "id": "14958570",
+          "text": "Paris St. Germain"
+        },
+        {
+          "id": "14958563",
+          "text": "PSV Eindhoven"
+        },
+        {
+          "id": "14958558",
+          "text": "RB Leipzig"
+        },
+        {
+          "id": "14958555",
+          "text": "RC Lens"
+        },
+        {
+          "id": "14958556",
+          "text": "Real Betis Sevilla"
+        },
+        {
+          "id": "14958557",
+          "text": "Real Madrid"
+        },
+        {
+          "id": "15416583",
+          "text": "Sabah FK"
+        },
+        {
+          "id": "15413257",
+          "text": "Schachtjor Donezk"
+        },
+        {
+          "id": "15405462",
+          "text": "SK Slovan Bratislava"
+        },
+        {
+          "id": "14958574",
+          "text": "Slavia Prag"
+        },
+        {
+          "id": "14958561",
+          "text": "Sporting Lissabon"
+        },
+        {
+          "id": "14958567",
+          "text": "SSC Neapel"
+        },
+        {
+          "id": "14958564",
+          "text": "VfB Stuttgart"
+        },
+        {
+          "id": "15416580",
+          "text": "Viking Stavanger"
+        }
+      ],
+      "liveEvidenceOptionArraySha256": "0ec6d8e6342c769c7e0a227680b4b95640b1570e6f4710f07eeffe03ae394b3e",
+      "definitionSha256": "39492a824c1f894f1dda4b56efe68024d75d51d9909ce973a73c1029503fdd42"
+    },
+    {
+      "kicktippQuestionId": "1662326754",
+      "text": "CL: Wer gewinnt die Champions League?",
+      "deadline": "2026-09-08T16:45:00Z",
+      "maxSelections": 1,
+      "formKeys": [
+        "fragetippForms[1662326754].antwortIds[1795793]"
+      ],
+      "optionCount": 36,
+      "options": [
+        {
+          "id": "15413243",
+          "text": "AEK Athen"
+        },
+        {
+          "id": "14958588",
+          "text": "AS Rom"
+        },
+        {
+          "id": "14958590",
+          "text": "Aston Villa"
+        },
+        {
+          "id": "14958594",
+          "text": "Atletico Madrid"
+        },
+        {
+          "id": "14958607",
+          "text": "Borussia Dortmund"
+        },
+        {
+          "id": "14958603",
+          "text": "Como Calcio"
+        },
+        {
+          "id": "14958596",
+          "text": "FC Arsenal"
+        },
+        {
+          "id": "14958587",
+          "text": "FC Barcelona"
+        },
+        {
+          "id": "14958581",
+          "text": "FC Bayern München"
+        },
+        {
+          "id": "14958582",
+          "text": "FC Brügge"
+        },
+        {
+          "id": "14958606",
+          "text": "FC Liverpool"
+        },
+        {
+          "id": "15413249",
+          "text": "FC Porto"
+        },
+        {
+          "id": "14958597",
+          "text": "FC Villarreal"
+        },
+        {
+          "id": "15413252",
+          "text": "Fenerbahce Istanbul"
+        },
+        {
+          "id": "14958593",
+          "text": "Feyenoord Rotterdam"
+        },
+        {
+          "id": "15413240",
+          "text": "FK Bodö/Glimt"
+        },
+        {
+          "id": "14958580",
+          "text": "Galatasaray Istanbul"
+        },
+        {
+          "id": "14958600",
+          "text": "Inter Mailand"
+        },
+        {
+          "id": "15413246",
+          "text": "Linzer ASK"
+        },
+        {
+          "id": "14958604",
+          "text": "Manchester City"
+        },
+        {
+          "id": "14958605",
+          "text": "Manchester United"
+        },
+        {
+          "id": "14958601",
+          "text": "OSC Lille"
+        },
+        {
+          "id": "14958598",
+          "text": "Paris St. Germain"
+        },
+        {
+          "id": "14958591",
+          "text": "PSV Eindhoven"
+        },
+        {
+          "id": "14958586",
+          "text": "RB Leipzig"
+        },
+        {
+          "id": "14958583",
+          "text": "RC Lens"
+        },
+        {
+          "id": "14958584",
+          "text": "Real Betis Sevilla"
+        },
+        {
+          "id": "14958585",
+          "text": "Real Madrid"
+        },
+        {
+          "id": "15416581",
+          "text": "Sabah FK"
+        },
+        {
+          "id": "15413255",
+          "text": "Schachtjor Donezk"
+        },
+        {
+          "id": "15405460",
+          "text": "SK Slovan Bratislava"
+        },
+        {
+          "id": "14958602",
+          "text": "Slavia Prag"
+        },
+        {
+          "id": "14958589",
+          "text": "Sporting Lissabon"
+        },
+        {
+          "id": "14958595",
+          "text": "SSC Neapel"
+        },
+        {
+          "id": "14958592",
+          "text": "VfB Stuttgart"
+        },
+        {
+          "id": "15416578",
+          "text": "Viking Stavanger"
+        }
+      ],
+      "liveEvidenceOptionArraySha256": "372d98f6197ff9a6b9bf46b26e19ec769083f5dfc6cda9d7f76f12aea2418b23",
+      "definitionSha256": "7bbe70e0f9ad0a7f57fba6d4e27bfba4811452c3e2b03718b74fd09567bd725d"
+    }
+  ],
+  "questionSetSha256": "378921172c307e81ab3d839cd229299ed5590e86bc4687d50818d88a46256eea",
+  "historicalEvidenceQuestionSetSha256": "80def7b217a382ed95450c2a8f8db227ba13a2f55ca72513a8897f86fa511ef9"
+}

@@ -27,7 +27,11 @@ internal static class PredictionServiceCommandSupport
         string? reasoningEffort,
         int? maxOutputTokenCount,
         bool bonusPrompt,
-        bool requireHostedPrompt = false)
+        bool requireHostedPrompt = false,
+        string? bonusProfile = null,
+        int? bonusContextDocumentBudget = null,
+        int? bonusContextTokenBudget = null,
+        string? bonusDeadlineAtOrBefore = null)
     {
         var metadata = CompetitionResolver.ResolveRuntimeMetadata(
             competition,
@@ -66,7 +70,14 @@ internal static class PredictionServiceCommandSupport
         var fallbackModel = string.IsNullOrWhiteSpace(metadata.FallbackPromptModel)
             ? model
             : metadata.FallbackPromptModel;
+        var isPotentialChampionsLeagueBonus = bonusPrompt
+            && SchadensfresseChampionsLeagueBonusProfile.IsPotentialInvocation(
+                bonusProfile,
+                community,
+                communityContext,
+                langfusePromptName);
         var isChampionsLeagueBonus = bonusPrompt && SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
+            bonusProfile,
             competition,
             community,
             communityContext,
@@ -77,9 +88,14 @@ internal static class PredictionServiceCommandSupport
             model,
             reasoningEffort,
             maxOutputTokenCount,
-            documentBudget: 0,
-            tokenBudget: 0,
-            deadlineAtOrBefore: SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc);
+            bonusContextDocumentBudget,
+            bonusContextTokenBudget,
+            bonusDeadlineAtOrBefore);
+        if (isPotentialChampionsLeagueBonus && !isChampionsLeagueBonus)
+        {
+            throw new InvalidOperationException(
+                "The Schadensfresse Champions-League bonus route requires the complete exact frozen invocation tuple.");
+        }
 
         var templateProvider = new LangfuseTextPromptTemplateProvider(
             langfuseClient,

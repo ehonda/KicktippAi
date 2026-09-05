@@ -25,6 +25,221 @@ public class KicktippClient : IKicktippClient, IDisposable
     private readonly IBrowsingContext _browsingContext;
     private readonly IMemoryCache _cache;
 
+    public async Task<ChampionsLeagueBonusFormSnapshot> GetChampionsLeagueBonusFormSnapshotAsync(string community)
+    {
+        if (!string.Equals(community, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The strict CL form route is scoped to schadensfresse only.");
+        }
+
+        using var response = await _httpClient.GetAsync($"{community}/tippabgabe?bonus=true");
+        var snapshot = await ParseChampionsLeagueBonusSnapshotAsync(response);
+        if (snapshot.FinalUri != ChampionsLeagueBonusRoute.ExpectedPage)
+        {
+            throw new InvalidDataException("The strict CL GET did not remain on the exact bonus page.");
+        }
+        return snapshot;
+    }
+
+    private async Task<ChampionsLeagueBonusFormSnapshot> ParseChampionsLeagueBonusSnapshotAsync(HttpResponseMessage response)
+    {
+        response.EnsureSuccessStatusCode();
+        var finalUri = response.RequestMessage?.RequestUri
+            ?? throw new InvalidDataException("The strict CL form read has no final URI.");
+        var contentType = response.Content.Headers.ContentType;
+        if (contentType is null
+            || !string.Equals(contentType.MediaType, "text/html", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(contentType.CharSet?.Trim('"'), "utf-8", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("The strict CL form must be a single UTF-8 HTML response.");
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        if (bytes.AsSpan().StartsWith(new byte[] { 0xef, 0xbb, 0xbf }))
+        {
+            throw new InvalidDataException("The strict CL form cannot contain a UTF-8 BOM.");
+        }
+        var content = new System.Text.UTF8Encoding(false, true).GetString(bytes);
+        var document = await _browsingContext.OpenAsync(req => req.Content(content).Address(finalUri.ToString()));
+        var forms = document.QuerySelectorAll("form").OfType<IHtmlFormElement>()
+            .Where(candidate => candidate.QuerySelector("#tippabgabeFragen") is not null)
+            .ToArray();
+        if (forms.Length != 1)
+        {
+            throw new InvalidDataException("The strict CL page must contain exactly one bonus form.");
+        }
+        var form = forms[0];
+        if (!string.Equals(form.Enctype, "application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidDataException("The strict CL form does not use the expected URL-encoded submission format.");
+        }
+        var rows = document.QuerySelectorAll("#tippabgabeFragen tbody tr");
+        var questions = new List<ChampionsLeagueBonusQuestionSnapshot>();
+        var targetIds = SchadensfresseChampionsLeagueBonusProfile.OrderedQuestionIds.ToHashSet(StringComparer.Ordinal);
+        foreach (var row in rows)
+        {
+            var cells = row.QuerySelectorAll("td");
+            if (cells.Length < 3) continue;
+            var selects = cells[2].QuerySelectorAll("select").OfType<IHtmlSelectElement>().ToArray();
+            if (selects.Length == 0) continue;
+            var parsedKeys = selects.Select(select => ParseChampionsLeagueTargetKey(select.Name)).ToArray();
+            var matching = parsedKeys.Where(key => key is not null && targetIds.Contains(key.Value.QuestionId)).ToArray();
+            if (matching.Length == 0)
+            {
+                if (selects.Any(select => targetIds.Any(questionId =>
+                        select.Name?.StartsWith($"fragetippForms[{questionId}]", StringComparison.Ordinal) == true)))
+                {
+                    throw new InvalidDataException("A strict CL target row contains a malformed target key.");
+                }
+                continue;
+            }
+            if (matching.Length != selects.Length
+                || matching.Select(key => key!.Value.QuestionId).Distinct(StringComparer.Ordinal).Count() != 1)
+            {
+                throw new InvalidDataException("A strict CL target row mixes malformed, unrelated, or cross-question keys.");
+            }
+
+            var id = matching[0]!.Value.QuestionId;
+            var key = selects[0].Name;
+            var options = ParseStrictOptions(selects[0]);
+            if (selects.Skip(1).Any(select => !ParseStrictOptions(select).SequenceEqual(options)))
+            {
+                throw new InvalidDataException("The strict CL multi-select slots expose different option arrays.");
+            }
+            var text = NormalizeWhitespace(cells[1].TextContent);
+            if (!text.IsNormalized(System.Text.NormalizationForm.FormC))
+            {
+                throw new InvalidDataException("The strict CL question text is not Unicode NFC.");
+            }
+            questions.Add(new ChampionsLeagueBonusQuestionSnapshot(
+                id,
+                new BonusQuestion(text, ParseMatchDateTime(NormalizeWhitespace(cells[0].TextContent)), options, selects.Length, key),
+                selects.Select(select => select.Name ?? throw new InvalidDataException("A strict CL slot has no form name.")).ToArray(),
+                selects.Select(select => select.Value == "-1" ? null : select.Value).ToArray()));
+        }
+
+        var targetKeys = questions.SelectMany(question => question.FormKeys).ToHashSet(StringComparer.Ordinal);
+        var submitters = form.Elements.OfType<IHtmlElement>()
+            .Where(element => element is IHtmlButtonElement
+                              || element is IHtmlInputElement input && input.Type is "submit" or "button")
+            .Where(element => string.Equals(element.GetAttribute("name"), "submitbutton", StringComparison.Ordinal)
+                              && !element.IsDisabled())
+            .ToArray();
+        if (submitters.Length != 1)
+        {
+            throw new InvalidDataException("The strict CL form has no unique intended submitter.");
+        }
+        var submitter = submitters[0];
+        var submitterName = submitter.GetAttribute("name") ?? throw new InvalidDataException("The strict CL submitter has no name.");
+        var submitterValue = submitter.GetAttribute("value") ?? string.Empty;
+        var controls = ExtractSuccessfulNonTargetControls(form, targetKeys, submitter);
+        var action = Uri.TryCreate(form.Action, UriKind.Absolute, out var absolute) ? absolute : new Uri(finalUri, form.Action);
+        var canPlace = questions.SelectMany(question => question.FormKeys)
+            .All(targetKey => form.Elements.OfType<IHtmlSelectElement>()
+                .Single(select => string.Equals(select.Name, targetKey, StringComparison.Ordinal))
+                .IsDisabled() is false);
+        var snapshot = new ChampionsLeagueBonusFormSnapshot(finalUri, action, form.Method.ToUpperInvariant(), questions, controls, submitterName, submitterValue, canPlace);
+        ChampionsLeagueBonusRoute.ValidateSnapshot(snapshot);
+        return snapshot;
+    }
+
+    public async Task<ChampionsLeagueBonusFormSnapshot> PlaceChampionsLeagueBonusPredictionsAsync(string community, ChampionsLeagueBonusFormSnapshot initialSnapshot, IReadOnlyList<(string QuestionId, BonusPrediction Prediction)> predictions, bool overridePredictions)
+    {
+        var current = await GetChampionsLeagueBonusFormSnapshotAsync(community);
+        var payload = ChampionsLeagueBonusRoute.BuildPostPayload(initialSnapshot, current, predictions, overridePredictions);
+        using var response = await _httpClient.PostAsync(current.Action, new FormUrlEncodedContent(payload));
+        var responseSnapshot = await ParseChampionsLeagueBonusSnapshotAsync(response);
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(responseSnapshot, predictions);
+        var final = await GetChampionsLeagueBonusFormSnapshotAsync(community);
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(final, predictions);
+        return final;
+    }
+
+    private static (string QuestionId, string SlotId)? ParseChampionsLeagueTargetKey(string? key)
+    {
+        if (string.IsNullOrEmpty(key)) return null;
+        var match = Regex.Match(key, @"^fragetippForms\[(?<questionId>[0-9]+)\]\.antwortIds\[(?<slotId>[0-9]+)\]$", System.Text.RegularExpressions.RegexOptions.CultureInvariant);
+        return match.Success ? (match.Groups["questionId"].Value, match.Groups["slotId"].Value) : null;
+    }
+
+    private static List<BonusQuestionOption> ParseStrictOptions(IHtmlSelectElement select)
+    {
+        if (select.Options.Length == 0
+            || select.Options[0].Value != "-1"
+            || select.Options.Count(option => option.Value == "-1") != 1)
+        {
+            throw new InvalidDataException("A strict CL select must expose exactly one leading unselected sentinel.");
+        }
+        var options = select.Options.Where(option => option.Value != "-1").Select(option =>
+        {
+            var text = NormalizeWhitespace(option.TextContent);
+            if (string.IsNullOrWhiteSpace(option.Value)
+                || string.IsNullOrWhiteSpace(text)
+                || !text.IsNormalized(System.Text.NormalizationForm.FormC))
+            {
+                throw new InvalidDataException("A strict CL option is blank or not Unicode NFC.");
+            }
+            return new BonusQuestionOption(option.Value, text);
+        }).ToList();
+        if (select.Options.Where(option => option.Value != "-1").Any(option => option.IsDisabled())
+            || options.Select(option => option.Id).Distinct(StringComparer.Ordinal).Count() != options.Count)
+        {
+            throw new InvalidDataException("A strict CL select contains duplicate or disabled option IDs.");
+        }
+        return options;
+    }
+
+    private static IReadOnlyList<KeyValuePair<string, string>> ExtractSuccessfulNonTargetControls(
+        IHtmlFormElement form,
+        IReadOnlySet<string> targetKeys,
+        IHtmlElement intendedSubmitter)
+    {
+        var result = new List<KeyValuePair<string, string>>();
+        foreach (var element in form.Elements.OfType<IHtmlElement>())
+        {
+            if (ReferenceEquals(element, intendedSubmitter) || element.IsDisabled()) continue;
+            var name = element.GetAttribute("name");
+            if (string.IsNullOrWhiteSpace(name)) continue;
+            if (targetKeys.Contains(name))
+            {
+                if (element is not IHtmlSelectElement)
+                {
+                    throw new InvalidDataException($"A non-target control collides with frozen target key '{name}'.");
+                }
+                continue;
+            }
+
+            if (element is IHtmlButtonElement) continue;
+            if (element is IHtmlInputElement input)
+            {
+                var type = (input.Type ?? "text").ToLowerInvariant();
+                if (type == "file")
+                {
+                    throw new InvalidDataException($"Non-target file control '{name}' cannot be preserved by the strict URL-encoded route.");
+                }
+                if (type is "submit" or "button" or "reset" or "image") continue;
+                if (type is "checkbox" or "radio" && !input.IsChecked) continue;
+                result.Add(new KeyValuePair<string, string>(name, input.Value ?? (type is "checkbox" or "radio" ? "on" : string.Empty)));
+                continue;
+            }
+            if (element is IHtmlTextAreaElement textArea)
+            {
+                result.Add(new KeyValuePair<string, string>(name, textArea.Value));
+                continue;
+            }
+            if (element is IHtmlSelectElement select)
+            {
+                var selected = select.SelectedOptions.ToArray();
+                if (selected.Length == 0 && !select.IsMultiple)
+                {
+                    throw new InvalidDataException($"Non-target select '{name}' has no preservable selected value.");
+                }
+                result.AddRange(selected.Select(option => new KeyValuePair<string, string>(name, option.Value)));
+            }
+        }
+        return result;
+    }
+
     public KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger, IMemoryCache cache)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));

@@ -27,24 +27,14 @@ public static class SchadensfresseChampionsLeagueBonusProfile
     public const string DeadlineUtc = "2026-09-08T16:45:00Z";
 
     private static readonly Instant Deadline = InstantPattern.ExtendedIso.Parse(DeadlineUtc).Value;
-    private static readonly IReadOnlyDictionary<string, ExpectedQuestion> Questions =
-        new Dictionary<string, ExpectedQuestion>(StringComparer.Ordinal)
-        {
-            ["1662326752"] = new(
-                "CL: Welche Mannschaft stellt den Spieler mit den meisten Toren?", 1,
-                ["fragetippForms[1662326752].antwortIds[1795788]"],
-                "642d2f1fa973fe8f32a5dfebcc8945615fa2dd27e24613b4552b99b47cc9e6d6"),
-            ["1662326753"] = new(
-                "CL: Wer erreicht das Halbfinale?", 4,
-                ["fragetippForms[1662326753].antwortIds[1795789]", "fragetippForms[1662326753].antwortIds[1795790]", "fragetippForms[1662326753].antwortIds[1795791]", "fragetippForms[1662326753].antwortIds[1795792]"],
-                "39492a824c1f894f1dda4b56efe68024d75d51d9909ce973a73c1029503fdd42"),
-            ["1662326754"] = new(
-                "CL: Wer gewinnt die Champions League?", 1,
-                ["fragetippForms[1662326754].antwortIds[1795793]"],
-                "7bbe70e0f9ad0a7f57fba6d4e27bfba4811452c3e2b03718b74fd09567bd725d")
-        };
+
+    public static IReadOnlyList<string> OrderedQuestionIds =>
+        SchadensfresseChampionsLeagueBonusSeed.Default.Questions
+            .Select(question => question.KicktippQuestionId)
+            .ToArray();
 
     public static bool IsExactInvocation(
+        string? profileId,
         string competition,
         string community,
         string communityContext,
@@ -58,7 +48,8 @@ public static class SchadensfresseChampionsLeagueBonusProfile
         int? documentBudget,
         int? tokenBudget,
         string? deadlineAtOrBefore) =>
-        string.Equals(competition, Competition, StringComparison.Ordinal)
+        string.Equals(profileId, ProfileId, StringComparison.Ordinal)
+        && string.Equals(competition, Competition, StringComparison.Ordinal)
         && string.Equals(community, Community, StringComparison.Ordinal)
         && string.Equals(communityContext, Community, StringComparison.Ordinal)
         && string.Equals(promptSource, "langfuse", StringComparison.OrdinalIgnoreCase)
@@ -72,38 +63,58 @@ public static class SchadensfresseChampionsLeagueBonusProfile
         && tokenBudget == 0
         && string.Equals(deadlineAtOrBefore, DeadlineUtc, StringComparison.Ordinal);
 
+    public static bool IsPotentialInvocation(
+        string? profileId,
+        string? community,
+        string? communityContext,
+        string? promptName) =>
+        string.Equals(profileId, ProfileId, StringComparison.Ordinal)
+        || string.Equals(promptName, PromptName, StringComparison.Ordinal)
+        || profileId?.StartsWith("schadensfresse-champions-league-bonus", StringComparison.Ordinal) == true
+        || promptName?.Contains("/champions-league/", StringComparison.Ordinal) == true
+        || string.Equals(community, Community, StringComparison.Ordinal)
+           && string.Equals(communityContext, Community, StringComparison.Ordinal)
+           && !string.IsNullOrWhiteSpace(profileId);
+
+    public static PredictionModelConfig CreateModelConfig() => PredictionModelConfig.Create(
+        Model,
+        ReasoningEffort,
+        MaxOutputTokens,
+        PromptName,
+        PromptVersion);
+
     /// <summary>Fails closed unless the generic DTO represents all three frozen identities.</summary>
     public static void ValidateQuestions(IReadOnlyList<BonusQuestion> questions)
     {
         ArgumentNullException.ThrowIfNull(questions);
-        if (questions.Count != Questions.Count)
+        var seed = SchadensfresseChampionsLeagueBonusSeed.Default;
+        if (questions.Count != seed.Questions.Count)
         {
             throw new InvalidDataException("The Champions-League route requires exactly the three frozen questions.");
         }
 
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var question in questions)
+        for (var index = 0; index < questions.Count; index++)
         {
-            var formKey = question.FormFieldName ?? throw new InvalidDataException("A frozen CL question has no form key.");
-            var questionId = ExtractQuestionId(formKey);
-            if (!seen.Add(questionId) || !Questions.TryGetValue(questionId, out var expected)
-                || !string.Equals(question.Text, expected.Text, StringComparison.Ordinal)
-                || question.Deadline.ToInstant() != Deadline
-                || question.MaxSelections != expected.MaxSelections
-                || question.Options.Count != 36
-                || !string.Equals(formKey, expected.FormKeys[0], StringComparison.Ordinal))
-            {
-                throw new InvalidDataException("The live CL bonus form does not match the frozen profile.");
-            }
-
-            ValidateOptions(question);
-        }
-
-        if (!seen.SetEquals(Questions.Keys))
-        {
-            throw new InvalidDataException("The live CL bonus form omitted or replaced a frozen question.");
+            var question = questions[index];
+            var expected = seed.Questions[index];
+            ValidateQuestionAgainst(question, expected);
         }
     }
+
+    public static void ValidateQuestion(BonusQuestion question)
+    {
+        ArgumentNullException.ThrowIfNull(question);
+        var questionId = ExtractQuestionId(question.FormFieldName
+            ?? throw new InvalidDataException("A frozen CL question has no form key."));
+        var seed = SchadensfresseChampionsLeagueBonusSeed.Default.GetQuestion(questionId);
+        ValidateQuestionAgainst(question, seed);
+    }
+
+    public static string GetQuestionId(BonusQuestion question) => ExtractQuestionId(
+        question.FormFieldName ?? throw new InvalidDataException("A frozen CL question has no form key."));
+
+    public static SchadensfresseChampionsLeagueBonusSeedQuestion GetSeedQuestion(string questionId) =>
+        SchadensfresseChampionsLeagueBonusSeed.Default.GetQuestion(questionId);
 
     public static void ValidatePrediction(BonusQuestion question, BonusPrediction prediction)
     {
@@ -142,5 +153,24 @@ public static class SchadensfresseChampionsLeagueBonusProfile
         }
     }
 
-    private sealed record ExpectedQuestion(string Text, int MaxSelections, string[] FormKeys, string DefinitionSha256);
+    private static void ValidateQuestionAgainst(
+        BonusQuestion question,
+        SchadensfresseChampionsLeagueBonusSeedQuestion expected)
+    {
+        var formKey = question.FormFieldName ?? throw new InvalidDataException("A frozen CL question has no form key.");
+        var questionId = ExtractQuestionId(formKey);
+        if (!string.Equals(questionId, expected.KicktippQuestionId, StringComparison.Ordinal)
+            || !string.Equals(question.Text, expected.Text, StringComparison.Ordinal)
+            || question.Deadline.ToInstant() != Deadline
+            || question.MaxSelections != expected.MaxSelections
+            || !string.Equals(formKey, expected.FormKeys[0], StringComparison.Ordinal)
+            || !question.Options.Select(option => new SchadensfresseChampionsLeagueBonusSeedOption(option.Id, option.Text))
+                .SequenceEqual(expected.Options))
+        {
+            throw new InvalidDataException("The live CL bonus form does not match the frozen profile.");
+        }
+
+        ValidateOptions(question);
+    }
+
 }

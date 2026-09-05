@@ -27,17 +27,36 @@ public sealed record SchadensfresseChampionsLeagueBonusManifest
     [JsonPropertyOrder(20)] public string ServicePolicyId { get; init; } = SchadensfresseChampionsLeagueBonusProfile.ServicePolicyId;
     [JsonPropertyOrder(21)] public string[] Documents { get; init; } = [];
 
-    public void Validate(PredictionModelConfig modelConfig)
+    public static SchadensfresseChampionsLeagueBonusManifest Create(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        string promptProvider)
     {
-        ArgumentNullException.ThrowIfNull(modelConfig);
+        ArgumentNullException.ThrowIfNull(scope);
+        var seedQuestion = scope.SeedQuestion;
+        return new SchadensfresseChampionsLeagueBonusManifest
+        {
+            KicktippQuestionId = seedQuestion.KicktippQuestionId,
+            QuestionDefinitionSha256 = seedQuestion.DefinitionSha256,
+            PromptProvider = promptProvider,
+            ModelConfigKey = scope.ModelConfig.IdentityKey
+        };
+    }
+
+    public void Validate(SchadensfresseChampionsLeagueBonusPredictionScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(scope);
+        var seedQuestion = scope.SeedQuestion;
+        var modelConfig = scope.ModelConfig;
         if (SchemaVersion != 1
             || !string.Equals(ProfileId, SchadensfresseChampionsLeagueBonusProfile.ProfileId, StringComparison.Ordinal)
             || !string.Equals(Competition, SchadensfresseChampionsLeagueBonusProfile.Competition, StringComparison.Ordinal)
             || !string.Equals(CommunityContext, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal)
+            || !string.Equals(KicktippQuestionId, seedQuestion.KicktippQuestionId, StringComparison.Ordinal)
             || !string.Equals(Deadline, SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc, StringComparison.Ordinal)
             || !string.Equals(QuestionSetSha256, SchadensfresseChampionsLeagueBonusProfile.QuestionSetSha256, StringComparison.Ordinal)
             || !string.Equals(SourceSnapshotSha256, SchadensfresseChampionsLeagueBonusProfile.SourceSnapshotSha256, StringComparison.Ordinal)
             || !string.Equals(HistoricalEvidenceQuestionSetSha256, SchadensfresseChampionsLeagueBonusProfile.HistoricalEvidenceQuestionSetSha256, StringComparison.Ordinal)
+            || !string.Equals(QuestionDefinitionSha256, seedQuestion.DefinitionSha256, StringComparison.Ordinal)
             || !string.Equals(PromptName, SchadensfresseChampionsLeagueBonusProfile.PromptName, StringComparison.Ordinal)
             || PromptVersion != SchadensfresseChampionsLeagueBonusProfile.PromptVersion
             || !string.Equals(PromptLabel, SchadensfresseChampionsLeagueBonusProfile.PromptLabel, StringComparison.Ordinal)
@@ -48,11 +67,83 @@ public sealed record SchadensfresseChampionsLeagueBonusManifest
             || MaxOutputTokens != SchadensfresseChampionsLeagueBonusProfile.MaxOutputTokens
             || !string.Equals(ServicePolicyId, SchadensfresseChampionsLeagueBonusProfile.ServicePolicyId, StringComparison.Ordinal)
             || Documents is null || Documents.Length != 0
-            || string.IsNullOrWhiteSpace(KicktippQuestionId)
-            || string.IsNullOrWhiteSpace(QuestionDefinitionSha256)
+            || !string.Equals(modelConfig.Model, SchadensfresseChampionsLeagueBonusProfile.Model, StringComparison.Ordinal)
+            || !string.Equals(modelConfig.ReasoningEffort, SchadensfresseChampionsLeagueBonusProfile.ReasoningEffort, StringComparison.Ordinal)
+            || modelConfig.MaxOutputTokenCount != SchadensfresseChampionsLeagueBonusProfile.MaxOutputTokens
+            || !string.Equals(modelConfig.PromptName, SchadensfresseChampionsLeagueBonusProfile.PromptName, StringComparison.Ordinal)
+            || modelConfig.PromptVersion != SchadensfresseChampionsLeagueBonusProfile.PromptVersion
             || !string.Equals(ModelConfigKey, modelConfig.IdentityKey, StringComparison.Ordinal))
         {
             throw new InvalidDataException("The Schadensfresse Champions-League bonus manifest is not the frozen empty-context lineage.");
         }
     }
+}
+
+/// <summary>Immutable caller-owned lineage scope used for every specialized Firestore operation.</summary>
+public sealed record SchadensfresseChampionsLeagueBonusPredictionScope
+{
+    private SchadensfresseChampionsLeagueBonusPredictionScope(
+        BonusQuestion question,
+        SchadensfresseChampionsLeagueBonusSeedQuestion seedQuestion,
+        PredictionModelConfig modelConfig)
+    {
+        Question = question;
+        SeedQuestion = seedQuestion;
+        ModelConfig = modelConfig;
+    }
+
+    public BonusQuestion Question { get; }
+    public SchadensfresseChampionsLeagueBonusSeedQuestion SeedQuestion { get; }
+    public PredictionModelConfig ModelConfig { get; }
+
+    public static SchadensfresseChampionsLeagueBonusPredictionScope Create(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig)
+    {
+        ArgumentNullException.ThrowIfNull(question);
+        ArgumentNullException.ThrowIfNull(modelConfig);
+        SchadensfresseChampionsLeagueBonusProfile.ValidateQuestion(question);
+        var expectedConfig = SchadensfresseChampionsLeagueBonusProfile.CreateModelConfig();
+        if (!string.Equals(modelConfig.IdentityKey, expectedConfig.IdentityKey, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("The CL bonus lineage scope requires the exact frozen model configuration.");
+        }
+
+        var questionId = SchadensfresseChampionsLeagueBonusProfile.GetQuestionId(question);
+        return new SchadensfresseChampionsLeagueBonusPredictionScope(
+            question,
+            SchadensfresseChampionsLeagueBonusProfile.GetSeedQuestion(questionId),
+            modelConfig);
+    }
+}
+
+/// <summary>Optional strict persistence capability for the frozen CL bonus exception.</summary>
+public interface ISchadensfresseChampionsLeagueBonusPredictionRepository
+{
+    Task<BonusPredictionMetadata?> GetCurrentAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        CancellationToken cancellationToken = default);
+
+    Task SaveAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        BonusPrediction prediction,
+        string promptProvider,
+        string tokenUsage,
+        double cost,
+        bool overrideExisting,
+        CancellationToken cancellationToken = default);
+
+    Task<int> GetCurrentRepredictionIndexAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        CancellationToken cancellationToken = default);
+
+    Task SaveRepredictionAsync(
+        SchadensfresseChampionsLeagueBonusPredictionScope scope,
+        BonusPrediction prediction,
+        string promptProvider,
+        string tokenUsage,
+        double cost,
+        int expectedCurrentRepredictionIndex,
+        int maxRepredictions,
+        CancellationToken cancellationToken = default);
 }

@@ -1,4 +1,4 @@
-name: Bundesliga 2026/27 schadensfresse Sol xhigh copy - Bonus
+name: Bundesliga 2026/27 schadensfresse Sol xhigh CL - Bonus
 
 on:
   workflow_dispatch:
@@ -13,11 +13,6 @@ on:
         required: false
         default: 2
         type: number
-      bonus_deadline_at_or_before:
-        description: 'Exact UTC ceiling; keep the initial Bundesliga-only default until P1 mixed-competition routing exists'
-        required: false
-        default: '2026-08-28T18:30:00Z'
-        type: string
 
 concurrency:
   group: bundesliga-2026-27-production-live-lane
@@ -25,22 +20,23 @@ concurrency:
 
 jobs:
   call-base-workflow:
-    name: Copy Bonus Predictions
+    name: Strict CL Bonus Predictions
     uses: ./.github/workflows/base-bonus-predictions.yml
     with:
       community: "schadensfresse"
-      community_context: "pes-squad"
+      community_context: "schadensfresse"
       competition: "bundesliga-2026-27"
       model: "gpt-5.6-sol"
       reasoning_effort: "xhigh"
       max_output_tokens: 10000
       prompt_source: "langfuse"
-      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-bonus"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/champions-league/predict-bonus"
       langfuse_prompt_label: "production"
       langfuse_prompt_version: 1
-      bonus_context_document_budget: 20
-      bonus_context_token_budget: 32000
-      bonus_deadline_at_or_before: ${{ inputs.bonus_deadline_at_or_before }}
+      bonus_profile: "schadensfresse-champions-league-bonus-context-free-v1"
+      bonus_context_document_budget: 0
+      bonus_context_token_budget: 0
+      bonus_deadline_at_or_before: "2026-09-08T16:45:00Z"
       trigger_type: "manual"
       force_prediction: ${{ inputs.force_prediction }}
       max_repredictions: ${{ fromJSON(inputs.max_repredictions) }}

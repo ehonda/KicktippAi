@@ -8,6 +8,10 @@ namespace Orchestrator.Commands.Operations.Bonus;
 
 public sealed class BonusSettings : BaseSettings
 {
+    [CommandOption("--bonus-profile")]
+    [Description("Optional exact specialized bonus profile identifier")]
+    public string? BonusProfile { get; set; }
+
     [CommandOption("--bonus-context-document-budget")]
     [Description("Maximum number of required Bundesliga bonus context documents")]
     public int? BonusContextDocumentBudget { get; set; }
@@ -28,13 +32,19 @@ public sealed class BonusSettings : BaseSettings
             return baseResult;
         }
 
-        if (BonusContextDocumentBudget is < BonusContextBudget.MinimumMaximumDocuments)
+        var isFrozenClProfile = string.Equals(
+            BonusProfile,
+            SchadensfresseChampionsLeagueBonusProfile.ProfileId,
+            StringComparison.Ordinal);
+        if (BonusContextDocumentBudget is < BonusContextBudget.MinimumMaximumDocuments
+            && !(isFrozenClProfile && BonusContextDocumentBudget == 0))
         {
             return ValidationResult.Error(
                 $"--bonus-context-document-budget must be at least {BonusContextBudget.MinimumMaximumDocuments} when provided");
         }
 
-        if (BonusContextEstimatedTokenBudget is < BonusContextBudget.MinimumMaximumEstimatedTokens)
+        if (BonusContextEstimatedTokenBudget is < BonusContextBudget.MinimumMaximumEstimatedTokens
+            && !(isFrozenClProfile && BonusContextEstimatedTokenBudget == 0))
         {
             return ValidationResult.Error(
                 $"--bonus-context-token-budget must be at least {BonusContextBudget.MinimumMaximumEstimatedTokens} when provided");

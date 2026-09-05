@@ -76,9 +76,15 @@ public class VerifyBonusCommand : AsyncCommand<VerifyBonusSettings>
     {
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
-            settings.Model,
-            settings.ReasoningEffort,
+        var isPotentialChampionsLeagueBonus = SchadensfresseChampionsLeagueBonusProfile.IsPotentialInvocation(
+            settings.BonusProfile,
+            settings.Community,
+            communityContext,
+            settings.LangfusePromptName)
+            || string.Equals(settings.BonusDeadlineAtOrBefore, SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc, StringComparison.Ordinal)
+               && string.Equals(settings.Community, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal);
+        var isChampionsLeagueBonus = SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
+            settings.BonusProfile,
             competition,
             settings.Community,
             communityContext,
@@ -86,8 +92,30 @@ public class VerifyBonusCommand : AsyncCommand<VerifyBonusSettings>
             settings.LangfusePromptName,
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
+            settings.Model,
+            settings.ReasoningEffort,
             settings.MaxOutputTokenCount,
-            bonusPrompt: true);
+            settings.BonusContextDocumentBudget,
+            settings.BonusContextEstimatedTokenBudget,
+            settings.BonusDeadlineAtOrBefore);
+        if (isPotentialChampionsLeagueBonus && !isChampionsLeagueBonus)
+        {
+            throw new InvalidOperationException("The CL verification intent does not match the complete frozen profile tuple.");
+        }
+        var modelConfig = isChampionsLeagueBonus
+            ? SchadensfresseChampionsLeagueBonusProfile.CreateModelConfig()
+            : PredictionServiceCommandSupport.CreateModelConfig(
+                settings.Model,
+                settings.ReasoningEffort,
+                competition,
+                settings.Community,
+                communityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                settings.LangfusePromptVersion,
+                settings.MaxOutputTokenCount,
+                bonusPrompt: true);
         if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
         {
             _credentialLoader.Load(settings.Community);
@@ -110,6 +138,14 @@ public class VerifyBonusCommand : AsyncCommand<VerifyBonusSettings>
             _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
             _console.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
+        }
+        if (isChampionsLeagueBonus)
+        {
+            return await VerifyChampionsLeagueBonusAsync(
+                kicktippClient,
+                predictionRepository as ISchadensfresseChampionsLeagueBonusPredictionRepository
+                ?? throw new InvalidOperationException("CL verification requires the specialized prediction repository capability."),
+                modelConfig);
         }
         
         // Get KPI repository for outdated checks (required for bonus predictions)
@@ -358,6 +394,30 @@ public class VerifyBonusCommand : AsyncCommand<VerifyBonusSettings>
         }
         
         return hasDiscrepancies;
+    }
+
+    private async Task<bool> VerifyChampionsLeagueBonusAsync(
+        IKicktippClient kicktippClient,
+        ISchadensfresseChampionsLeagueBonusPredictionRepository repository,
+        PredictionModelConfig modelConfig)
+    {
+        var snapshot = await kicktippClient.GetChampionsLeagueBonusFormSnapshotAsync(
+            SchadensfresseChampionsLeagueBonusProfile.Community);
+        ChampionsLeagueBonusRoute.ValidateSnapshot(snapshot);
+        var results = new List<(string QuestionId, BonusPrediction Prediction)>(3);
+        foreach (var question in snapshot.Questions)
+        {
+            var scope = SchadensfresseChampionsLeagueBonusPredictionScope.Create(question.Question, modelConfig);
+            var metadata = await repository.GetCurrentAsync(scope)
+                ?? throw new InvalidDataException($"No exact CL lineage row exists for question {question.QuestionId}.");
+            SchadensfresseChampionsLeagueBonusProfile.ValidatePrediction(question.Question, metadata.BonusPrediction);
+            results.Add((question.QuestionId, metadata.BonusPrediction));
+        }
+
+        ChampionsLeagueBonusRoute.ValidateCompletePredictions(snapshot, results);
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(snapshot, results);
+        _console.MarkupLine("[green]All three strict CL bonus predictions match exact Firestore lineage and Kicktipp readback.[/]");
+        return false;
     }
 
     private async Task<ResolvedVerificationPrediction> ResolveReferenceCopyPredictionAsync(

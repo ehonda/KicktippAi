@@ -14,12 +14,15 @@ the UTC cron `7 2,9 * * *` and a strict 16-job chain: `pes-squad`,
 `schadensfresse`, `relaxdays-tippt`, and the five arena rows, each as context
 then matchday. P0-21 owns observation and any live recovery.
 
-The manual `schadensfresse` bonus leaf defaults its inclusive strict-UTC scope
-to `2026-08-28T18:30:00Z`. Its exact five-question alias policy is not generic
-normalization; the three CL questions due September 9 remain P1-08. Do not add
-bonus to the recurring outer lane. ADR-0055 adds only the green ordinary
-Bundesliga context/copy pair immediately after `pes-squad`; mixed-competition
-bonus and final routes remain outside that lane.
+The manual `schadensfresse` Sol/`xhigh` bonus leaf is the narrow ADR-0069 CL
+exception. It pins target and context to `schadensfresse`, profile
+`schadensfresse-champions-league-bonus-context-free-v1`, the dedicated hosted
+prompt v1/`production`, deadline `2026-09-08T16:45:00Z`, and `0/0` context
+budgets. The reusable workflow admits those zero budgets only when the entire
+frozen tuple matches and passes the profile through initial verification,
+generation, and final verification. The leaf remains manual-only and must not
+enter the recurring production-live lane. Ordinary Bundesliga copy routes
+continue to use the accepted context budgets and prompt without the profile.
 
 The reusable context workflow's `publish_launch_roster_overlay` input is false
 by default. Set it only for an accepted initial Bundesliga production roster

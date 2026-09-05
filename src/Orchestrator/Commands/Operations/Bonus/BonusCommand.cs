@@ -9,6 +9,7 @@ using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
+using KicktippIntegration;
 
 namespace Orchestrator.Commands.Operations.Bonus;
 
@@ -168,9 +169,16 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         var generationCommunityContext = isReferenceCopyMode
             ? settings.Community
             : communityContext;
-        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
-            settings.Model,
-            settings.ReasoningEffort,
+        var clSettings = settings as BonusSettings;
+        var isPotentialChampionsLeagueBonus = SchadensfresseChampionsLeagueBonusProfile.IsPotentialInvocation(
+            clSettings?.BonusProfile,
+            settings.Community,
+            communityContext,
+            settings.LangfusePromptName)
+            || string.Equals(clSettings?.BonusDeadlineAtOrBefore, SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc, StringComparison.Ordinal)
+               && string.Equals(settings.Community, SchadensfresseChampionsLeagueBonusProfile.Community, StringComparison.Ordinal);
+        var isChampionsLeagueBonus = SchadensfresseChampionsLeagueBonusProfile.IsExactInvocation(
+            clSettings?.BonusProfile,
             competition,
             settings.Community,
             communityContext,
@@ -178,8 +186,31 @@ public class BonusCommand : AsyncCommand<BonusSettings>
             settings.LangfusePromptName,
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
+            settings.Model,
+            settings.ReasoningEffort,
             settings.MaxOutputTokenCount,
-            bonusPrompt: true);
+            clSettings?.BonusContextDocumentBudget,
+            clSettings?.BonusContextEstimatedTokenBudget,
+            clSettings?.BonusDeadlineAtOrBefore);
+        if (isPotentialChampionsLeagueBonus && !isChampionsLeagueBonus)
+        {
+            throw new BundesligaBonusSafetyException(
+                "The Schadensfresse Champions-League bonus intent does not match the complete frozen profile tuple.");
+        }
+        var modelConfig = isChampionsLeagueBonus
+            ? SchadensfresseChampionsLeagueBonusProfile.CreateModelConfig()
+            : PredictionServiceCommandSupport.CreateModelConfig(
+                settings.Model,
+                settings.ReasoningEffort,
+                competition,
+                settings.Community,
+                communityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                settings.LangfusePromptVersion,
+                settings.MaxOutputTokenCount,
+                bonusPrompt: true);
         var model = modelConfig.Model;
         // Set Langfuse trace-level attributes
         var sessionId = $"bonus-{settings.Community}";
@@ -236,7 +267,11 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                 modelConfig.ReasoningEffort,
                 settings.MaxOutputTokenCount,
                 bonusPrompt: true,
-                requireHostedPrompt: settings.RequireHostedPrompt);
+                requireHostedPrompt: settings.RequireHostedPrompt,
+                bonusProfile: clSettings?.BonusProfile,
+                bonusContextDocumentBudget: clSettings?.BonusContextDocumentBudget,
+                bonusContextTokenBudget: clSettings?.BonusContextEstimatedTokenBudget,
+                bonusDeadlineAtOrBefore: clSettings?.BonusDeadlineAtOrBefore);
 
             if (settings.Verbose)
             {
@@ -244,6 +279,24 @@ public class BonusCommand : AsyncCommand<BonusSettings>
             }
 
             return predictionService;
+        }
+
+        var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
+        tokenUsageTracker.Reset();
+        if (isChampionsLeagueBonus)
+        {
+            var strictRepository = _firebaseServiceFactory.CreatePredictionRepository(competition)
+                as ISchadensfresseChampionsLeagueBonusPredictionRepository
+                ?? throw new InvalidOperationException("The frozen CL bonus route requires its specialized prediction repository capability.");
+            await ExecuteChampionsLeagueBonusWorkflow(
+                settings,
+                kicktippClient,
+                strictRepository,
+                modelConfig,
+                tokenUsageTracker,
+                GetPredictionService,
+                activity);
+            return;
         }
         
         // Create KPI Context Provider for bonus predictions using factory
@@ -257,8 +310,6 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         {
             await EnsureWorldCupRankingKpiPresentAsync(kpiContextProvider, communityContext);
         }
-        
-        var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
         // Create repositories
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
@@ -281,8 +332,6 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
-        tokenUsageTracker.Reset();
-        
         LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
@@ -960,6 +1009,157 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
     }
 
+    private async Task ExecuteChampionsLeagueBonusWorkflow(
+        BaseSettings settings,
+        IKicktippClient kicktippClient,
+        ISchadensfresseChampionsLeagueBonusPredictionRepository repository,
+        PredictionModelConfig modelConfig,
+        ITokenUsageTracker tokenUsageTracker,
+        Func<IPredictionService> getPredictionService,
+        System.Diagnostics.Activity? activity)
+    {
+        var initial = await kicktippClient.GetChampionsLeagueBonusFormSnapshotAsync(settings.Community);
+        ChampionsLeagueBonusRoute.ValidateSnapshot(initial);
+        var scopes = initial.Questions.Select(question =>
+            SchadensfresseChampionsLeagueBonusPredictionScope.Create(question.Question, modelConfig)).ToArray();
+        var currentRows = new BonusPredictionMetadata?[scopes.Length];
+        for (var index = 0; index < scopes.Length; index++)
+        {
+            currentRows[index] = await repository.GetCurrentAsync(scopes[index]);
+            if (currentRows[index] is { } row)
+            {
+                SchadensfresseChampionsLeagueBonusProfile.ValidatePrediction(scopes[index].Question, row.BonusPrediction);
+            }
+        }
+
+        var initialResults = scopes.Select((scope, index) =>
+            currentRows[index] is null
+                ? ((string QuestionId, BonusPrediction Prediction)?)null
+                : (scope.SeedQuestion.KicktippQuestionId, currentRows[index]!.BonusPrediction)).ToArray();
+        if (!settings.OverrideDatabase && initialResults.All(result => result is not null))
+        {
+            var complete = initialResults.Select(result => result!.Value).ToArray();
+            ChampionsLeagueBonusRoute.ValidateCompletePredictions(initial, complete);
+            try
+            {
+                ChampionsLeagueBonusRoute.ValidatePlacedSelections(initial, complete);
+                _console.MarkupLine("[green]The exact three CL bonus predictions are already current in Firestore and Kicktipp.[/]");
+                activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { status = "already-current", count = 3 }));
+                return;
+            }
+            catch (InvalidDataException)
+            {
+                // Complete cache with blank/partial/different placed state is repaired below.
+            }
+        }
+
+        var results = new (string QuestionId, BonusPrediction Prediction)?[scopes.Length];
+        for (var index = 0; index < scopes.Length; index++)
+        {
+            var scope = scopes[index];
+            try
+            {
+                var row = currentRows[index];
+                var shouldGenerate = settings.OverrideDatabase || row is null;
+                if (!shouldGenerate)
+                {
+                    results[index] = (scope.SeedQuestion.KicktippQuestionId, row!.BonusPrediction);
+                    continue;
+                }
+
+                int? repredictionIndex = settings.IsRepredictMode
+                    ? await repository.GetCurrentRepredictionIndexAsync(scope)
+                    : row?.SchadensfresseChampionsLeagueBonusManifest is null ? 0 : null;
+                var prediction = await getPredictionService().PredictBonusQuestionAsync(
+                    scope.Question,
+                    [],
+                    new PredictionTelemetryMetadata(
+                        RepredictionIndex: repredictionIndex,
+                        Competition: SchadensfresseChampionsLeagueBonusProfile.Competition,
+                        ContextDocumentNames: [],
+                        BonusContextDocumentBudget: 0,
+                        BonusContextEstimatedTokenBudget: 0));
+                if (prediction is null)
+                {
+                    throw new BundesligaBonusSafetyException("The CL prediction service returned no prediction.");
+                }
+                SchadensfresseChampionsLeagueBonusProfile.ValidatePrediction(scope.Question, prediction);
+
+                if (!settings.DryRun)
+                {
+                    var promptPath = getPredictionService().GetBonusPromptPath();
+                    var promptProvider = promptPath.StartsWith("langfuse://", StringComparison.Ordinal)
+                        ? "langfuse"
+                        : "dedicated-cl-mirror";
+                    var tokenUsage = tokenUsageTracker.GetLastUsageJson() ?? "{}";
+                    var cost = (double)tokenUsageTracker.GetLastCost();
+                    if (settings.IsRepredictMode)
+                    {
+                        await repository.SaveRepredictionAsync(
+                            scope,
+                            prediction,
+                            promptProvider,
+                            tokenUsage,
+                            cost,
+                            repredictionIndex ?? -1,
+                            settings.MaxRepredictions ?? int.MaxValue);
+                    }
+                    else
+                    {
+                        await repository.SaveAsync(
+                            scope,
+                            prediction,
+                            promptProvider,
+                            tokenUsage,
+                            cost,
+                            overrideExisting: settings.OverrideDatabase);
+                    }
+                }
+                results[index] = (scope.SeedQuestion.KicktippQuestionId, prediction);
+            }
+            catch (Exception exception)
+            {
+                _logger.LogError(exception, "Failed strict CL processing for question {QuestionId}", scope.SeedQuestion.KicktippQuestionId);
+                _console.MarkupLine($"[red]Failed strict CL question {Markup.Escape(scope.SeedQuestion.KicktippQuestionId)}:[/] {Markup.Escape(exception.Message)}");
+            }
+        }
+
+        if (results.Any(result => result is null))
+        {
+            throw new BundesligaBonusSafetyException("The strict CL run did not produce the complete three-question result; Kicktipp was not posted.");
+        }
+        var completeResults = results.Select(result => result!.Value).ToArray();
+        ChampionsLeagueBonusRoute.ValidateCompletePredictions(initial, completeResults);
+        var prePost = await kicktippClient.GetChampionsLeagueBonusFormSnapshotAsync(settings.Community);
+        _ = ChampionsLeagueBonusRoute.BuildPostPayload(initial, prePost, completeResults, settings.OverrideKicktipp);
+
+        if (settings.DryRun)
+        {
+            _console.MarkupLine("[magenta]Dry run validated the exact complete CL payload; Firestore and Kicktipp were not changed.[/]");
+            return;
+        }
+
+        var finalSnapshot = await kicktippClient.PlaceChampionsLeagueBonusPredictionsAsync(
+            settings.Community,
+            prePost,
+            completeResults,
+            settings.OverrideKicktipp);
+        ChampionsLeagueBonusRoute.ValidatePlacedSelections(finalSnapshot, completeResults);
+        for (var index = 0; index < scopes.Length; index++)
+        {
+            var finalRow = await repository.GetCurrentAsync(scopes[index])
+                ?? throw new BundesligaBonusSafetyException("Final CL Firestore verification found a missing exact-lineage row.");
+            SchadensfresseChampionsLeagueBonusProfile.ValidatePrediction(scopes[index].Question, finalRow.BonusPrediction);
+            if (!BonusPredictionContentEquality.Equals(finalRow.BonusPrediction, completeResults[index].Prediction))
+            {
+                throw new BundesligaBonusSafetyException("Final CL Firestore verification disagrees with the posted prediction.");
+            }
+        }
+
+        activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { status = "verified", count = 3 }));
+        _console.MarkupLine("[green]Placed and independently verified all three strict CL bonus predictions.[/]");
+    }
+
     private static void SetPinnedModelConfigTraceMetadata(
         System.Diagnostics.Activity? activity,
         PredictionModelConfig modelConfig)
@@ -986,6 +1186,15 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         ArgumentNullException.ThrowIfNull(settings);
         if (settings is not BonusSettings bonusSettings)
         {
+            return BonusContextBudget.Default;
+        }
+
+        if (string.Equals(bonusSettings.BonusProfile, SchadensfresseChampionsLeagueBonusProfile.ProfileId, StringComparison.Ordinal)
+            && bonusSettings.BonusContextDocumentBudget == 0
+            && bonusSettings.BonusContextEstimatedTokenBudget == 0)
+        {
+            // The dedicated CL branch never constructs or consults an ordinary
+            // Bundesliga context budget. Preserve the exact caller-supplied 0/0 tuple.
             return BonusContextBudget.Default;
         }
 

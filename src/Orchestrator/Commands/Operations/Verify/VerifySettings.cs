@@ -105,6 +105,18 @@ public class VerifySettings : CommandSettings
 
 public sealed class VerifyBonusSettings : VerifySettings
 {
+    [CommandOption("--bonus-profile")]
+    [Description("Optional exact specialized bonus profile identifier")]
+    public string? BonusProfile { get; set; }
+
+    [CommandOption("--bonus-context-document-budget")]
+    [Description("Exact specialized bonus context document budget")]
+    public int? BonusContextDocumentBudget { get; set; }
+
+    [CommandOption("--bonus-context-token-budget")]
+    [Description("Exact specialized bonus context token budget")]
+    public int? BonusContextEstimatedTokenBudget { get; set; }
+
     [CommandOption("--bonus-deadline-at-or-before")]
     [Description("Optional exact UTC deadline ceiling for selected open bonus questions (for example 2026-08-28T18:30:00Z)")]
     public string? BonusDeadlineAtOrBefore { get; set; }
@@ -115,6 +127,18 @@ public sealed class VerifyBonusSettings : VerifySettings
         if (!baseResult.Successful)
         {
             return baseResult;
+        }
+
+        var isCl = string.Equals(BonusProfile, SchadensfresseChampionsLeagueBonusProfile.ProfileId, StringComparison.Ordinal);
+        if (BonusContextDocumentBudget is < BonusContextBudget.MinimumMaximumDocuments
+            && !(isCl && BonusContextDocumentBudget == 0))
+        {
+            return ValidationResult.Error("--bonus-context-document-budget is below the supported profile minimum");
+        }
+        if (BonusContextEstimatedTokenBudget is < BonusContextBudget.MinimumMaximumEstimatedTokens
+            && !(isCl && BonusContextEstimatedTokenBudget == 0))
+        {
+            return ValidationResult.Error("--bonus-context-token-budget is below the supported profile minimum");
         }
 
         return BonusQuestionExecutionScope.TryParseDeadlineAtOrBefore(

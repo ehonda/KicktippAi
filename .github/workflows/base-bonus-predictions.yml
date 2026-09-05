@@ -52,6 +52,11 @@ on:
         required: false
         type: number
         default: 20
+      bonus_profile:
+        description: 'Optional exact specialized bonus profile'
+        required: false
+        type: string
+        default: ''
       bonus_context_token_budget:
         description: 'Maximum deterministic estimated Bundesliga bonus context tokens'
         required: false
@@ -121,6 +126,7 @@ jobs:
       LANGFUSE_PROMPT_VERSION: ${{ inputs.langfuse_prompt_version }}
       BONUS_CONTEXT_DOCUMENT_BUDGET: ${{ inputs.bonus_context_document_budget }}
       BONUS_CONTEXT_TOKEN_BUDGET: ${{ inputs.bonus_context_token_budget }}
+      BONUS_PROFILE: ${{ inputs.bonus_profile }}
       BONUS_DEADLINE_AT_OR_BEFORE: ${{ inputs.bonus_deadline_at_or_before }}
       RETIRED_CONFIGURATION: ${{ inputs.retired_configuration }}
       TRIGGER_TYPE: ${{ inputs.trigger_type }}
@@ -166,6 +172,7 @@ jobs:
 
           case "$COMPETITION|$LANGFUSE_PROMPT_NAME" in
             "bundesliga-2026-27|kicktippai/bundesliga-2026-27/predict-bonus"|\
+            "bundesliga-2026-27|kicktippai/bundesliga-2026-27/champions-league/predict-bonus"|\
             "fifa-world-cup-2026|kicktippai/wm26/predict-bonus") ;;
             *)
               echo "::error::The competition and bonus prompt route do not form a supported exact identity."
@@ -173,13 +180,23 @@ jobs:
               ;;
           esac
 
-          if [[ ! "$BONUS_CONTEXT_DOCUMENT_BUDGET" =~ ^[0-9]+$ ]] || [ "$BONUS_CONTEXT_DOCUMENT_BUDGET" -lt 2 ]; then
-            echo "::error::BONUS_CONTEXT_DOCUMENT_BUDGET must be at least 2."
-            exit 1
-          fi
-          if [[ ! "$BONUS_CONTEXT_TOKEN_BUDGET" =~ ^[0-9]+$ ]] || [ "$BONUS_CONTEXT_TOKEN_BUDGET" -lt 256 ]; then
-            echo "::error::BONUS_CONTEXT_TOKEN_BUDGET must be at least 256."
-            exit 1
+          CL_PROFILE="schadensfresse-champions-league-bonus-context-free-v1"
+          CL_PROMPT="kicktippai/bundesliga-2026-27/champions-league/predict-bonus"
+          CL_DEADLINE="2026-09-08T16:45:00Z"
+          if [ -n "$BONUS_PROFILE" ] || [ "$LANGFUSE_PROMPT_NAME" = "$CL_PROMPT" ]; then
+            if [ "$BONUS_PROFILE|$COMMUNITY|$COMMUNITY_CONTEXT|$COMPETITION|$MODEL|$REASONING_EFFORT|$MAX_OUTPUT_TOKENS|$PROMPT_SOURCE|$LANGFUSE_PROMPT_NAME|$LANGFUSE_PROMPT_LABEL|$LANGFUSE_PROMPT_VERSION|$BONUS_CONTEXT_DOCUMENT_BUDGET|$BONUS_CONTEXT_TOKEN_BUDGET|$BONUS_DEADLINE_AT_OR_BEFORE" != "$CL_PROFILE|schadensfresse|schadensfresse|bundesliga-2026-27|gpt-5.6-sol|xhigh|10000|langfuse|$CL_PROMPT|production|1|0|0|$CL_DEADLINE" ]; then
+              echo "::error::The specialized CL bonus route requires its complete frozen tuple."
+              exit 1
+            fi
+          else
+            if [[ ! "$BONUS_CONTEXT_DOCUMENT_BUDGET" =~ ^[0-9]+$ ]] || [ "$BONUS_CONTEXT_DOCUMENT_BUDGET" -lt 2 ]; then
+              echo "::error::BONUS_CONTEXT_DOCUMENT_BUDGET must be at least 2."
+              exit 1
+            fi
+            if [[ ! "$BONUS_CONTEXT_TOKEN_BUDGET" =~ ^[0-9]+$ ]] || [ "$BONUS_CONTEXT_TOKEN_BUDGET" -lt 256 ]; then
+              echo "::error::BONUS_CONTEXT_TOKEN_BUDGET must be at least 256."
+              exit 1
+            fi
           fi
           if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ] && [[ ! "$BONUS_DEADLINE_AT_OR_BEFORE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
             echo "::error::BONUS_DEADLINE_AT_OR_BEFORE must be an exact UTC instant such as 2026-08-28T18:30:00Z."
@@ -219,7 +236,10 @@ jobs:
           if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ]; then
             PROMPT_LABEL_FLAGS+=(--bonus-deadline-at-or-before "$BONUS_DEADLINE_AT_OR_BEFORE")
           fi
-          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
+          if [ -n "$BONUS_PROFILE" ]; then
+            PROMPT_LABEL_FLAGS+=(--bonus-profile "$BONUS_PROFILE")
+          fi
+          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET" --bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -254,6 +274,9 @@ jobs:
           if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ]; then
             PREDICTION_FLAGS+=(--bonus-deadline-at-or-before "$BONUS_DEADLINE_AT_OR_BEFORE")
           fi
+          if [ -n "$BONUS_PROFILE" ]; then
+            PREDICTION_FLAGS+=(--bonus-profile "$BONUS_PROFILE")
+          fi
 
           dotnet run --project src/Orchestrator --configuration Release -- bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET" --bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET" --override-kicktipp --verbose --agent "${PREDICTION_FLAGS[@]}"
         env:
@@ -276,7 +299,10 @@ jobs:
           if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ]; then
             PROMPT_LABEL_FLAGS+=(--bonus-deadline-at-or-before "$BONUS_DEADLINE_AT_OR_BEFORE")
           fi
-          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
+          if [ -n "$BONUS_PROFILE" ]; then
+            PROMPT_LABEL_FLAGS+=(--bonus-profile "$BONUS_PROFILE")
+          fi
+          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET" --bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}

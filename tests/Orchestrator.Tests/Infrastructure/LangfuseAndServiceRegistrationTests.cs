@@ -589,6 +589,35 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
+    public async Task Near_match_cl_prompt_cannot_fall_through_to_an_ordinary_prediction_service()
+    {
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+
+        await Assert.That(() => PredictionServiceCommandSupport.CreatePredictionService(
+                openAiFactory.Object,
+                new Mock<ILangfusePublicApiClient>().Object,
+                new Mock<IAnsiConsole>().Object,
+                SchadensfresseChampionsLeagueBonusProfile.Model,
+                SchadensfresseChampionsLeagueBonusProfile.Competition,
+                SchadensfresseChampionsLeagueBonusProfile.Community,
+                SchadensfresseChampionsLeagueBonusProfile.Community,
+                "langfuse",
+                SchadensfresseChampionsLeagueBonusProfile.PromptName,
+                SchadensfresseChampionsLeagueBonusProfile.PromptLabel,
+                SchadensfresseChampionsLeagueBonusProfile.PromptVersion,
+                SchadensfresseChampionsLeagueBonusProfile.ReasoningEffort,
+                9_999,
+                bonusPrompt: true,
+                bonusProfile: SchadensfresseChampionsLeagueBonusProfile.ProfileId,
+                bonusContextDocumentBudget: 0,
+                bonusContextTokenBudget: 0,
+                bonusDeadlineAtOrBefore: SchadensfresseChampionsLeagueBonusProfile.DeadlineUtc))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("complete exact frozen invocation tuple");
+        openAiFactory.VerifyNoOtherCalls();
+    }
+
+    [Test]
     public async Task Langfuse_match_fallback_uses_justification_mirror_when_requested()
     {
         var langfuseClient = new Mock<ILangfusePublicApiClient>();
@@ -646,6 +675,84 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(metadata).IsNotNull();
         await Assert.That(metadata!.ActualSource).IsEqualTo(CompetitionResolver.LocalPromptSource);
         await Assert.That(metadata.IsFallback).IsTrue();
+    }
+
+    [Test]
+    [Arguments(500)]
+    [Arguments(502)]
+    [Arguments(599)]
+    public async Task Dedicated_cl_mirror_accepts_only_public_api_server_outages(int statusCode)
+    {
+        var client = new Mock<ILangfusePublicApiClient>();
+        client.Setup(value => value.GetPromptAsync(
+                SchadensfresseChampionsLeagueBonusProfile.PromptName,
+                "production",
+                1,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new LangfusePublicApiException((HttpStatusCode)statusCode, "v2/prompts/test", "outage"));
+        var provider = CreateDedicatedClProvider(client.Object);
+
+        provider.LoadBonusTemplate("gpt-5.6-sol");
+        var metadata = provider.GetPromptTemplateTelemetryMetadata();
+
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.ActualSource).IsEqualTo("dedicated-cl-mirror");
+        await Assert.That(metadata.LangfusePromptVersion).IsEqualTo(1);
+        await Assert.That(metadata.IsFallback).IsTrue();
+    }
+
+    [Test]
+    [Arguments(401)]
+    [Arguments(403)]
+    [Arguments(404)]
+    [Arguments(429)]
+    public async Task Dedicated_cl_mirror_rejects_fatal_public_api_statuses(int statusCode)
+    {
+        var client = new Mock<ILangfusePublicApiClient>();
+        client.Setup(value => value.GetPromptAsync(
+                SchadensfresseChampionsLeagueBonusProfile.PromptName,
+                "production",
+                1,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new LangfusePublicApiException((HttpStatusCode)statusCode, "v2/prompts/test", "fatal"));
+        var provider = CreateDedicatedClProvider(client.Object);
+
+        await Assert.That(() => provider.LoadBonusTemplate("gpt-5.6-sol"))
+            .Throws<LangfusePublicApiException>();
+    }
+
+    [Test]
+    public async Task Dedicated_cl_mirror_accepts_http_client_timeout_cancellation()
+    {
+        var client = new Mock<ILangfusePublicApiClient>();
+        client.Setup(value => value.GetPromptAsync(
+                SchadensfresseChampionsLeagueBonusProfile.PromptName,
+                "production",
+                1,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TaskCanceledException("HttpClient timeout", new TimeoutException("request timeout")));
+        var provider = CreateDedicatedClProvider(client.Object);
+
+        var (_, path) = provider.LoadBonusTemplate("gpt-5.6-sol");
+        await Assert.That(path.Replace('\\', '/')).Contains("prompts/bundesliga-2026-27/champions-league/bonus.md");
+    }
+
+    [Test]
+    public async Task Dedicated_cl_mirror_does_not_convert_requested_cancellation_into_fallback()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var client = new Mock<ILangfusePublicApiClient>();
+        client.Setup(value => value.GetPromptAsync(
+                SchadensfresseChampionsLeagueBonusProfile.PromptName,
+                "production",
+                1,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+        var provider = CreateDedicatedClProvider(client.Object);
+
+        await Assert.That(() => provider.LoadBonusTemplate("gpt-5.6-sol"))
+            .Throws<OperationCanceledException>();
     }
 
     [Test]
@@ -1203,6 +1310,19 @@ public class LangfuseAndServiceRegistrationTests
 
         await Assert.That(loggerFilterOptions.MinLevel).IsEqualTo(LogLevel.Warning);
     }
+
+    private static LangfuseTextPromptTemplateProvider CreateDedicatedClProvider(ILangfusePublicApiClient client) =>
+        new(
+            client,
+            SchadensfresseChampionsLeagueBonusProfile.PromptName,
+            "production",
+            1,
+            promptKind: LangfusePromptKind.Bonus,
+            fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            fallbackModel: "bundesliga-2026-27/champions-league",
+            expectedContentSha256: SchadensfresseChampionsLeagueBonusProfile.PromptNormalizedSha256,
+            availabilityOnlyFallback: true,
+            fallbackSource: "dedicated-cl-mirror");
 
     private static LangfusePrompt CreateTextPrompt(
         string name,

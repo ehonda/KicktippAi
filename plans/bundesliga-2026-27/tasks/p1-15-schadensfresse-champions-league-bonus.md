@@ -1,6 +1,6 @@
 # P1-15 — Deliver frozen Schadensfresse Champions-League bonus
 
-- Status: In progress — implementation and focused verification pending root heavy-operation lease
+- Status: In progress — bounded implementation, Release build, focused tests, and full workflow contract pass locally; affected suites, actionlint, and root review remain pending
 - Outcome: place the three exact deadline-bound CL answers through a target-owned manual route without importing P1-10/P1-13 global typing.
 - Depends on: [ADR-0069](../decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md), frozen candidate `6ab7a3548dd5e56e2dcb360de8bc2dde9a9e902fc291cb0955da5f10fff4020a`
 
