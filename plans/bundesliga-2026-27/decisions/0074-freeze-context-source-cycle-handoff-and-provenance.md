@@ -75,12 +75,13 @@ the single reported roster evaluation precedence is `TransportRejected`,
 `SchemaRejected`, `SourceDateRejected`, `SeasonRejected`, `IdentityRejected`,
 then `Eligible`; diagnostics retain every proven defect. For
 `MetadataUnchanged`, metadata digest/length and before identity are required;
-after/embedded/raw/date/payload fields are null; **retainedDescriptorSha256 and
-retainedEvaluation are null while retainedDiagnostics is `[]`**. This editorial
-clarification is intentional. All other rejected/eligible null matrices are
-the frozen matrix in the implementation packet and must be tested. The current
-artifact reports `SourceDateRejected` with `NO_ELIGIBLE_2026_MEMBERSHIP` and
-`UNKNOWN_SOURCE_DATE`.
+after/embedded/raw/date/payload fields are null; retainedDescriptorSha256,
+retainedEvaluation, and retainedDiagnostics are all non-null and identify the
+completed accepted artifact state. **For every non-metadata rejected or eligible
+row, retainedDescriptorSha256 and retainedEvaluation are null while
+retainedDiagnostics is `[]`.** The complete matrix below is normative. The
+current artifact reports `SourceDateRejected` with
+`NO_ELIGIBLE_2026_MEMBERSHIP` and `UNKNOWN_SOURCE_DATE`.
 
 ### Transaction, handoff, and receipt contract
 
@@ -209,15 +210,14 @@ no claims, bundles, health or issue writes, uploads, or new failure paths.
 
 ### Ownership, continuity, and activation
 
-The common writer owns exactly the literal common source/cycle/bundle/health,
-Firebase repository/model, coordinator/handoff, profile, and common-test paths
-listed in [the P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md).
-P1-04 exclusively owns its listed Club Elo source/module/tests/fixtures/mapping
-paths; P1-05 exclusively owns its listed roster source/module/tests/fixtures
-paths. `IBundesligaContextSourceObservationProvider` is the source-module
-extension boundary. Only the serialized integration owner edits central DI,
-workflow files, workflow tests, this ADR, the packet, README, strategy, design,
-tasks, and snapshot.
+The common writer owns the common source/cycle/bundle/health, Firebase
+repository/model, coordinator/handoff, profile, and common-test reservation.
+P1-04 owns its Club Elo source/module/tests/fixtures/mapping reservation;
+P1-05 owns its roster source/module/tests/fixtures reservation.
+`IBundesligaContextSourceObservationProvider` is the source-module extension
+boundary. Only the serialized integration owner edits central DI, workflow
+files/tests, ADR/packet, README, strategy, design, tasks, and snapshot. No path
+is inferred from this role description.
 
 Source flags default false. Immutable heads, the 16-job serial/default-success
 topology, cron, non-cancelling concurrency, manual-only leaves, and no-bonus
@@ -228,6 +228,155 @@ source recipe and unattended-network/reuse approval. Rollback disables the
 affected flag; restoration needs exact-head green CI, valid/no-change/rejection
 evidence, all eight receipts, independent heads, issue reconciliation, and
 copy compatibility without model/post work.
+
+### Normative canonical appendix
+
+All canonical JSON is compact UTF-8 without BOM or trailing newline. Every
+stated property is present, in order; nullable values are explicit `null`.
+Unknown, duplicate, missing, reordered, case-variant, or type-coerced
+properties fail. Arrays are non-null and already ordered. SHA-256 is lowercase
+64-hex; dates are `yyyy-MM-dd`; UTC times are second-precision
+`yyyy-MM-ddTHH:mm:ssZ`; JSON byte lengths are non-negative Int64 and counts
+non-negative Int32. Diagnostics are unique ordinal-sorted codes. `LP32` is an
+unsigned four-byte big-endian length followed by bytes; `LP64` is unsigned
+eight-byte big-endian length followed by bytes. `HashFields(domain, fields...)`
+is SHA-256 of `LP32(UTF8(domain))` followed by LP32 of each raw field, with no
+delimiter. Descriptor and observation digests hash standalone canonical JSON.
+
+Cycle IDs are exactly `^gha:[1-9][0-9]{0,18}:[1-9][0-9]{0,18}$` for production
+and `^local:[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`
+for development. Production is `gha:<github.repository_id>:<github.run_id>`;
+development is a validated lowercase UUIDv7. Sequence is production run ID or
+the UUIDv7 48-bit Unix-millisecond component. Watermark ordering is
+`(sequence, cycleId ordinal)`. Bundle digest is SHA-256 of
+`LP32("bundesliga-context-source-bundle-digest/v1")`, then each file's LP32
+relative path and LP64 exact bytes, in manifest/payload order.
+
+The production consumer list, in execution order, is exactly
+`pes-squad-context`, `schadensfresse-context`, `relaxdays-tippt-context`,
+`arena-sol-xhigh-context`, `arena-sol-high-context`,
+`arena-luna-medium-context`, `arena-terra-xhigh-context`, and
+`arena-luna-none-context`. Only `pes-squad-context` creates the cycle. Every
+reusable call receives this literal list, current lane, scope, flags, and cycle
+ID; a producer/list/order mismatch is fatal. Production artifact identity is
+`bundesliga-context-source-bundle-<cycleStorageId>`, seven-day retention,
+compression level zero, overwrite false.
+
+Cycle document root order is `contract, competition, scope, cycleId,
+cycleSequence, startedAtUtc, stalenessReferenceAtUtc, producerLaneId,
+expectedConsumers, enabledSources, status, bundleSha256, artifactName,
+abortCode, completedAtUtc`; source-cycle root order is `contract, competition,
+scope, cycleId, source, attemptId, status, claimToken, claimedAtUtc,
+leaseExpiresAtUtc, finalizedAtUtc, observationDigest, observation, abortCode,
+receivedConsumers, completedAtUtc`. Claim tokens are lowercase UUIDv4 and the
+lease is exactly ten minutes. The cycle root includes `UploadReserved`; source
+status never does. Claim outcomes are `NewClaim`, `OwnedClaim`,
+`ExistingFinalized`, `Busy`, and `ExistingAborted`; an absent document creates
+NewClaim, same unexpired token is OwnedClaim, a different unexpired token is
+fatal Busy without provider call, and an expired claim CASes source and cycle to
+`Aborted/ACQUISITION_INTERRUPTED` without takeover. Finalize requires matching
+token/Claimed; exact retry is a no-op and conflicts are fatal.
+
+Producer order is validate/create cycle; claim enabled sources in source order;
+acquire/finalize once; build/verify bundle; CAS to BundleVerified; bind digest
+and fixed artifact name/CAS to UploadReserved; probe/upload/reverify/CAS to
+HandoffReady; consume/publish producer head; persist receipt; project issue
+after the durable transaction. Consumers download and fully verify before
+source commands, then consume/publish and receipt. Upload or handoff failure
+is fatal while any expected receipt is absent; only post-commit issue API
+failure is nonfatal/Pending. `receivedConsumers` is always a prefix of the
+literal list. A completed rejection is not an abort and is counted once only
+after all receipts.
+
+Receipt source-date order is `ratedAt, membershipCapturedAt,
+membershipEffectiveAt, enrichmentCapturedAt`; carry order is `ageCount,
+positionCount, marketValueCount, oldestFieldEffectiveAt`. A receipt's snapshot
+is lowercase SHA. Elo selection is `NetworkAccepted`,
+`NetworkCandidateRejected`, `NetworkCandidateStale`, or
+`NetworkCandidateNotNewer`; roster selection is `DuckDbAccepted`,
+`MixedPerClubSelection`, `CandidateRejected`, or `MetadataUnchanged`. Origins
+are Elo `NetworkCandidate|LaunchSeed|LastKnownGood` and roster
+`DuckDb|Mixed|FallbackSeed|LastKnownGood`. Elo has only non-null `ratedAt`;
+roster has null ratedAt, non-null membership effective date, advertised
+revision, and an enrichment capture date only where its unknown-date condition
+does not require null. Zero carries have null oldest date; a legacy unknown
+carry has null oldest date plus `ROSTER_ENRICHMENT_DATE_UNKNOWN`.
+
+Health nested orders are: watermark `sequence, cycleId`; failures
+`acquisition, membership, enrichment, handoff`; successful dates `ratedAt,
+membershipEffectiveAt, enrichmentCapturedAt`; roster accepted `revision,
+remoteIdentity, policySha256, descriptorSha256`; roster pending `revision,
+remoteIdentity, policySha256, firstSeenCycleId, lastFailureCode`; community
+selection `consumerLaneId, communityContext, selectedSnapshotId, selectedOrigin,
+ratedAt, membershipCapturedAt, membershipEffectiveAt, enrichmentCapturedAt,
+conditions`; issue projection `marker, title, bodySha256, desiredState,
+appliedBodySha256, synchronizationStatus, lastAttemptedAtUtc, lastErrorCode`.
+Elo roster state is null; roster ratedAt is null and roster revision state is
+non-null. Accepted/pending may initially be null and cannot contain the same
+revision/identity/policy tuple. `Synchronized` requires equal applied/desired
+hash, timestamp, and null error; pre-attempt Pending has all application fields
+null; failed Pending has timestamp/error and optional prior applied hash.
+
+Acquisition increments for Elo rejection and roster Transport/Size/RemoteDrift/
+Hash/Revision/Schema rejection; membership increments for SourceDate/Season/
+Identity rejection or receipt membership rejection; enrichment increments for
+roster receipt enrichment rejection; the latter two are always zero for Elo.
+Other outcomes reset their respective counter; handoff increments once for a
+current-watermark abort/supersession and resets on completion. Metadata-only
+resets acquisition but repeats retained membership/enrichment; late cycles
+change nothing. Issue opens at two or any stale/unknown condition, else closes.
+Issue body bytes are LF-only/final LF: marker, `Competition:
+\`bundesliga-2026-27\``, `Scope: \`production-live\``, source, watermark, and
+ordinal condition bullets (or `- \`NONE\``); body SHA hashes those exact UTF-8
+bytes. Its exact title is `[KicktippAi] Bundesliga 2026/27 <source>
+context-source health`.
+
+Roster descriptor null matrix is exact: MetadataUnchanged requires metadata
+digest/length, before identity, and non-null retained descriptor/evaluation/
+diagnostics; after/embedded/raw/date/payload are null. TransportRejected has
+metadata/before both null before metadata, otherwise both required; all later
+facts, retained fields, and payload null/empty. SizeRejected requires metadata,
+before, observed length, null actual raw SHA, optional expected SHA; later facts
+null. RemoteDriftRejected requires unequal before/after; HashRejected requires
+equal identities and unequal actual/expected SHA; RevisionRejected requires
+equal identities, raw length/SHA and null-or-unequal embedded revision;
+SchemaRejected requires equal identities/revision/raw; SourceDateRejected adds
+at least one null date; SeasonRejected/IdentityRejected require all dates;
+Eligible requires all identity/revision/raw/date facts, expected SHA null or
+equal, null retained scalars, empty retained diagnostics, and payload. Except
+MetadataUnchanged, retainedDescriptorSha256 and retainedEvaluation are null and
+retainedDiagnostics is `[]`.
+
+Club Elo v2 adds, after v1's exact nine properties, `cycle_id, attempt_id,
+source_observed_at, raw_sha256, raw_byte_length, provider_date_evidence,
+name_mapping_sha256, source_rows`. Evidence order is `kind, recipe_id, field,
+raw_value, rated_at`; rows are `team_slug, provider_name, global_rank, elo`.
+It requires NetworkCandidate/NetworkAccepted, no diagnostics, descriptor/payload
+equality, 18 unique canonical rows, exact mapping hash, evidence/rated-at
+equality, and collected-at equal source-observed-at. V1 stays strict.
+
+Roster v3 root is `contract, qualityReportCsv, sourceObservation, clubs`; its
+source observation is `cycleId, attemptId, observedAtUtc, disposition,
+observationDigest, bundleDigest, descriptorSha256, descriptor, payload`.
+It embeds the full descriptor, validates its digest, requires ArtifactCaptured
+and Eligible, validates payload identity, and reads no mutable state. Club order
+is `teamSlug, selectedSource, membershipProvenanceKind, membershipCapturedAt,
+membershipEffectiveAt, membershipAsOf, sourceReferences, selectedSourceRevision,
+lastKnownGoodSnapshotId, attemptedDuckDbRevision, attemptedDuckDbEffectiveAt,
+duckDbGateResult, selectionReason, diagnostics, members`; member order is
+`role, name, transfermarktPlayerId, age, position, marketValueEur`; each
+enrichment is `value, selection, provenanceKind, sourceUrl, sourceRevision,
+sourceCapturedAt, fieldEffectiveAt, firstPublishedSnapshotId,
+carriedFromSnapshotId`. Only `DuckDb/Artifact`, `FallbackSeed/FallbackSeed`,
+`LastKnownGood/Artifact`, and `LastKnownGood/LegacyPublication` are valid
+source/provenance pairs. Enrichment pairs are only `Observed/Artifact`,
+`Carried/Artifact`, `Carried/LegacyPublication`, `Unavailable/Unavailable`.
+Observed artifact fields require full source/capture/effective/first-published
+facts and null carry; carried artifact retains all original facts and immediate
+carry; legacy carry retains value/immediate carry with unavailable old facts
+null; unavailable has every value/provenance field null. Historical v1/v2 bytes
+are reactivated with their metadata/creation/predecessor unchanged; v3 metadata
+is never attached to them.
 
 ## Consequences
 

@@ -21,95 +21,121 @@ activation PR, and final closeout; activation milestones use draft branches.
 
 ## Literal ownership
 
-The packet writer uses `.tmp/worktrees/p1-04-05-common` on
-`codex/01a07449-de77-7ae0-ac4a-8f5330c43121-common-foundation`. Common runtime
-paths are `src/Core/BundesligaContextSourceCycle.cs`,
-`src/Core/BundesligaContextSourceBundle.cs`,
-`src/Core/BundesligaContextSourceHealth.cs`,
-`src/FirebaseAdapter/FirebaseContextSourceCycleRepository.cs`,
-`src/FirebaseAdapter/Models/ContextSourceCycleFirestoreModels.cs`,
-`src/Orchestrator/Commands/Operations/CollectContext/ContextSourceCycleCoordinator.cs`,
-`src/Orchestrator/Commands/Operations/CollectContext/ContextSourceBundleHandoff.cs`,
-`src/Orchestrator/Commands/Operations/Dev/CompetitionCollectionProfile.cs`,
-`CompetitionProfileCollectorExecutor.cs`, `CompetitionProfileCollectionRunner.cs`,
-`src/Orchestrator/Commands/Operations/CollectContext/CollectContextProfileSettings.cs`,
-`CollectContextProfileCommand.cs`, and the exact common test paths
-`tests/Core.Tests/BundesligaContextSourceCycleContractTests.cs`,
-`BundesligaContextSourceBundleContractTests.cs`,
-`BundesligaContextSourceHealthContractTests.cs`,
-`tests/FirebaseAdapter.Tests/FirebaseContextSourceCycleRepositoryTests.cs`,
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceCycleCoordinatorTests.cs`,
-`ContextSourceBundleHandoffTests.cs`,
-`tests/Orchestrator.Tests/Commands/Operations/Dev/CompetitionCollectionProfileTests.cs`,
-`CollectContextDevCommandTests.cs`, and
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextProfileCommandTests.cs`.
-
-P1-04 owns only `src/Core/BundesligaClubEloRefresh.cs`,
-`src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloRefreshSource.cs`,
-`data/bundesliga-2026-27/club-elo-name-map.csv`,
-`docs/sources/bundesliga-2026-27-club-elo.md`, its three named Club Elo
-fixtures, and the literal existing `BundesligaClubElo*`, seed source/command,
-and named Core/Orchestrator test paths frozen in ADR-0074. P1-05 owns only
-`src/Core/BundesligaRosterRefresh.cs`,
-`src/Orchestrator/Commands/Operations/CollectContext/BundesligaRosterArtifactAcquirer.cs`,
-`data/bundesliga-2026-27/rosters/roster-refresh-policy-v1.json`,
-`docs/sources/bundesliga-2026-27-rosters.md`, its named test/acquirer paths,
-and the literal existing `BundesligaRoster*`, roster source/command/fixture
-paths frozen in ADR-0074. `IBundesligaContextSourceObservationProvider` is the
-only source extension boundary.
-
-Serialized integration alone owns `src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs`,
-`src/FirebaseAdapter/ServiceCollectionExtensions.cs`,
-`.github/workflows/base-context-collection.yml`,
-`.github/workflows/buli2627-production-live-matchday.yml`,
-`.github/scripts/Test-PredictionWorkflowContracts.ps1`,
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextCollectionWorkflowContractTests.cs`,
-`README.md`, and the listed plan/ADR/design/task/snapshot files. No category or
-wildcard ownership grants additional paths.
-
-For avoidance of doubt, source-writer existing paths are exactly:
+This packet writer uses `.tmp/worktrees/p1-04-05-common` on
+`codex/01a07449-de77-7ae0-ac4a-8f5330c43121-common-foundation`. These are the
+complete disjoint path reservations; no wildcard, basename, or implied path is
+authorized.
 
 ```text
-P1-04: src/Core/BundesligaClubElo.cs; src/Core/BundesligaClubEloSeed.cs;
-src/Core/BundesligaClubEloPublication.cs;
-src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloSeedSource.cs;
-src/Orchestrator/Commands/Operations/CollectContext/CollectContextClubEloCommand.cs;
-tests/Core.Tests/BundesligaClubEloSeedTests.cs;
-tests/Core.Tests/BundesligaClubEloPublicationTests.cs;
-tests/Core.Tests/BundesligaClubEloPolicyTests.cs;
-tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextClubEloCommandTests.cs;
-tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextClubEloCommandFirestoreTests.cs.
+Common new:
+src/Core/BundesligaContextSourceCycle.cs
+src/Core/BundesligaContextSourceBundle.cs
+src/Core/BundesligaContextSourceHealth.cs
+src/FirebaseAdapter/FirebaseContextSourceCycleRepository.cs
+src/FirebaseAdapter/Models/ContextSourceCycleFirestoreModels.cs
+src/Orchestrator/Commands/Operations/CollectContext/ContextSourceCycleCoordinator.cs
+src/Orchestrator/Commands/Operations/CollectContext/ContextSourceBundleHandoff.cs
+tests/Core.Tests/BundesligaContextSourceCycleContractTests.cs
+tests/Core.Tests/BundesligaContextSourceBundleContractTests.cs
+tests/Core.Tests/BundesligaContextSourceHealthContractTests.cs
+tests/FirebaseAdapter.Tests/FirebaseContextSourceCycleRepositoryTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceCycleCoordinatorTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceBundleHandoffTests.cs
 
-P1-05: src/Core/BundesligaRosterModels.cs; src/Core/BundesligaRosterPolicy.cs;
-src/Core/BundesligaRosterPublication.cs; src/Core/BundesligaRosterPublicationContract.cs;
-src/Core/BundesligaRosterCsv.cs; src/Core/BundesligaRosterSeed.cs;
-src/Orchestrator/Commands/Operations/CollectContext/BundesligaRosterSource.cs;
-src/Orchestrator/Commands/Operations/CollectContext/CollectContextRostersCommand.cs;
-tests/Core.Tests/BundesligaRosterPolicyTests.cs;
-tests/Core.Tests/BundesligaRosterPublicationTests.cs;
-tests/Core.Tests/BundesligaRosterPublicationContractTests.cs;
-tests/Core.Tests/BundesligaRosterCsvTests.cs; tests/Core.Tests/BundesligaRosterSeedTests.cs;
-tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterSourceTests.cs;
-tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterDuckDbFixture.cs;
-tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextRostersCommandTests.cs;
-tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextRostersCommandFirestoreTests.cs.
+Common existing:
+src/Orchestrator/Commands/Operations/Dev/CompetitionCollectionProfile.cs
+src/Orchestrator/Commands/Operations/Dev/CompetitionProfileCollectorExecutor.cs
+src/Orchestrator/Commands/Operations/Dev/CompetitionProfileCollectionRunner.cs
+src/Orchestrator/Commands/Operations/CollectContext/CollectContextProfileSettings.cs
+src/Orchestrator/Commands/Operations/CollectContext/CollectContextProfileCommand.cs
+tests/Orchestrator.Tests/Commands/Operations/Dev/CompetitionCollectionProfileTests.cs
+tests/Orchestrator.Tests/Commands/Operations/Dev/CollectContextDevCommandTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextProfileCommandTests.cs
+
+P1-04 new:
+src/Core/BundesligaClubEloRefresh.cs
+src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloRefreshSource.cs
+data/bundesliga-2026-27/club-elo-name-map.csv
+docs/sources/bundesliga-2026-27-club-elo.md
+tests/Core.Tests/BundesligaClubEloRefreshTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaClubEloRefreshSourceTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/eligible.csv
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/unknown-source-date.csv
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/partial.csv
+
+P1-04 existing:
+src/Core/BundesligaClubElo.cs
+src/Core/BundesligaClubEloSeed.cs
+src/Core/BundesligaClubEloPublication.cs
+src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloSeedSource.cs
+src/Orchestrator/Commands/Operations/CollectContext/CollectContextClubEloCommand.cs
+tests/Core.Tests/BundesligaClubEloSeedTests.cs
+tests/Core.Tests/BundesligaClubEloPublicationTests.cs
+tests/Core.Tests/BundesligaClubEloPolicyTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextClubEloCommandTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextClubEloCommandFirestoreTests.cs
+
+P1-05 new:
+src/Core/BundesligaRosterRefresh.cs
+src/Orchestrator/Commands/Operations/CollectContext/BundesligaRosterArtifactAcquirer.cs
+data/bundesliga-2026-27/rosters/roster-refresh-policy-v1.json
+docs/sources/bundesliga-2026-27-rosters.md
+tests/Core.Tests/BundesligaRosterRefreshTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterArtifactAcquirerTests.cs
+
+P1-05 existing:
+src/Core/BundesligaRosterModels.cs
+src/Core/BundesligaRosterPolicy.cs
+src/Core/BundesligaRosterPublication.cs
+src/Core/BundesligaRosterPublicationContract.cs
+src/Core/BundesligaRosterCsv.cs
+src/Core/BundesligaRosterSeed.cs
+src/Orchestrator/Commands/Operations/CollectContext/BundesligaRosterSource.cs
+src/Orchestrator/Commands/Operations/CollectContext/CollectContextRostersCommand.cs
+tests/Core.Tests/BundesligaRosterPolicyTests.cs
+tests/Core.Tests/BundesligaRosterPublicationTests.cs
+tests/Core.Tests/BundesligaRosterPublicationContractTests.cs
+tests/Core.Tests/BundesligaRosterCsvTests.cs
+tests/Core.Tests/BundesligaRosterSeedTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterSourceTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterDuckDbFixture.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextRostersCommandTests.cs
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextRostersCommandFirestoreTests.cs
+
+Serialized integration new:
+plans/bundesliga-2026-27/decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md
+plans/bundesliga-2026-27/p1-04-05-execution-packet.md
+
+Serialized integration existing:
+src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs
+src/FirebaseAdapter/ServiceCollectionExtensions.cs
+.github/workflows/base-context-collection.yml
+.github/workflows/buli2627-production-live-matchday.yml
+.github/scripts/Test-PredictionWorkflowContracts.ps1
+tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextCollectionWorkflowContractTests.cs
+README.md
+plans/bundesliga-2026-27/README.md
+plans/bundesliga-2026-27/execution-strategy.md
+plans/bundesliga-2026-27/p1-status-snapshot.md
+plans/bundesliga-2026-27/designs/p1-04-05-context-refresh.md
+plans/bundesliga-2026-27/tasks/p1-04-club-elo-refresh.md
+plans/bundesliga-2026-27/tasks/p1-05-roster-refresh.md
 ```
 
-Their exact new test/fixture paths are respectively
-`tests/Core.Tests/BundesligaClubEloRefreshTests.cs`,
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaClubEloRefreshSourceTests.cs`,
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/eligible.csv`,
-`unknown-source-date.csv`, `partial.csv`; and
-`tests/Core.Tests/BundesligaRosterRefreshTests.cs`,
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterArtifactAcquirerTests.cs`.
+`IBundesligaContextSourceObservationProvider` is the only source extension
+boundary. Historical-byte reactivation tests are owned by exactly
+`tests/Core.Tests/BundesligaRosterPublicationTests.cs` and
+`tests/FirebaseAdapter.Tests/FirebaseContextSourceCycleRepositoryTests.cs`.
 
 ## Resource, authority, and continuity gates
 
-At most two writers and one heavy operation family are admitted. Focused TUnit
-uses `dotnet run` under the sole heavy lease; workflow/actionlint and exact-head
-CI follow integration. No source flag is enabled by this packet. Legacy mode is
-a zero-interaction bypass. Existing heads and the 16-job serial/default-success,
-non-cancelling, no-bonus topology remain intact.
+Current admission is allowed: this worktree is admitted; no heavy family is
+active; available memory is `1.33 GiB`, warning-band but above the `1.10 GiB`
+hard floor. At most two writers and one heavy operation family are admitted.
+Focused TUnit uses `dotnet run` under the sole heavy lease; workflow/actionlint
+and exact-head CI follow integration. No source flag is enabled by this packet.
+Legacy mode is a zero-interaction bypass. Existing heads and the 16-job
+serial/default-success, non-cancelling, no-bonus topology remain intact.
 
 P1-05 production enablement requires owner authority for acquisition,
 production writes, issue projection, rollback owner, and restoration. P1-04
@@ -123,11 +149,16 @@ issue reconciliation, and copy compatibility without model/post work.
 Validate canonical schemas/hash/null matrices, hostile handoff/replay/CAS cases,
 receipt-health idempotency, disabled bypass, roster current-artifact rejection
 plus synthetic takeover/diff/carry/conflict, v1/v2/v3 reconstruction, and
-unchanged workflow topology. Each milestone receives independent exact-tip
-review before serialized integration; only the reviewed cohesive milestone may
-be committed/published. Publication is non-force to the verified canonical
-`origin` target and must re-check branch, remote, status, log, scope, and
-fast-forward immediately before push.
+unchanged workflow topology. Flow is scoped lane commit → independent
+exact-commit review → serialized integration → cohesive publication. The
+canonical target is `origin` at `https://github.com/ehonda/KicktippAi.git`;
+integration is `main`, the allowlisted run prefix is
+`codex/01a07449-de77-7ae0-ac4a-8f5330c43121-`, and initial local/remote SHA is
+`a1e333f1923a69cff8b99ecdfb500547a2790b3f`. The first reviewed
+planning/common/dormant-roster milestone may publish directly to `main` after
+serialized integration; source activation milestones publish only as draft PRs
+from the allowlisted prefix. Every non-force push rechecks branch, remote,
+status, log, exact scope, and fast-forward immediately before publication.
 
 Stop after the reviewed P1-04/P1-05 closeout is published and the status
 snapshot has been updated only for tasks actually completed. Stop earlier for a
