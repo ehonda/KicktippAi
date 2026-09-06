@@ -1,0 +1,8 @@
+role,threads,turns,active_seconds,models,input_tokens,cached_input_tokens,cache_write_input_tokens,output_tokens,total_tokens,api_cost_equivalent_usd
+architecture,2,3,1746.682,gpt-5.6-sol/xhigh:90,9731006,9265152,0,66479,9797485,6.899056
+evidence,5,7,3455.721,gpt-5.6-luna/low:5;gpt-5.6-sol/high:179;gpt-5.6-terra/medium:19,23260403,22433664,0,94611,23355014,13.574103
+implementation-review,17,17,15030.384,gpt-5.6-sol/xhigh:749,87776073,83546240,0,509626,88285699,60.530348
+implementation-writer,17,21,20271.404,gpt-5.6-sol/high:1134;gpt-5.6-terra/high:41,141227980,137172352,0,601957,141829937,81.920591
+mechanical-check,1,1,61.904,gpt-5.6-luna/low:6,157927,134656,0,879,158806,0.008402
+planning-writer,3,5,2603.646,gpt-5.6-sol/high:45;gpt-5.6-sol/xhigh:31;gpt-5.6-terra/high:45,11356189,10783872,0,94426,11450615,7.080554
+specification-review,7,8,3865.595,gpt-5.6-sol/xhigh:227,22370465,21388800,0,136676,22507141,15.2157

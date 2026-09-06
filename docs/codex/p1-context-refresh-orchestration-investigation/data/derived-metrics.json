@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "snapshot": {
+    "run_id": "01a07449-de77-7ae0-ac4a-8f5330c43121",
+    "base_commit": "a1e333f1923a69cff8b99ecdfb500547a2790b3f",
+    "final_integrated_commit": "c99e1635428bcfea48271e4169767b38f014148c",
+    "common_runtime_tip": "6cce46a162ec1a5b756173f6046b1666a48332eb",
+    "cutoff_utc": "2026-09-06T20:21:56.196Z",
+    "cutoff_local": "2026-09-06T22:21:56.196000+02:00",
+    "wall_seconds": 68676.746,
+    "owner_wait_seconds": 19791.266,
+    "effective_seconds": 48885.479999999996,
+    "run_status": "active"
+  },
+  "startup": {
+    "hook_confirmation_delay_seconds": 209.743,
+    "preventable_owner_stall_seconds": 19791.266,
+    "initial_stop_reason": "P1-04 source evidence declared unavailable; P1-05 incorrectly sequenced behind P1-04."
+  },
+  "delivery": {
+    "integrated_plan_commits": 3,
+    "common_runtime_commits": 18,
+    "common_runtime_files": 20,
+    "common_runtime_insertions": 6121,
+    "common_runtime_deletions": 5,
+    "tasks_completed": 0,
+    "common_review_cycles": 17,
+    "common_review_blocks": 17,
+    "review_tag_counts": {
+      "replay-recovery": 14,
+      "health-freshness": 16,
+      "receipt-provenance": 17,
+      "persistence-schema": 15,
+      "bundle-integrity": 14
+    },
+    "runtime_loop_seconds_at_cutoff": 39263.828
+  },
+  "coordination": {
+    "subagent_threads": 52,
+    "subagent_turns": 62,
+    "thread_limit_errors": 0,
+    "maximum_concurrent_agents": 4,
+    "average_concurrency_while_active": 1.0767,
+    "two_plus_share": 0.05230508629766974,
+    "wait_calls": 505
+  },
+  "preview": {
+    "frozen_bytes": 67073,
+    "frozen_lines": 663,
+    "frozen_headings": 17,
+    "patch_events": 22,
+    "cumulative_line_additions": 667,
+    "cumulative_line_deletions": 21,
+    "capsule_patch_events": 79,
+    "capsule_seals": 77
+  },
+  "recovery": {
+    "compactions": 5,
+    "validated_hook_injections": 5,
+    "total_recovery_seconds": 2021.412,
+    "mean_recovery_seconds": 404.2824,
+    "median_recovery_seconds": 436.008,
+    "mean_resume_context_percent": 54.954,
+    "median_resume_context_percent": 57.97,
+    "maximum_resume_context_percent": 64.6,
+    "maximum_recovery_tool_calls": 40,
+    "maximum_recovery_paths": 38,
+    "recovery_share_of_effective_time": 0.04134994685538528
+  },
+  "memory": {
+    "resource_samples": 51,
+    "heavy_samples": 45,
+    "heavy_allowed": 32,
+    "heavy_denied": 13,
+    "denied_by_1_10_floor": 13,
+    "denial_episodes": 11,
+    "minimum_observed_gib": 0.72,
+    "minimum_admitted_gib": 1.11,
+    "maximum_denied_gib": 1.09,
+    "median_admitted_gib": 1.9049999999999998,
+    "samples_below_1_50_gib": 26,
+    "admitted_samples_below_1_50_gib": 13,
+    "denied_samples_at_or_above_1_00_gib": 3,
+    "observed_ready_work_block_seconds": 55,
+    "ongoing_denial_at_cutoff_seconds": 183,
+    "causal_note": "Only the 55-second 11:33 denial was closed and demonstrably delayed ready heavy work. The 22:18 denial was still open at cutoff; other sample-to-sample intervals include unrelated work and are not throughput loss."
+  },
+  "models": {
+    "design_threads": 12,
+    "design_turns": 16,
+    "design_active_seconds": 8215.923,
+    "design_total_tokens": 43755241,
+    "design_actual_cost_usd": 29.19531,
+    "design_same_tokens_astra_cost_usd": 76.515234,
+    "design_astra_premium_usd": 47.319924,
+    "architecture_threads": 2,
+    "architecture_turns": 3,
+    "architecture_total_tokens": 9797485,
+    "architecture_actual_cost_usd": 6.899056,
+    "architecture_same_tokens_astra_cost_usd": 17.247642,
+    "architecture_astra_premium_usd": 10.348586,
+    "recommendation": "Pilot gpt-6-astra/high for the architecture lead only; retain an independent gpt-5.6-sol/xhigh specification reviewer."
+  },
+  "cost": {
+    "api_list_price_equivalent_usd": 264.458168,
+    "root_api_list_price_equivalent_usd": 79.229414,
+    "subagent_api_list_price_equivalent_usd": 185.228754
+  }
+}

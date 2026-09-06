@@ -440,6 +440,7 @@ $hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-clos
 $hasP1SessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-interim/index.html")
 $hasP1FollowUpAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-follow-up/index.html")
 $hasUrgentProductionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "urgent-production-orchestration/index.html")
+$hasP1ContextRefreshAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-context-refresh/index.html")
 
 $coverageCard = if ($hasCoverage)
 {
@@ -493,6 +494,15 @@ $urgentProductionAnalysisCard = if ($hasUrgentProductionAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>No urgent-production orchestration investigation has been published yet.</p></section>"
+}
+
+$p1ContextRefreshAnalysisCard = if ($hasP1ContextRefreshAnalysis)
+{
+    "<a class='card' href='session-analysis/p1-context-refresh/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 context-refresh orchestration</strong><p>Analyze startup gates, task velocity, review serialization, recovery context, preview churn, model roles, and memory admission.</p></a>"
+}
+else
+{
+    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 context-refresh orchestration</strong><p>No P1 context-refresh investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -623,6 +633,7 @@ $rootIndex = @"
       $p1SessionAnalysisCard
       $p1FollowUpAnalysisCard
       $urgentProductionAnalysisCard
+      $p1ContextRefreshAnalysisCard
     </section>
   </main>
 </body>

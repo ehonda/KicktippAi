@@ -1,0 +1,130 @@
+{
+  "schema_version": 1,
+  "snapshot_cutoff_local": "2026-09-06T22:21:56.196+02:00",
+  "verdict": "Recovery was reliable, but orchestration after recovery was not lean. A preventable startup stop cost 5h29m51s, and the resumed run then concentrated nearly eleven hours in a serial common-runtime review loop without starting either task-specific implementation lane.",
+  "findings": [
+    {
+      "id": "startup-gates-were-partly-legitimate-and-partly-self-inflicted",
+      "assessment": "poor",
+      "evidence": [
+        "The root waited 3m29.7s for hook-trust confirmation before starting writers.",
+        "The exact project hook definition does require user review and trust, so asking was procedurally understandable.",
+        "The root stopped at 03:47 Berlin after treating missing P1-04 source evidence as an owner blocker and P1-05 as sequenced behind P1-04.",
+        "The owner returned at 09:17 and corrected both assumptions, producing a preventable 5h29m51s stall.",
+        "Initial P1-04, P1-05, and architecture audits had already run concurrently; the failure was the transition from preview to execution, not a total absence of early parallel work."
+      ]
+    },
+    {
+      "id": "common-foundation-became-a-serial-megagate",
+      "assessment": "poor",
+      "evidence": [
+        "The common-runtime writer began at 11:27 Berlin and the loop was still active 10h54m later at the cutoff.",
+        "The frozen common tip contained 18 commits across 20 files with +6,121/-5 lines.",
+        "Seventeen fresh implementation reviews all blocked; a sixteenth correction was in flight at cutoff.",
+        "Implementation writer plus reviewer roles consumed 230.1M tokens, 77.4% of subagent tokens.",
+        "Neither P1-04 nor P1-05 task record reached Complete, and neither task-specific implementation writer started."
+      ]
+    },
+    {
+      "id": "parallelism-was-lost-to-graph-and-worktree-constraints-not-agent-capacity",
+      "assessment": "poor",
+      "evidence": [
+        "Maximum concurrency was four with zero thread-limit errors.",
+        "Average concurrency while a subagent was active was 1.0767; only 5.23% of that time had two or more subagents active.",
+        "The corrected P1-04 and P1-05 evidence lanes overlapped after 09:20, proving the tasks had useful independent work.",
+        "The common gate later serialized both lanes, while the active common worktree and a dirty retained P1-10 worktree occupied the 2/2 writable-worktree budget."
+      ]
+    },
+    {
+      "id": "capsule-and-hooks-worked-but-full-recovery-rereads-defeated-the-design",
+      "assessment": "mixed",
+      "evidence": [
+        "All five root compactions received the validated SessionStart compact-hook injection.",
+        "Recovery took 33m41s total, 4.13% of pause-adjusted session time; median recovery was 7m16s.",
+        "Median context use at the first resumed coordination action was 57.97%.",
+        "The 22:00 Berlin recovery resumed at 64.60% context after 8m15s, 40 custom tool calls, 25 distinct normalized document/script paths, and 559,510 JSON characters of tool output.",
+        "The hook injection itself was only 6,043 characters. Most of the burden came from mandatory full rereads, duplicated chunked reads, and unrelated historical task material."
+      ]
+    },
+    {
+      "id": "preview-remained-an-append-only-shadow-transcript",
+      "assessment": "poor",
+      "evidence": [
+        "At the frozen cutoff preview.md was 67,073 bytes, 663 lines, and 17 top-level sections.",
+        "It received 22 patch events with 667 observed added lines and only 21 deleted lines.",
+        "The capsule received 79 patch events and 77 observed seal invocations despite durability-barrier guidance.",
+        "The preview therefore served simultaneously as design tree, current graph, decision log, and recovery narrative instead of a compact current-state index."
+      ]
+    },
+    {
+      "id": "the-1-10-gib-floor-is-conservative-but-not-yet-evidence-based",
+      "assessment": "mixed",
+      "evidence": [
+        "Of 45 heavy-admission samples, 13 were denied below 1.10 GiB and 32 were admitted.",
+        "The minimum admitted reading was 1.11 GiB and the maximum denied reading was 1.09 GiB, showing deterministic enforcement rather than an outcome-derived boundary.",
+        "Thirteen admitted samples were below the 1.50 GiB warning line.",
+        "Only one completed denial can be tied to ready heavy work; it cleared after 55 seconds. An open denial at cutoff had lasted at least 183 seconds.",
+        "Sample-to-sample denial intervals include owner waits, review work, and post-job readings and must not be counted as throughput loss."
+      ]
+    },
+    {
+      "id": "astra-is-best-tested-at-the-architecture-lead-boundary",
+      "assessment": "pilot",
+      "evidence": [
+        "Architecture, specification review, and planning used 12 threads, 16 turns, 43.76M tokens, 2h17m worker time, and $29.20 in API list-price equivalent.",
+        "Architecture alone used two threads, three turns, 9.80M tokens, and $6.90 equivalent.",
+        "Holding tokens fixed, Astra would price the architecture cohort at $17.25, a $10.35 premium; actual token behavior is unknown.",
+        "Astra is the strongest available synthesis candidate, but official guidance says it may ask more clarifying questions and is especially sensitive to instructions and skills.",
+        "Use Astra/high for one architecture lead and keep a different Sol/xhigh specification reviewer; do not replace the root or the independent gate yet."
+      ]
+    }
+  ],
+  "timeline": [
+    {"time": "03:17", "kind": "start", "title": "Kickoff", "detail": "Close P1-04 and P1-05, then stop."},
+    {"time": "03:20", "kind": "gate", "title": "Hooks trusted", "detail": "Owner confirms trust after 3m29.7s."},
+    {"time": "03:19–03:35", "kind": "parallel", "title": "Preview audits overlap", "detail": "Architecture, P1-04, and P1-05 audits run concurrently."},
+    {"time": "03:47", "kind": "stop", "title": "Run stops", "detail": "P1-04 evidence is treated as unavailable and P1-05 is incorrectly placed behind it."},
+    {"time": "09:17–09:19", "kind": "owner", "title": "Owner corrects the graph", "detail": "Acquire evidence directly; P1-05 is independent."},
+    {"time": "09:20–09:45", "kind": "parallel", "title": "Evidence lanes overlap", "detail": "P1-05 evidence closes at 09:27; P1-04 evidence at 09:45."},
+    {"time": "10:38–11:16", "kind": "commit", "title": "Three plan commits integrate", "detail": "The source seam, contract, and durable specification land on main."},
+    {"time": "11:27", "kind": "work", "title": "Common runtime starts", "detail": "A shared implementation lane begins."},
+    {"time": "11:27–21:59", "kind": "loop", "title": "Seventeen blocked reviews", "detail": "The shared surface grows through 18 local commits; task-specific writers stay queued."},
+    {"time": "22:00–22:09", "kind": "recovery", "title": "Largest compaction recovery", "detail": "The root resumes coordination with 64.6% of context already occupied."},
+    {"time": "22:09", "kind": "owner", "title": "HTML source selected", "detail": "The owner resolves the P1-04 source choice."},
+    {"time": "22:11–22:21", "kind": "work", "title": "HTML architecture in flight", "detail": "The lane is still not integrated when the analysis freezes."}
+  ],
+  "recommendations": [
+    {
+      "title": "Introduce hot and cold recovery paths",
+      "detail": "For a valid capsule whose instruction-packet hash and active-contract SHA match, use one compact recovery-snapshot helper plus the active lane contract. Re-read the full skill, AGENTS files, preview, task set, and ADR chain only for corrupt state, changed instructions, material re-freeze, or uncertain ownership."
+    },
+    {
+      "title": "Make preview.md a replace-in-place current graph",
+      "detail": "Cap it around 8–12 KiB, link exact tracked contracts, and move review/event history to a separate evidence stream. A recovery artifact should not become a shadow transcript."
+    },
+    {
+      "title": "Split common runtime into acceptance milestones",
+      "detail": "Freeze and review bundle/canonical selection, coordinator state, persistence/replay, and health/receipts separately. Allow task-specific lanes to start as soon as their required milestone is accepted."
+    },
+    {
+      "title": "Clean stale writable worktrees at intake",
+      "detail": "Recover, publish, or explicitly reserve dirty predecessor work before freezing the new graph. A retained dirty worktree should not silently consume half of the next run's writer capacity."
+    },
+    {
+      "title": "Retain bounded correction continuity",
+      "detail": "Keep one writer for a bounded correction loop and optionally one reviewer for an incremental follow-up; use a fresh independent reviewer for milestone acceptance. The current all-fresh loop discarded context 17 times."
+    },
+    {
+      "title": "Pilot Astra/high only for architecture",
+      "detail": "Measure first-pass specification acceptance, later review rounds, wall time, tokens, and list-price equivalent against Sol/xhigh. Preserve a different Sol/xhigh reviewer to protect independence."
+    },
+    {
+      "title": "Replace the fixed memory floor with outcome calibration",
+      "detail": "Keep 1.10 GiB provisionally, but log operation family, start/min/post memory, duration, exit/outcome, paging or OOM symptoms, and queue delay. Lower in 0.10 GiB steps only when a meaningful sample shows clean outcomes; never infer delay from sparse sample gaps."
+    },
+    {
+      "title": "Turn hook trust into positive startup evidence",
+      "detail": "Use a trusted UserPromptSubmit hook to inject the current hook-definition hash when orchestration is invoked, or include trust confirmation in the kickoff. If the definition changes or is untrusted, the marker disappears and the root asks."
+    }
+  ]
+}

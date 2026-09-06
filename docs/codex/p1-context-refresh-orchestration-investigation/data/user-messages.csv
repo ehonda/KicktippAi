@@ -1,0 +1,11 @@
+timestamp,timestamp_local,line,category,characters,sha256,user_message_ordinal,intervention_kind,excerpt
+2026-09-06T01:17:20.044000Z,2026-09-06T03:17:20.044000+02:00,6,injected-repository-context,35700,bab3222a6cb401369ff01d216b1b06e1a66fb93ca30f46a6fb86922eb3bf52cd,,,
+2026-09-06T01:17:20.211000Z,2026-09-06T03:17:20.211000+02:00,9,user,255,05b6f64c2f88020ded1e0b5c571e52903e548c41d6a112a4de66c4c2280ed2f2,1,kickoff,"$orchestrate to close out P1-04 and P1-05. Once that is done, stop, do not continue onto other P1 items, we'll grill and reprioritize in a new session. P1 state snapshot is at plans\bundesliga-2026-27\p1-status-snapshot.md, update it once a"
+2026-09-06T01:17:20.270000Z,2026-09-06T03:17:20.270000+02:00,11,injected-skill-context,11623,544551790656ebfc36ac581fc3d1370cca92d7b4e6501946e2d922386342d47e,,,
+2026-09-06T01:20:49.954000Z,2026-09-06T03:20:49.954000+02:00,119,user,17,5f2667ae38cdb39688427c1cc164ff2ba1e34f2a1693c410f7f1dca050c3d104,2,hook-trust-confirmation,hooks are trusted
+2026-09-06T01:45:14.360000Z,2026-09-06T03:45:14.360000+02:00,561,automatic-goal-continuation,6042,5047110471e865a7903f53eebc5512ed130dd2b11d8efd9c10ea62906ed7337c,,,
+2026-09-06T01:46:43.553000Z,2026-09-06T03:46:43.553000+02:00,603,automatic-goal-continuation,6042,a2fe8ae9c8267978b73233c2495406187d66d8695b4fec9f87c745402b63912b,,,
+2026-09-06T07:17:28.181000Z,2026-09-06T09:17:28.181000+02:00,645,user,61,d7cdeee6fc4802b3aa46bc6b66e83e73f2e3fa389fcb1853c53acbeacfcca2c1,3,scope-correction-evidence-acquisition,Why did you stop here? You can acquire that evidence yourself
+2026-09-06T07:19:11.478000Z,2026-09-06T09:19:11.478000+02:00,690,user,74,9d0090e127bba700accedd36dacbdc8975047b42410098bf639e22725d97c8cc,4,dependency-correction-parallelism,"And also, why did you not start P1-05? It's independent of P1-04 isn't it?"
+2026-09-06T20:09:13.586000Z,2026-09-06T22:09:13.586000+02:00,8375,user,59,3cc3e37f34b4fab61f698b612ae05195b8a1be0571c92082a366b2d4f7c2e10c,5,status-question,Just a quick interim: What's the status on P1-04 and P1-05?
+2026-09-06T20:09:54.310000Z,2026-09-06T22:09:54.310000+02:00,8388,user,26,153730c8f46c5b3feb028dda2a45a8afd142c861aefa8aff082424c6696dfbaa,6,source-selection,"P1-04: Yes, adopt the HTML"
