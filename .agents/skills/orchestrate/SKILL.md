@@ -62,9 +62,14 @@ Use only these run-scoped files:
   `active-contract-manifest.json` files containing canonical ordered raw-byte
   SHA-256 entries.
 
-Create the capsule from `resources/capsule-template.json`, set `preview`
-status, create each packet with `scripts/New-OrchestrationRecoveryManifest.ps1`,
-and seal it with
+Create the capsule and preview from their templates in `resources/`, set
+`preview` status, and fill the preview's exact instruction-input and
+active-contract marker blocks. Create each packet with
+`scripts/New-OrchestrationRecoveryManifest.ps1`; it automatically discovers
+applicable nested instructions, expands transitive instruction includes, and
+adds the exact recovery helpers. Sealing
+rejects missing preview-declared contracts or applicable nested instructions.
+Then seal with
 `scripts/Invoke-OrchestrationCapsuleHook.ps1 -Mode Seal -RunId <run-id>` before
 the first preview lane. Sealing writes the checksum and exact-session active
 marker atomically. Pass the run ID, capsule path, and preview path in every
@@ -229,8 +234,9 @@ family, start/min/post memory, commit/paging signals, duration/outcome,
 OOM/paging symptoms, and causal queue delay outside the recovery capsule. On a
 memory-related OOM, abnormal termination, or severe paging failure, run
 `scripts/Set-OrchestrationMemoryCircuitBreaker.ps1 -Action Trip ...`; every
-later admission in this checkout then uses 1.10 GiB until owner-reviewed
-analysis explicitly clears it. Change the capsule only when admission, warning
+later admission across the primary checkout and its linked worktrees then uses
+1.10 GiB until owner-reviewed analysis explicitly clears the preserved
+trigger. Change the capsule only when admission, warning
 band, override, reservation, or lease ownership changes; no-change samples
 remain silent.
 

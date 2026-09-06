@@ -43,7 +43,80 @@ $repositoryPrefix = $RepositoryRoot.TrimEnd(
     [System.IO.Path]::DirectorySeparatorChar,
     [System.IO.Path]::AltDirectorySeparatorChar) +
     [System.IO.Path]::DirectorySeparatorChar
-$entries = foreach ($candidate in $Path) {
+
+function Get-PreviewDeclaredPaths {
+    param([Parameter(Mandatory)][string] $Kind)
+
+    $previewPath = Join-Path $runDirectory 'preview.md'
+    if (-not (Test-Path -LiteralPath $previewPath -PathType Leaf)) {
+        return @()
+    }
+    $start = "<!-- orchestration-${Kind}:start -->"
+    $end = "<!-- orchestration-${Kind}:end -->"
+    $inside = $false
+    $found = $false
+    $result = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in [System.IO.File]::ReadAllLines($previewPath)) {
+        $trimmed = $line.Trim()
+        if ($trimmed -ceq $start) {
+            if ($found -or $inside) { throw "preview.md contains duplicate $Kind packet markers." }
+            $inside = $true
+            $found = $true
+            continue
+        }
+        if ($trimmed -ceq $end) {
+            if (-not $inside) { throw "preview.md contains an unmatched $Kind packet end marker." }
+            $inside = $false
+            continue
+        }
+        if ($inside -and -not [string]::IsNullOrWhiteSpace($trimmed)) {
+            $result.Add($trimmed)
+        }
+    }
+    if (-not $found -or $inside) {
+        throw "preview.md must contain one complete $Kind packet marker block."
+    }
+    return @($result)
+}
+
+$candidates = [System.Collections.Generic.List[string]]::new()
+foreach ($candidate in $Path) { $candidates.Add($candidate) }
+if ($Packet -eq 'instruction') {
+    $candidates.Add('AGENTS.md')
+    $candidates.Add('.agents/skills/orchestrate/SKILL.md')
+    foreach ($candidate in (Get-PreviewDeclaredPaths -Kind 'instruction-inputs')) { $candidates.Add($candidate) }
+    foreach ($contractPath in (Get-PreviewDeclaredPaths -Kind 'active-contract')) {
+        if ([System.IO.Path]::IsPathRooted($contractPath)) { continue }
+        $contractAbsolutePath = [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $contractPath))
+        $directory = Split-Path -Parent $contractAbsolutePath
+        while ($directory.StartsWith($RepositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $agentsPath = Join-Path $directory 'AGENTS.md'
+            if (Test-Path -LiteralPath $agentsPath -PathType Leaf) { $candidates.Add($agentsPath) }
+            if ($directory.Equals($RepositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) { break }
+            $parent = Split-Path -Parent $directory
+            if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $directory) { break }
+            $directory = $parent
+        }
+    }
+}
+elseif ($Packet -eq 'hook') {
+    foreach ($candidate in @(
+        '.codex/hooks.json',
+        '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1',
+        '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1',
+        '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1')) {
+        $candidates.Add($candidate)
+    }
+}
+else {
+    $candidates.Add(".tmp/orchestration/$RunId/preview.md")
+    foreach ($candidate in (Get-PreviewDeclaredPaths -Kind 'active-contract')) { $candidates.Add($candidate) }
+}
+
+$seen = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+$entries = [System.Collections.Generic.List[object]]::new()
+for ($candidateIndex = 0; $candidateIndex -lt $candidates.Count; $candidateIndex++) {
+    $candidate = $candidates[$candidateIndex]
     $absolutePath = if ([System.IO.Path]::IsPathRooted($candidate)) {
         [System.IO.Path]::GetFullPath($candidate)
     }
@@ -61,10 +134,29 @@ $entries = foreach ($candidate in $Path) {
         $absolutePath.Replace('\', '/')
     }
 
-    [pscustomobject] [ordered] @{
+    if (-not $seen.Add($identifier)) {
+        continue
+    }
+
+    $entries.Add([pscustomobject] [ordered] @{
         id = $identifier
         path = $identifier
         sha256 = (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    })
+
+    if ($Packet -eq 'instruction') {
+        foreach ($line in [System.IO.File]::ReadAllLines($absolutePath)) {
+            if ($line -match '^\s*@(?<include>[^\s]+)\s*$') {
+                $includedPath = [string] $Matches.include
+                $resolvedInclude = if ([System.IO.Path]::IsPathRooted($includedPath)) {
+                    $includedPath
+                }
+                else {
+                    Join-Path (Split-Path -Parent $absolutePath) $includedPath
+                }
+                $candidates.Add($resolvedInclude)
+            }
+        }
     }
 }
 

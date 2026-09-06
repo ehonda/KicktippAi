@@ -1,6 +1,7 @@
 # ADR-0061: Preview and milestone orchestration
 
-- Status: Superseded by [ADR-0075](0075-refine-orchestration-recovery-and-resource-admission.md)
+- Status: Accepted
+- Refined by: [ADR-0075](0075-refine-orchestration-recovery-and-resource-admission.md)
 - Date: 2026-08-31
 
 ## Context

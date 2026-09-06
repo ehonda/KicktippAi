@@ -376,6 +376,52 @@ function Resolve-ManifestEntryPath {
     return [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $ManifestPath))
 }
 
+function ConvertTo-ManifestIdentifier {
+    param([Parameter(Mandatory)][string] $AbsolutePath)
+
+    $fullPath = [System.IO.Path]::GetFullPath($AbsolutePath)
+    $repositoryPrefix = $RepositoryRoot.TrimEnd(
+        [System.IO.Path]::DirectorySeparatorChar,
+        [System.IO.Path]::AltDirectorySeparatorChar) +
+        [System.IO.Path]::DirectorySeparatorChar
+    if ($fullPath.StartsWith($repositoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return [System.IO.Path]::GetRelativePath($RepositoryRoot, $fullPath).Replace('\', '/')
+    }
+    return $fullPath.Replace('\', '/')
+}
+
+function Read-PreviewPacketPaths {
+    param(
+        [Parameter(Mandatory)][string] $PreviewPath,
+        [Parameter(Mandatory)][string] $Kind
+    )
+
+    $start = "<!-- orchestration-${Kind}:start -->"
+    $end = "<!-- orchestration-${Kind}:end -->"
+    $inside = $false
+    $found = $false
+    $result = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in [System.IO.File]::ReadAllLines($PreviewPath)) {
+        $trimmed = $line.Trim()
+        if ($trimmed -ceq $start) {
+            if ($found -or $inside) { throw "duplicate $Kind packet markers" }
+            $inside = $true
+            $found = $true
+            continue
+        }
+        if ($trimmed -ceq $end) {
+            if (-not $inside) { throw "unmatched $Kind packet end marker" }
+            $inside = $false
+            continue
+        }
+        if ($inside -and -not [string]::IsNullOrWhiteSpace($trimmed)) {
+            $result.Add($trimmed)
+        }
+    }
+    if (-not $found -or $inside) { throw "missing or incomplete $Kind packet marker block" }
+    return @($result)
+}
+
 function Test-RecoveryPackets {
     param(
         [Parameter(Mandatory)] $Paths,
@@ -394,6 +440,7 @@ function Test-RecoveryPackets {
         [pscustomobject] @{ Name = 'hook'; Field = 'hook_manifest'; Path = $Paths.HookManifest },
         [pscustomobject] @{ Name = 'active-contract'; Field = 'active_contract_manifest'; Path = $Paths.ActiveContractManifest }
     )
+    $packetEntries = @{}
 
     foreach ($packet in $packets) {
         $reference = $Capsule.freeze.($packet.Field)
@@ -424,6 +471,7 @@ function Test-RecoveryPackets {
             @($entryPaths | Select-Object -Unique).Count -ne $entryPaths.Count) {
             return New-ValidationResult $false 'noncanonical-manifest' "$($packet.Name) recovery manifest paths are not uniquely ordered." $Capsule
         }
+        $packetEntries[$packet.Name] = $entryPaths
 
         foreach ($entry in $entries) {
             if (
@@ -444,13 +492,77 @@ function Test-RecoveryPackets {
 
         $requiredEntries = switch ($packet.Name) {
             'instruction' { @('AGENTS.md', '.agents/skills/orchestrate/SKILL.md') }
-            'hook' { @('.codex/hooks.json', '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1') }
+            'hook' { @(
+                '.codex/hooks.json',
+                '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1',
+                '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1',
+                '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1') }
             'active-contract' { @([string] $Capsule.freeze.preview_path) }
         }
         foreach ($requiredEntry in $requiredEntries) {
             if ($entryPaths -cnotcontains $requiredEntry) {
                 return New-ValidationResult $false 'incomplete-manifest' "$($packet.Name) recovery manifest omits required material: $requiredEntry" $Capsule
             }
+        }
+    }
+
+    try {
+        $declaredInstructionInputs = @(Read-PreviewPacketPaths -PreviewPath $Paths.Preview -Kind 'instruction-inputs')
+        $declaredActiveContracts = @(Read-PreviewPacketPaths -PreviewPath $Paths.Preview -Kind 'active-contract')
+    }
+    catch {
+        return New-ValidationResult $false 'invalid-preview-packet-index' "preview.md packet index is invalid: $($_.Exception.Message)." $Capsule
+    }
+
+    foreach ($declaredPath in $declaredInstructionInputs) {
+        if ($packetEntries.instruction -cnotcontains $declaredPath) {
+            return New-ValidationResult $false 'incomplete-manifest' "instruction recovery manifest omits preview-declared material: $declaredPath" $Capsule
+        }
+    }
+
+    $expectedActiveContracts = @(
+        @([string] $Capsule.freeze.preview_path) + $declaredActiveContracts |
+            Sort-Object -CaseSensitive -Unique)
+    $actualActiveContracts = @($packetEntries.'active-contract' | Sort-Object -CaseSensitive)
+    if (($expectedActiveContracts -join "`n") -cne ($actualActiveContracts -join "`n")) {
+        return New-ValidationResult $false 'active-contract-index-mismatch' 'active-contract manifest does not exactly match the paths declared by preview.md.' $Capsule
+    }
+
+    foreach ($instructionPath in $packetEntries.instruction) {
+        $instructionAbsolutePath = Resolve-ManifestEntryPath -ManifestPath $instructionPath
+        foreach ($line in [System.IO.File]::ReadAllLines($instructionAbsolutePath)) {
+            if ($line -match '^\s*@(?<include>[^\s]+)\s*$') {
+                $includedPath = [string] $Matches.include
+                $includedAbsolutePath = if ([System.IO.Path]::IsPathRooted($includedPath)) {
+                    [System.IO.Path]::GetFullPath($includedPath)
+                }
+                else {
+                    [System.IO.Path]::GetFullPath((Join-Path (Split-Path -Parent $instructionAbsolutePath) $includedPath))
+                }
+                $includedIdentifier = ConvertTo-ManifestIdentifier -AbsolutePath $includedAbsolutePath
+                if ($packetEntries.instruction -cnotcontains $includedIdentifier) {
+                    return New-ValidationResult $false 'incomplete-manifest' "instruction recovery manifest omits transitive include: $includedIdentifier" $Capsule
+                }
+            }
+        }
+    }
+
+    foreach ($contractPath in $declaredActiveContracts) {
+        if ([System.IO.Path]::IsPathRooted($contractPath)) { continue }
+        $contractAbsolutePath = Resolve-ManifestEntryPath -ManifestPath $contractPath
+        $directory = Split-Path -Parent $contractAbsolutePath
+        while ($directory.StartsWith($RepositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $agentsPath = Join-Path $directory 'AGENTS.md'
+            if (Test-Path -LiteralPath $agentsPath -PathType Leaf) {
+                $agentsIdentifier = ConvertTo-ManifestIdentifier -AbsolutePath $agentsPath
+                if ($packetEntries.instruction -cnotcontains $agentsIdentifier) {
+                    return New-ValidationResult $false 'incomplete-manifest' "instruction recovery manifest omits applicable nested instructions: $agentsIdentifier" $Capsule
+                }
+            }
+            if ($directory.Equals($RepositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) { break }
+            $parent = Split-Path -Parent $directory
+            if ([string]::IsNullOrWhiteSpace($parent) -or $parent -eq $directory) { break }
+            $directory = $parent
         }
     }
 
@@ -540,6 +652,13 @@ if ($Mode -eq 'Validate') {
     }
     $paths = Get-RunPaths -Identifier $RunId
     $validation = Test-RecoveryState -Paths $paths -ExpectedRunId $RunId
+    if (
+        $validation.Valid -and
+        ([string] $validation.Capsule.status -eq 'awaiting-owner' -or
+         @($validation.Capsule.owner_gates).Count -gt 0 -or
+         @($validation.Capsule.blockers | Where-Object { [string] $_.category -eq 'owner' }).Count -gt 0)) {
+        $validation = New-ValidationResult $false 'owner-gate' 'The capsule records an unresolved owner or authority gate.' $validation.Capsule
+    }
     [pscustomobject] [ordered] @{
         valid = $validation.Valid
         recovery_mode = if ($validation.Valid) { 'hot' } else { 'cold' }
@@ -635,7 +754,11 @@ if ($validation.Valid -and [string] $validation.Capsule.status -in @('complete',
     exit 0
 }
 
-if ($validation.Valid -and [string] $validation.Capsule.status -eq 'awaiting-owner') {
+if (
+    $validation.Valid -and
+    ([string] $validation.Capsule.status -eq 'awaiting-owner' -or
+     @($validation.Capsule.owner_gates).Count -gt 0 -or
+     @($validation.Capsule.blockers | Where-Object { [string] $_.category -eq 'owner' }).Count -gt 0)) {
     $validation = New-ValidationResult $false 'owner-gate' 'The capsule records an unresolved owner or authority gate.' $validation.Capsule
 }
 

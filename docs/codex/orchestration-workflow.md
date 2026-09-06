@@ -200,8 +200,9 @@ removal-ready worktrees reserve no growth. Count is inventory. Admission
 requires at least 14 GiB measured free after outstanding and proposed
 reservations and warns below 15% after reservations. Heavy work has one lease,
 uses a 1.00 GiB floor, and warns below 1.50 GiB. The 1.00–1.10 GiB band permits
-only recoverable local work; qualifying memory failure trips a checkout-local
-circuit breaker that restores 1.10 GiB pending owner-reviewed analysis. The
+only recoverable local work; qualifying memory failure trips a primary-checkout
+circuit breaker shared through linked-worktree locators that restores 1.10 GiB
+pending owner-reviewed analysis. The
 warning is calibration evidence rather than a denial. Detailed operation type,
 start/min/post memory, paging signals, duration, outcome, symptoms, and causal
 queue delay stay outside recovery context; only changed

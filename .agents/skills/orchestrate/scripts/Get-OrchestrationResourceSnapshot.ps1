@@ -37,8 +37,29 @@ if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
     throw "Orchestration resource policy does not exist: $ConfigPath"
 }
 
+$statePathResolutionValid = $true
 if ([string]::IsNullOrWhiteSpace($StatePath)) {
-    $StatePath = Join-Path $RepositoryRoot '.tmp/orchestration/resource-policy-state.json'
+    $stateRepositoryRoot = $RepositoryRoot
+    if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git') -PathType Container)) {
+        $locatorPath = Join-Path $RepositoryRoot '.codex-local/original-repository-path'
+        try {
+            if (-not (Test-Path -LiteralPath $locatorPath -PathType Leaf)) {
+                throw 'missing original-checkout locator'
+            }
+            $stateRepositoryRoot = [System.IO.Path]::GetFullPath(
+                ([System.IO.File]::ReadAllText($locatorPath).Trim()))
+            if (
+                -not (Test-Path -LiteralPath (Join-Path $stateRepositoryRoot '.git') -PathType Container) -or
+                -not (Test-Path -LiteralPath (Join-Path $stateRepositoryRoot 'KicktippAi.slnx') -PathType Leaf)) {
+                throw 'invalid original-checkout locator'
+            }
+        }
+        catch {
+            $statePathResolutionValid = $false
+            $stateRepositoryRoot = $RepositoryRoot
+        }
+    }
+    $StatePath = Join-Path $stateRepositoryRoot '.tmp/orchestration/resource-policy-state.json'
 }
 else {
     $StatePath = [System.IO.Path]::GetFullPath($StatePath)
@@ -106,6 +127,19 @@ function Get-AvailableMemoryGiB {
     }
 }
 
+function Test-OrchestrationTimestamp {
+    param([string] $Value)
+
+    $parsed = [DateTimeOffset]::MinValue
+    return (
+        -not [string]::IsNullOrWhiteSpace($Value) -and
+        [DateTimeOffset]::TryParse(
+            $Value,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::AssumeUniversal,
+            [ref] $parsed))
+}
+
 $freeDiskGiB = Get-SyntheticValue -Name 'FreeDiskGiB'
 $totalDiskGiB = Get-SyntheticValue -Name 'TotalDiskGiB'
 $availableMemoryGiB = Get-SyntheticValue -Name 'AvailableMemoryGiB'
@@ -151,25 +185,39 @@ if (-not $useSyntheticSample) {
 }
 
 $circuitBreakerActive = $false
-$circuitBreakerReason = $null
-$circuitBreakerStateValid = $true
+$circuitBreakerStateValid = $statePathResolutionValid
+$circuitBreakerReason = if ($statePathResolutionValid) { $null } else {
+    'The shared memory circuit-breaker path could not be resolved to the primary checkout.'
+}
 if ($useSyntheticSample -and $Sample.ContainsKey('MemoryCircuitBreakerActive')) {
     $circuitBreakerActive = [bool] (Get-SyntheticValue -Name 'MemoryCircuitBreakerActive')
     $circuitBreakerReason = [string] (Get-SyntheticValue -Name 'MemoryCircuitBreakerReason')
 }
-elseif (Test-Path -LiteralPath $StatePath -PathType Leaf) {
+elseif ($statePathResolutionValid -and (Test-Path -LiteralPath $StatePath -PathType Leaf)) {
     try {
         $state = Get-Content -LiteralPath $StatePath -Raw | ConvertFrom-Json
         if (
             [int] $state.schema_version -ne 1 -or
             [string] $state.status -notin @('active', 'cleared') -or
+            -not (Test-OrchestrationTimestamp -Value ([string] $state.updated_at_utc)) -or
+            $null -eq $state.trigger -or
+            [string]::IsNullOrWhiteSpace([string] $state.trigger.run_id) -or
+            [string]::IsNullOrWhiteSpace([string] $state.trigger.operation) -or
+            -not (Test-OrchestrationTimestamp -Value ([string] $state.trigger.at_utc)) -or
+            [string]::IsNullOrWhiteSpace([string] $state.trigger.reason) -or
             ([string] $state.status -eq 'active' -and
-                ([double] $state.effective_floor_gib -lt $circuitBreakerFloorGiB -or
-                 [string]::IsNullOrWhiteSpace([string] $state.reason)))) {
+                ([double] $state.effective_floor_gib -ne $circuitBreakerFloorGiB -or
+                 $null -ne $state.clearance)) -or
+            ([string] $state.status -eq 'cleared' -and
+                ([double] $state.effective_floor_gib -ne $configuredMemoryFloorGiB -or
+                 $null -eq $state.clearance -or
+                 -not (Test-OrchestrationTimestamp -Value ([string] $state.clearance.at_utc)) -or
+                 [string]::IsNullOrWhiteSpace([string] $state.clearance.reviewed_by) -or
+                 [string]::IsNullOrWhiteSpace([string] $state.clearance.reason)))) {
             throw 'invalid state shape'
         }
         $circuitBreakerActive = [string] $state.status -eq 'active'
-        $circuitBreakerReason = if ($circuitBreakerActive) { [string] $state.reason } else { $null }
+        $circuitBreakerReason = if ($circuitBreakerActive) { [string] $state.trigger.reason } else { $null }
     }
     catch {
         $circuitBreakerStateValid = $false

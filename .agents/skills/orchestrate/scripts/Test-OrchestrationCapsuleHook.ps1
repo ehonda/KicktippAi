@@ -117,10 +117,13 @@ try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $testRoot '.codex') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $testRoot '.agents/skills/orchestrate/scripts') -Force | Out-Null
-    Set-Content -LiteralPath (Join-Path $testRoot 'AGENTS.md') -Value '# Test instructions' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $testRoot 'AGENTS.md') -Value "# Test instructions`n`n@AUTO-REVIEW.md" -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $testRoot 'AUTO-REVIEW.md') -Value '# Included review policy' -Encoding utf8
     Set-Content -LiteralPath (Join-Path $testRoot '.agents/skills/orchestrate/SKILL.md') -Value '# Test skill' -Encoding utf8
     Set-Content -LiteralPath (Join-Path $testRoot '.codex/hooks.json') -Value '{"hooks":{}}' -Encoding utf8
     Copy-Item -LiteralPath $hook -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1')
+    Copy-Item -LiteralPath $recoverySnapshotHelper -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Get-OrchestrationResourceSnapshot.ps1') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1')
     & git -C $testRoot init --quiet
     & git -C $testRoot remote add origin 'https://github.com/ehonda/KicktippAi.git'
 
@@ -162,13 +165,50 @@ try {
     $oversizedOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
     Assert-True ($oversizedOutput.hookSpecificOutput.additionalContext -match 'oversized-capsule') 'oversized capsules must be forwarded'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value '# Current frozen graph' -Encoding utf8
+    New-Item -ItemType Directory -Path (Join-Path $testRoot 'nested') | Out-Null
+    Set-Content -LiteralPath (Join-Path $testRoot 'nested/AGENTS.md') -Value '# Nested instructions' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $testRoot 'nested/contract.md') -Value '# Active contract' -Encoding utf8
+    $previewContent = @'
+# Current frozen graph
+
+<!-- orchestration-instruction-inputs:start -->
+<!-- orchestration-instruction-inputs:end -->
+
+<!-- orchestration-active-contract:start -->
+nested/contract.md
+<!-- orchestration-active-contract:end -->
+'@
+    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value $previewContent -Encoding utf8
     & $manifestHelper -RunId $runId -Packet instruction -RepositoryRoot $testRoot -Path @(
         'AGENTS.md', '.agents/skills/orchestrate/SKILL.md') | Out-Null
     & $manifestHelper -RunId $runId -Packet hook -RepositoryRoot $testRoot -Path @(
         '.codex/hooks.json', '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1') | Out-Null
     & $manifestHelper -RunId $runId -Packet active-contract -RepositoryRoot $testRoot -Path @(
         ".tmp/orchestration/$runId/preview.md") | Out-Null
+
+    $instructionManifestPath = Join-Path $runDirectory 'instruction-manifest.json'
+    $instructionManifest = Get-Content -LiteralPath $instructionManifestPath -Raw | ConvertFrom-Json
+    Assert-True (@($instructionManifest.entries.path) -ccontains 'AUTO-REVIEW.md') 'instruction manifests must expand transitive includes'
+    Assert-True (@($instructionManifest.entries.path) -ccontains 'nested/AGENTS.md') 'instruction manifests must discover applicable nested instructions'
+    $hookManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'hook-manifest.json') -Raw | ConvertFrom-Json
+    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1') 'hook manifests must include the hot recovery helper'
+    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1') 'hook manifests must include the recovery resource dependency'
+    $activeManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'active-contract-manifest.json') -Raw | ConvertFrom-Json
+    Assert-True (@($activeManifest.entries.path) -ccontains 'nested/contract.md') 'active manifests must include preview-declared contracts'
+
+    $completeInstructionManifest = Get-Content -LiteralPath $instructionManifestPath -Raw
+    $instructionManifest.entries = @($instructionManifest.entries | Where-Object { [string] $_.path -ne 'AUTO-REVIEW.md' })
+    $instructionManifest | ConvertTo-Json -Depth 5 -Compress | Set-Content -LiteralPath $instructionManifestPath -Encoding utf8
+    New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
+    $incompleteInstructionRejected = $false
+    try {
+        & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
+    }
+    catch {
+        $incompleteInstructionRejected = $_.Exception.Message -match 'incomplete-manifest'
+    }
+    Assert-True $incompleteInstructionRejected 'sealing must reject a manifest that omits a transitive instruction include'
+    [System.IO.File]::WriteAllText($instructionManifestPath, $completeInstructionManifest, [System.Text.UTF8Encoding]::new($false))
 
     New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
     & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
@@ -190,9 +230,9 @@ try {
     $driftOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
     Assert-True ($driftOutput.hookSpecificOutput.additionalContext -match 'COLD \$orchestrate RECOVERY') 'packet drift must select the cold path'
     Assert-True ($driftOutput.hookSpecificOutput.additionalContext -match 'packet-digest-mismatch') 'changed packet material must be identified'
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value '# Current frozen graph' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value $previewContent -Encoding utf8
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value ('w' * 9000) -NoNewline
+    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value ($previewContent + "`n" + ('w' * 9000)) -NoNewline
     & $manifestHelper -RunId $runId -Packet active-contract -RepositoryRoot $testRoot -Path @(
         ".tmp/orchestration/$runId/preview.md") | Out-Null
     New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
@@ -201,10 +241,10 @@ try {
     Assert-True $warningValidation.valid 'a preview between 8 and 12 KiB must remain valid'
     Assert-True ($warningValidation.message -match '8192-byte target') 'a preview above 8 KiB must report the size warning'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value ('x' * 12289) -NoNewline
+    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value ($previewContent + "`n" + ('x' * 12289)) -NoNewline
     $largePreviewOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
     Assert-True ($largePreviewOutput.hookSpecificOutput.additionalContext -match 'oversized-preview') 'a preview above 12 KiB must force cold recovery'
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value '# Current frozen graph' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value $previewContent -Encoding utf8
     & $manifestHelper -RunId $runId -Packet active-contract -RepositoryRoot $testRoot -Path @(
         ".tmp/orchestration/$runId/preview.md") | Out-Null
 
@@ -213,6 +253,20 @@ try {
     & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
     $ownerGateOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
     Assert-True ($ownerGateOutput.hookSpecificOutput.additionalContext -match 'owner-gate') 'an unresolved owner gate must force cold recovery'
+
+    $activeOwnerGateCapsule = New-ValidCapsule
+    $activeOwnerGateCapsule.owner_gates = @('Owner must select the production route.')
+    $activeOwnerGateCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
+    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
+    $activeOwnerGateOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
+    Assert-True ($activeOwnerGateOutput.hookSpecificOutput.additionalContext -match 'owner-gate') 'nonempty owner_gates must force cold recovery even when lifecycle status is active'
+
+    $ownerBlockerCapsule = New-ValidCapsule
+    $ownerBlockerCapsule.blockers = @([ordered] @{ category = 'owner'; detail = 'Owner confirmation remains open.' })
+    $ownerBlockerCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
+    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
+    $ownerBlockerOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
+    Assert-True ($ownerBlockerOutput.hookSpecificOutput.additionalContext -match 'owner-gate') 'an owner blocker must force cold recovery even when lifecycle status is active'
 
     $invalidTargetCapsule = New-ValidCapsule
     $invalidTargetCapsule.git.push_url = 'https://github.com/example/other.git'

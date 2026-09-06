@@ -258,10 +258,12 @@ primary checkout merely to evade admission.
   assess pressure, duration/outcome, paging or OOM symptoms, and causal queue
   delay. Do not put this stream in the capsule or automatic recovery context.
 - A memory-related OOM, abnormal termination, or severe paging failure trips a
-  repository-local, machine-scoped circuit breaker at
+  repository-local, machine-scoped circuit breaker shared by all linked
+  worktrees through the primary-checkout locator at
   `.tmp/orchestration/resource-policy-state.json`. The resource helper must
   consult that state for every heavy admission and atomically restore the
-  effective floor to 1.10 GiB for resumed and later runs in this checkout.
+  effective floor to 1.10 GiB for resumed and later runs in every worktree of
+  this primary checkout.
   Record the triggering run, operation, timestamp, and concise reason without
   putting the evidence stream in recovery context. The breaker remains active
   until an owner-reviewed analysis explicitly clears it; never clear it from a

@@ -171,18 +171,35 @@ Assert-True ($json.HeavyOperationAdmission.WarningThresholdGiB -eq 1.5) 'JSON ou
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "orchestration-resource-$([Guid]::NewGuid().ToString('N'))"
 try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
-    & $circuitBreakerHelper -Action Trip -RepositoryRoot $testRoot -RunId test-run -Operation build -Reason 'synthetic OOM' | Out-Null
-    $trippedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -StatePath (Join-Path $testRoot '.tmp/orchestration/resource-policy-state.json') -Sample @{
+    New-Item -ItemType Directory -Path (Join-Path $testRoot '.git') | Out-Null
+    Set-Content -LiteralPath (Join-Path $testRoot 'KicktippAi.slnx') -Value '' -Encoding utf8
+    $linkedRoot = Join-Path $testRoot 'linked-worktree'
+    New-Item -ItemType Directory -Path (Join-Path $linkedRoot '.codex-local') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $linkedRoot '.git') -Value 'gitdir: synthetic' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $linkedRoot '.codex-local/original-repository-path') -Value $testRoot -Encoding utf8
+
+    $clearWithoutTripRejected = $false
+    try {
+        & $circuitBreakerHelper -Action Clear -RepositoryRoot $testRoot -Reason 'no trip' -ReviewedBy owner | Out-Null
+    }
+    catch {
+        $clearWithoutTripRejected = $_.Exception.Message -match 'existing valid active'
+    }
+    Assert-True $clearWithoutTripRejected 'clearing without an existing valid trip must be rejected'
+
+    & $circuitBreakerHelper -Action Trip -RepositoryRoot $linkedRoot -RunId test-run -Operation build -Reason 'synthetic OOM' | Out-Null
+    $trippedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -Sample @{
         FreeDiskGiB = 30
         TotalDiskGiB = 200
         AvailableMemoryGiB = 1.05
         LogicalProcessors = 4
         LinkedTaskWorktrees = 0
     }
-    Assert-True (-not $trippedState.HeavyOperationAdmission.Allowed) 'the durable circuit-breaker file must affect later admission'
+    Assert-True (-not $trippedState.HeavyOperationAdmission.Allowed) 'a trip from a linked worktree must affect primary-checkout admission'
+    Assert-True ($trippedState.HeavyOperationAdmission.CircuitBreakerStatePath -like "$testRoot*") 'linked worktrees must share the primary-checkout circuit-breaker path'
 
-    & $circuitBreakerHelper -Action Clear -RepositoryRoot $testRoot -RunId test-run -Operation build -Reason 'owner-reviewed calibration' -ReviewedBy owner | Out-Null
-    $clearedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -StatePath (Join-Path $testRoot '.tmp/orchestration/resource-policy-state.json') -Sample @{
+    & $circuitBreakerHelper -Action Clear -RepositoryRoot $linkedRoot -Reason 'owner-reviewed calibration' -ReviewedBy owner | Out-Null
+    $clearedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -Sample @{
         FreeDiskGiB = 30
         TotalDiskGiB = 200
         AvailableMemoryGiB = 1.05
@@ -190,6 +207,16 @@ try {
         LinkedTaskWorktrees = 0
     }
     Assert-True $clearedState.HeavyOperationAdmission.Allowed 'owner-reviewed clearing must restore the configured floor'
+
+    Set-Content -LiteralPath (Join-Path $testRoot '.tmp/orchestration/resource-policy-state.json') -Value '{"schema_version":1,"status":"cleared"}' -Encoding utf8
+    $malformedClear = & $helper -Admission Heavy -RepositoryRoot $testRoot -Sample @{
+        FreeDiskGiB = 30
+        TotalDiskGiB = 200
+        AvailableMemoryGiB = 2.0
+        LogicalProcessors = 4
+        LinkedTaskWorktrees = 0
+    }
+    Assert-True (-not $malformedClear.HeavyOperationAdmission.Allowed) 'a malformed or unaudited cleared state must fail closed'
 }
 finally {
     if (Test-Path -LiteralPath $testRoot) {

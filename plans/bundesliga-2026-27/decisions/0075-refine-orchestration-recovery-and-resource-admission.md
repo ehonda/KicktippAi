@@ -56,8 +56,9 @@ family remain.
 The heavy-operation floor becomes 1.00 GiB, with 1.00–1.10 GiB restricted to
 recoverable local work without external side effects. A memory-related OOM,
 abnormal termination, or severe paging failure trips a repository-local,
-machine-scoped state file that restores 1.10 GiB in this checkout until an
-owner-reviewed analysis clears it. Purpose-specific outcome evidence stays out
+machine-scoped state file shared through the primary-checkout locator that
+restores 1.10 GiB across linked worktrees until an owner-reviewed analysis
+clears the preserved trigger. Purpose-specific outcome evidence stays out
 of the recovery capsule.
 
 Historical material is opt-in. The live Bundesliga index and execution
