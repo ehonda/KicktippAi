@@ -2,9 +2,9 @@
 
 - Snapshot date: 2026-09-06
 - Verified branch: `main`
-- Verified local and remote head: `33ff358b604748c67d9f87cc98fb8a01fa336d37`
-- Planning baseline: `538c30c53870faa608cf0d6e6a9dbf20f8d833d3`
-- Purpose: dated readiness handoff for the next explicit orchestration session
+- Verified local and remote head: `204cfd8db2c4163ca320a7c8a1829ebbc2ee1ed2`
+- Reviewed P1-04/P1-05 planning baseline: `c99e1635428bcfea48271e4169767b38f014148c`
+- Purpose: owner-directed stop checkpoint for the next explicit orchestration session
 
 This is a snapshot, not a new execution decision or production-activation
 authority. The task records, accepted ADRs, designs, and execution strategy
@@ -12,10 +12,16 @@ remain authoritative. A later orchestration session must re-verify repository,
 task, dependency, source-evidence, pull-request, and owner-gate state, then
 update this file and its snapshot date before relying on it.
 
-The planning baseline is an ancestor of the verified head, and its exact
-[Build and Test run](https://github.com/ehonda/KicktippAi/actions/runs/33972378750)
-completed successfully. Changes after that baseline do not modify the P1
-planning files summarized here.
+The verified head's exact
+[Build and Test run](https://github.com/ehonda/KicktippAi/actions/runs/34059343588)
+completed successfully with all 12 check runs green. The reviewed P1-04/P1-05
+planning baseline is an ancestor of that head. The later `204cfd8` commit is an
+unrelated orchestration-analysis change that must be preserved.
+
+Neither P1-04 nor P1-05 is complete. Their exact in-flight state and first
+resume actions are recorded separately in the
+[P1-04 official-HTML handoff](handoffs/p1-04-club-elo-html-in-flight-2026-09-06.md)
+and [P1-05 roster-refresh handoff](handoffs/p1-05-roster-refresh-in-flight-2026-09-06.md).
 
 ## Status
 
@@ -23,8 +29,8 @@ planning files summarized here.
 |---|---|---|
 | P1-01 / P1-02 | Promoted into completed P0-15 / P0-16 work | Complete; no P1 implementation remains |
 | [P1-03](tasks/p1-03-generic-onboarding-skill.md) | Generic competition onboarding tooling | Complete |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | Owner interview and planning accepted; runtime untouched | **Ready to enter implementation first** |
-| [P1-05](tasks/p1-05-roster-refresh.md) | Owner interview and planning accepted; runtime untouched | **Ready to enter implementation second, after P1-04** |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | Official HTML selected; exact evidence captured; successor specification review remains blocked on two bounded corrections; no ADR-0075 or runtime exists | In flight; correct and independently re-review the specification before a tracked re-freeze or writer |
+| [P1-05](tasks/p1-05-roster-refresh.md) | Source-neutral common foundation is local-only at `852d179`; focused tests are green, but fresh cumulative review and integration are pending; roster source implementation has not started | In flight independently of P1-04; review and integrate the common seam first |
 | [P1-06](tasks/p1-06-observability-datasets.md) | Not started; owner frontier and exact stored-prediction evidence remain | Not ready |
 | [P1-07](tasks/p1-07-cost-calibration.md) | Not started; depends on P1-04 and P1-05 and remains ungrilled | Not ready |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Fully absorbed by P1-10 | Superseded; do not implement |
@@ -37,28 +43,37 @@ planning files summarized here.
 | [P1-15](tasks/p1-15-schadensfresse-champions-league-bonus.md) | All three frozen answers verified in Firestore and Kicktipp | Complete |
 | [P1-16](tasks/p1-16-automatic-history-date-updates.md) | Deferred, low urgency, and explicitly needs interview | Not ready |
 
-## Ready implementation queue
+## Resume order for P1-04 and P1-05
 
-1. P1-04 is ready to begin without further owner grilling.
-2. P1-05 is also fully decided, with accepted sequencing after P1-04.
-3. P1-13's R4a slice is technically resumable, but the accepted priority keeps
-   P1-13 and P1-10 last rather than making R4a the next lane.
+1. Commission a fresh cumulative independent review of the clean, local-only
+   common range
+   `c99e1635428bcfea48271e4169767b38f014148c..852d1798e77d78e4dee4350ddc1d59cba54f60a5`.
+2. If approved, integrate that reviewed source-neutral content on top of the
+   then-current `main`, preserving `204cfd8` and the separate dirty P1-10
+   worktree. P1-05 may then start its frozen source implementation without
+   waiting for P1-04.
+3. Independently correct P1-04's official-HTML specification: expand the
+   common amendment to include health and Firebase descriptor reconstruction
+   plus their tests/coordinator fixture, and remove the diagnostic
+   double-prefix ambiguity. A different reviewer must approve the result
+   before ADR-0075 and a material P1-04 re-freeze.
+4. Do not start another P1 item from this checkpoint. Reprioritize in the new
+   session after the orchestration-protocol improvements are applied.
 
-For P1-04 and P1-05, readiness means implementation may start; it does not
-authorize immediate workflow edits or production activation. The implementation
-must first resolve the remaining technical/source gates in
-[ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
-and the accepted
-[context-refresh design](designs/p1-04-05-context-refresh.md):
+Current DuckDB evidence is a safe rejection, not a blocker to implementation:
+the 210,776,064-byte artifact has SHA-256
+`ba1eff7337b8ca78cb533df0b6eba0d6fc58218e0767460f6770e0b37f5a2113`,
+embedded revision `e44f186d6f06dd8452aaf54c7921ba66c961f637`, zero eligible
+L1/`last_season=2026` club or player rows for all 18 manifest IDs, and no
+authoritative revision-bound source dates. It must retain fallback/LKG with
+`NO_ELIGIBLE_2026_MEMBERSHIP` and `UNKNOWN_SOURCE_DATE`; a synthetic future
+artifact proves takeover.
 
-- prove Club Elo CSV date and name semantics;
-- establish a trustworthy DuckDB source-date recipe or reject the candidate as
-  `UNKNOWN_SOURCE_DATE`;
-- independently review the minimal cycle-health and artifact-handoff seam; and
-- validate development-first, with first production enablement separately
-  reviewed.
-
-These are implementation gates, not unresolved owner-policy decisions.
+Current Club Elo evidence is the exact official `https://clubelo.com/GER` HTML
+body dated `2026-09-04`, 562,238 bytes, SHA-256
+`a342b6f83dadbb49599c0fe6364ea3288f0953381d5b35e923eb87a03296aa59`.
+The Owner selected that source, but selection alone is not an accepted
+successor contract, unattended-network authority, or activation evidence.
 
 ## Preserved P1-10 / P1-13 state
 
