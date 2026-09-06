@@ -5,9 +5,27 @@ These instructions apply to every file and implementation task under this direct
 ## Read order
 
 1. Read this file.
-2. Read [README.md](README.md) for task order and dependencies.
-3. Read the task being implemented and every linked prerequisite ADR.
-4. Consult the readiness research only for background; accepted ADRs in this directory supersede research proposals.
+2. Read the current-status and dependency sections of [README.md](README.md).
+3. Read the active task or handoff named by that index and only the designs and
+   operative ADRs needed for the assigned lane. Historical task/evidence and
+   archive directories are opt-in, never unconditional context.
+4. Consult readiness research only for background; accepted ADRs supersede
+   research proposals. Reconcile an in-flight handoff with current Git and
+   worktree state before treating either as current truth.
+
+## Source-of-truth precedence
+
+- Runtime and repository state decide what exists now; an accepted operative
+  ADR decides durable intent; the current plan index decides routing; the
+  active task/design/handoff decides lane execution. Reconcile contradictions
+  explicitly rather than loading more history by default.
+- Keep `README.md` current-only: program state, active/deferred tasks,
+  dependencies, owner gates, and links. Keep `execution-strategy.md` focused on
+  current phase policy, milestones, authority, and continuity rather than
+  completed chronology.
+- A phase orchestration preview names its exact active-contract packet.
+  Material outside that packet is read only when the current contract points
+  to it or a cold reconstruction requires it.
 
 ## Architecture decision records
 
@@ -48,7 +66,23 @@ These instructions apply to every file and implementation task under this direct
 - Do not mark a task complete until every completion criterion and listed automated check passes, or a linked ADR explicitly changes the criterion.
 - Add newly discovered work as a small task with dependencies instead of expanding an existing task without bound.
 - Keep task records as compact execution contracts: status, outcome, dependencies, owner gates, milestone checklist, completion criteria, evidence links, and ADR/design links. Put cross-cutting invariants and seam maps in `designs/`, phase order/resources/authority in the frozen phase execution packet, and high-volume run evidence in dedicated evidence artifacts or CI links.
-- Under [ADR-0061](decisions/0061-preview-and-milestone-orchestration.md), a phase-scale `$orchestrate` run must finish whole-phase intake before writers start. Cross-cutting or high-risk architecture and its independent specification review always use different `gpt-5.6-sol` / `xhigh` agents during this pilot. Bounded implementation uses the capability tier appropriate to the frozen task; read-only status/CI evidence stays lightweight.
-- Each checkout/worktree has one writer. The orchestrator may admit at most two isolated writable worktrees with non-overlapping ownership, but the checked-in resource profile may reduce writer or heavy-operation concurrency. A new cross-cutting invariant, missing ADR, dependency seam, invalidated architecture, or material expansion pauses the affected lane for redesign and re-freeze instead of growing the task silently.
+- Under [ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md), a phase-scale `$orchestrate` run must finish whole-phase intake before writers start. Genuinely phase-wide or cross-cutting architecture uses `gpt-6-astra` / `high` only as architecture lead, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. Bounded implementation uses the capability tier appropriate to the frozen task; read-only status/CI evidence stays lightweight.
+- Each checkout/worktree has one writer. There is no universal writer or linked-worktree count; the root admits path-disjoint ready work through the checked-in reservation-based disk policy, sole-heavy lease, and a run-local wave throttle. A new cross-cutting invariant, missing ADR, dependency seam, invalidated architecture, or material expansion pauses the affected lane for redesign and re-freeze instead of growing the task silently.
 - A milestone that disables or regresses active production behavior must stay on an integration branch or draft PR until the safe release unit is ready. A separate safety quarantine needs explicit owner approval, documented impact/fallback/rollback/recovery owner, and a restoration deadline.
 - Every implementation task ends with a scoped local commit. Push cohesive reviewed milestones and recovery-critical long lanes—not every local lane—after verifying the exact Git target according to the repository-level authorization contract.
+
+## Archival lifecycle
+
+- When a task or handoff becomes `Complete` or `Superseded`, reconcile its
+  commit/worktree state and confirm that no live recovery, rollback, or current
+  contract still depends on it. Then move completed execution history and
+  evidence into the indexed archive in the same focused change; do not wait
+  for a broad cleanup.
+- Keep accepted ADRs in `decisions/` while they remain operative, regardless of
+  task age or phase number. When a mixed artifact contains both a live contract
+  and completed evidence, split those concerns before archiving the evidence.
+- Update every repository link atomically with a move and validate Markdown
+  links. Do not leave redirect stubs solely to preserve discovery clutter.
+- Archive paths are opt-in historical reference material. Never add an archive
+  directory, completed-phase index, or historical execution strategy to a
+  general startup, recovery, root, or task-agent read order.

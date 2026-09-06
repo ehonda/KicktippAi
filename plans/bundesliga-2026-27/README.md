@@ -5,7 +5,7 @@ This directory decomposes the P0 and P1 proposals in [the readiness research](..
 P0 ends with successful manual production runs, the opening bonus and match predictions, deliberately enabled schedules, and observation of the first scheduled sequence. P1 then improves maintainability, freshness, experiment tooling, and live cost evidence.
 
 The accepted [execution strategy](execution-strategy.md) and
-[ADR-0061](decisions/0061-preview-and-milestone-orchestration.md) define
+[ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md) define
 whole-phase readiness preview, fully grilled runnable milestones, resource-
 admitted worktree parallelism, production-safe Git integration, Codex usage
 discipline, and the remaining owner-controlled launch decisions.
@@ -318,7 +318,8 @@ contract:
 - [ADR-0058: Make schadensfresse a Bundesliga-subcompetition-typed primary](decisions/0058-make-schadensfresse-a-competition-typed-primary.md) — final target-primary architecture; P1-10 absorbs P1-08
 - [ADR-0059: Bind schadensfresse rules to a structured semantic record](decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md) — narrowly supersedes ADR-0058's legacy normalized rules hash as the semantic publication/freshness gate; preserves it as historical evidence and makes the structured v1 record canonical
 - [ADR-0060: Separate generation provenance from current rules attestation](decisions/0060-separate-generation-manifest-from-current-rules-attestation.md) — keeps generation manifests immutable while a directly keyed, exact-publication binding may refresh unchanged authenticated rules evidence for zero-call, zero-mutation reuse
-- [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — replaces the earlier fixed-capacity orchestration/Git rules with phase preview, fully grilled runnable milestones, semantic scope gates, resource admission, and production-safe milestone publication
+- [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — superseded in part by ADR-0075; its whole-phase preview, production-continuity, Git, and publication decisions remain operative
+- [ADR-0075: Refine orchestration recovery and resource admission](decisions/0075-refine-orchestration-recovery-and-resource-admission.md) — adds manifest-verified hot recovery, bounded continuity/final review, Astra/high architecture leadership, dynamic disk reservations, and the low-memory circuit breaker
 - [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery; ADR-0068 replaces only its calendar sunset with a reviewed replacement condition
 - [ADR-0069: Deliver the frozen schadensfresse Champions-League bonus exception](decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md) — narrow target-owned, context-free, manual-only exception for the three September 8 CL questions
 - [ADR-0070: Isolate the strict CL bonus mutation transport](decisions/0070-isolate-the-strict-cl-bonus-mutation-transport.md) — share authenticated cookies across distinct handler chains while preventing mutation replay and unsafe redirects

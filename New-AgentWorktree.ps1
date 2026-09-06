@@ -9,7 +9,14 @@ param(
     [string] $Branch,
 
     [ValidateNotNullOrEmpty()]
-    [string] $StartPoint = 'HEAD'
+    [string] $StartPoint = 'HEAD',
+
+    [Parameter(Mandatory)]
+    [switch] $WorktreeInventoryConfirmed,
+
+    [Parameter(Mandatory)]
+    [ValidateRange(0, [double]::MaxValue)]
+    [double] $OutstandingWorktreeReservationsGiB
 )
 
 $ErrorActionPreference = 'Stop'
@@ -45,7 +52,11 @@ if (-not (Test-Path -LiteralPath $resourceHelperPath -PathType Leaf)) {
     throw "The orchestration resource admission helper is missing: $resourceHelperPath"
 }
 
-$resourceSnapshot = & $resourceHelperPath -Admission Worktree -RepositoryRoot $repositoryRoot
+$resourceSnapshot = & $resourceHelperPath `
+    -Admission Worktree `
+    -RepositoryRoot $repositoryRoot `
+    -WorktreeInventoryConfirmed:$WorktreeInventoryConfirmed `
+    -OutstandingWorktreeReservationsGiB $OutstandingWorktreeReservationsGiB
 if (-not $resourceSnapshot.WorktreeAdmission.Allowed) {
     throw "Worktree resource admission failed. $($resourceSnapshot.WorktreeAdmission.Reason)"
 }

@@ -3,8 +3,10 @@
 This document records why KicktippAi changed its explicit `$orchestrate`
 workflow after the first P1 run and which parts remain pilot hypotheses. The
 procedural source of truth is the repository-root `AGENTS.md` and
-`.agents/skills/orchestrate/SKILL.md`; Bundesliga-specific adoption is recorded
-in ADR-0061 and the execution strategy.
+`.agents/skills/orchestrate/SKILL.md`; the post-P1 refinement is frozen in
+[`orchestration-workflow-improvements-spec.md`](orchestration-workflow-improvements-spec.md)
+and adopted for Bundesliga by ADR-0075. Earlier numeric limits below are
+historical evidence where the refinement is stated explicitly.
 
 ## Evidence that motivated the change
 
@@ -87,9 +89,11 @@ complete the phase foundation, then fully interview one task or cohesive
 milestone at a time. The owner may stop between those units and release the
 already frozen independent graph; deferred nodes are `needs-interview`.
 
-Raw interview state remains in
-`.tmp/orchestration/<run-id>/preview.md`. The compact, sealed recovery snapshot
-remains in sibling `capsule.json`. Stable phase ordering, authority, and review results are
+The replace-in-place current graph remains in
+`.tmp/orchestration/<run-id>/preview.md`; raw interview dialogue and history do
+not. The compact, sealed recovery snapshot remains in sibling `capsule.json`,
+with separate instruction, hook, and active-contract manifests enabling bounded
+hot recovery. Stable phase ordering, authority, and review results are
 promoted into the competition's tracked execution packet only after review.
 High-risk architecture belongs in a dedicated design artifact rather than an
 ever-growing task checklist. The restarted P1 run—not this policy change—will
@@ -98,9 +102,9 @@ create `plans/bundesliga-2026-27/p1-execution-plan.md` and any required
 
 ## Architecture and scope control
 
-Phase-wide or cross-cutting architecture always uses a
-`gpt-5.6-sol` / `xhigh` lead and a different `gpt-5.6-sol` / `xhigh` reviewer
-during this pilot. Getting the seam map, invariants, non-goals, dependency
+Genuinely phase-wide or cross-cutting architecture uses a `gpt-6-astra` /
+`high` lead only in that role and a different `gpt-5.6-sol` / `xhigh`
+specification reviewer. Getting the seam map, invariants, non-goals, dependency
 graph, owned paths, and verification strategy right is cheaper than correcting
 downstream drift. The accepted lead remains recallable only with a concrete
 near-term retention reason, unchanged role, and observable context-cost limit,
@@ -124,9 +128,12 @@ milestones and exceptional high-risk lanes. A reconciliation thread may be
 reused while its context remains applicable.
 
 The project config allows eight spawned-agent threads, excluding the primary.
-This does not create a target occupancy or replace the separate limits of two
-writers/worktrees and one heavy operation. Useful independent ready work should
-be admitted; speculative work should not be invented to fill capacity.
+This does not create a target occupancy. There is no universal writer or
+linked-worktree count; the root selects a wave throttle from graph readiness,
+path ownership, disk reservations, review/integration routes, and external
+leases. The one-heavy-operation limit remains separate. Useful independent
+ready work should be admitted; speculative work should not be invented to fill
+capacity.
 
 Sol/xhigh remains the independent-review default during this pilot. Sol/high
 may review a frozen exact artifact only when the root records bounded paths and
@@ -143,13 +150,12 @@ release unit is ready. An emergency safety quarantine may land separately only
 with explicit owner approval, exact impact, fallback or its absence, rollback,
 recovery owner, and restoration deadline.
 
-P1-10 is the case study: CI-green commits removed scheduled Schadensfresse
+P1-10 was the historical case study: CI-green commits removed scheduled Schadensfresse
 context/match execution and fail-closed its prediction and verification
 entrypoints before the replacement was ready. There was no automated copy
-fallback. The new workflow requires the restarted P1 preview to treat
-September 4, 2026 as the target for restoring the typed scheduled context and
-matchday path, while the CL bonus retains its September 8 16:45 UTC deadline.
-Manual copying is an owner-operated last resort, not orchestrator authority.
+fallback. Current continuity and routing are governed by the live Bundesliga
+index and operative ADRs, not those now-expired dates. Manual copying is not
+orchestrator authority.
 
 ## Bounded authorization and unattended recovery
 
@@ -188,12 +194,17 @@ The checked-in resource helper separates three limits:
 - linked writable-worktree capacity; and
 - heavy local operations such as full builds, tests, and multi-job families.
 
-The default profile admits at most two linked task worktrees and reserves 1.25
-GiB for each new one. It requires at least 10 GiB free after reservation and
-warns below 15% disk free. Heavy work has one lease on every host, requires at
-least 1.10 GiB available memory, and warns below 1.50 GiB. The warning is
-calibration evidence rather than a denial. Detailed operation type, start/post
-memory, duration, and outcome stay outside recovery context; only changed
+The current profile classifies active/build-capable and uncertain worktrees
+with a provisional 1.25 GiB future-growth reservation; parked/recovery-only and
+removal-ready worktrees reserve no growth. Count is inventory. Admission
+requires at least 14 GiB measured free after outstanding and proposed
+reservations and warns below 15% after reservations. Heavy work has one lease,
+uses a 1.00 GiB floor, and warns below 1.50 GiB. The 1.00–1.10 GiB band permits
+only recoverable local work; qualifying memory failure trips a checkout-local
+circuit breaker that restores 1.10 GiB pending owner-reviewed analysis. The
+warning is calibration evidence rather than a denial. Detailed operation type,
+start/min/post memory, paging signals, duration, outcome, symptoms, and causal
+queue delay stay outside recovery context; only changed
 verdicts, warning bands, overrides, reservations, or lease owners change the
 capsule. No-change samples are capsule-silent.
 Missing required measurements still fail closed; an explicit run-scoped owner

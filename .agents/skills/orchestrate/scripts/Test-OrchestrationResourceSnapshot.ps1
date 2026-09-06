@@ -3,6 +3,7 @@ param()
 
 $ErrorActionPreference = 'Stop'
 $helper = Join-Path $PSScriptRoot 'Get-OrchestrationResourceSnapshot.ps1'
+$circuitBreakerHelper = Join-Path $PSScriptRoot 'Set-OrchestrationMemoryCircuitBreaker.ps1'
 
 function Assert-True {
     param(
@@ -21,9 +22,11 @@ $baseline = & $helper -Admission Worktree -Sample @{
     AvailableMemoryGiB = 2.0
     LogicalProcessors = 4
     LinkedTaskWorktrees = 0
+    WorktreeInventoryConfirmed = $true
+    OutstandingWorktreeReservationsGiB = 0
 }
 Assert-True $baseline.WorktreeAdmission.Allowed 'the current-like disk sample should admit one worktree'
-Assert-True ($baseline.Warnings.Count -eq 1) 'low disk percentage should produce a warning'
+Assert-True ($baseline.Warnings.Count -eq 1) 'effective disk percentage below 15% should produce a warning'
 Assert-True ($baseline.HeavyOperationAdmission.CurrentLimit -eq 1) 'a four-core host should retain one heavy-operation lease'
 
 $fullPool = & $helper -Admission Worktree -Sample @{
@@ -31,23 +34,51 @@ $fullPool = & $helper -Admission Worktree -Sample @{
     TotalDiskGiB = 200
     AvailableMemoryGiB = 4
     LogicalProcessors = 8
-    LinkedTaskWorktrees = 2
+    LinkedTaskWorktrees = 12
+    WorktreeInventoryConfirmed = $true
+    OutstandingWorktreeReservationsGiB = 10
 }
-Assert-True (-not $fullPool.WorktreeAdmission.Allowed) 'a full worktree pool must fail closed'
+Assert-True $fullPool.WorktreeAdmission.Allowed 'linked-worktree count must remain inventory rather than an admission cap'
+Assert-True ($fullPool.WorktreeAdmission.ExistingLinkedTaskWorktrees -eq 12) 'the inventory count must remain visible'
 
 $lowDisk = & $helper -Admission Worktree -Sample @{
-    FreeDiskGiB = 10.5
+    FreeDiskGiB = 16
     TotalDiskGiB = 200
     AvailableMemoryGiB = 4
     LogicalProcessors = 8
     LinkedTaskWorktrees = 0
+    WorktreeInventoryConfirmed = $true
+    OutstandingWorktreeReservationsGiB = 1
 }
-Assert-True (-not $lowDisk.WorktreeAdmission.Allowed) 'the post-reservation disk floor must be enforced'
+Assert-True (-not $lowDisk.WorktreeAdmission.Allowed) 'the 14 GiB effective post-reservation disk floor must be enforced'
+
+$missingInventory = & $helper -Admission Worktree -Sample @{
+    FreeDiskGiB = 40
+    TotalDiskGiB = 200
+    AvailableMemoryGiB = 4
+    LogicalProcessors = 8
+    LinkedTaskWorktrees = 2
+    WorktreeInventoryConfirmed = $false
+    OutstandingWorktreeReservationsGiB = 0
+}
+Assert-True (-not $missingInventory.WorktreeAdmission.Allowed) 'unreconciled worktree inventory must fail closed'
+
+$parked = & $helper -Admission Worktree -ProposedWorktreeClass ParkedRecoveryOnly -Sample @{
+    FreeDiskGiB = 15
+    TotalDiskGiB = 200
+    AvailableMemoryGiB = 4
+    LogicalProcessors = 8
+    LinkedTaskWorktrees = 3
+    WorktreeInventoryConfirmed = $true
+    OutstandingWorktreeReservationsGiB = 1
+}
+Assert-True $parked.WorktreeAdmission.Allowed 'a parked worktree must not reserve future growth'
+Assert-True ($parked.WorktreeAdmission.ProposedReservedGiB -eq 0) 'parked worktrees must have zero proposed growth reservation'
 
 $lowMemory = & $helper -Admission Heavy -Sample @{
     FreeDiskGiB = 30
     TotalDiskGiB = 200
-    AvailableMemoryGiB = 1.0
+    AvailableMemoryGiB = 0.99
     LogicalProcessors = 4
     LinkedTaskWorktrees = 0
 }
@@ -56,12 +87,25 @@ Assert-True (-not $lowMemory.HeavyOperationAdmission.Allowed) 'low memory must d
 $hardFloor = & $helper -Admission Heavy -Sample @{
     FreeDiskGiB = 30
     TotalDiskGiB = 200
-    AvailableMemoryGiB = 1.1
+    AvailableMemoryGiB = 1.0
     LogicalProcessors = 4
     LinkedTaskWorktrees = 0
 }
-Assert-True $hardFloor.HeavyOperationAdmission.Allowed 'the 1.10 GiB hard floor must admit one heavy operation'
+Assert-True $hardFloor.HeavyOperationAdmission.Allowed 'the 1.00 GiB hard floor must admit one heavy operation'
 Assert-True ($hardFloor.Warnings.Count -eq 1) 'memory below 1.50 GiB should produce a warning'
+Assert-True $hardFloor.HeavyOperationAdmission.InExperimentalBand 'the 1.00-1.10 GiB band must be identified as experimental'
+
+$trippedFloor = & $helper -Admission Heavy -Sample @{
+    FreeDiskGiB = 30
+    TotalDiskGiB = 200
+    AvailableMemoryGiB = 1.05
+    LogicalProcessors = 4
+    LinkedTaskWorktrees = 0
+    MemoryCircuitBreakerActive = $true
+    MemoryCircuitBreakerReason = 'test failure'
+}
+Assert-True (-not $trippedFloor.HeavyOperationAdmission.Allowed) 'an active circuit breaker must restore the 1.10 GiB floor'
+Assert-True ($trippedFloor.HeavyOperationAdmission.EffectiveHardFloorGiB -eq 1.1) 'the restored floor must be visible'
 
 $formerCliff = & $helper -Admission Heavy -Sample @{
     FreeDiskGiB = 30
@@ -120,7 +164,37 @@ $json = & $helper -Admission Snapshot -AsJson -Sample @{
 } | ConvertFrom-Json
 Assert-True ($json.AdmissionMode -eq 'Snapshot') 'JSON output must preserve the admission mode'
 Assert-True ($null -ne $json.WorktreeAdmission.Allowed) 'JSON output must preserve the admission verdicts'
-Assert-True ($json.HeavyOperationAdmission.HardFloorGiB -eq 1.1) 'JSON output must expose the calibrated hard floor'
+Assert-True ($json.HeavyOperationAdmission.ConfiguredHardFloorGiB -eq 1.0) 'JSON output must expose the experimental configured floor'
+Assert-True ($json.HeavyOperationAdmission.EffectiveHardFloorGiB -eq 1.0) 'JSON output must expose the effective floor'
 Assert-True ($json.HeavyOperationAdmission.WarningThresholdGiB -eq 1.5) 'JSON output must expose the warning threshold'
+
+$testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "orchestration-resource-$([Guid]::NewGuid().ToString('N'))"
+try {
+    New-Item -ItemType Directory -Path $testRoot | Out-Null
+    & $circuitBreakerHelper -Action Trip -RepositoryRoot $testRoot -RunId test-run -Operation build -Reason 'synthetic OOM' | Out-Null
+    $trippedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -StatePath (Join-Path $testRoot '.tmp/orchestration/resource-policy-state.json') -Sample @{
+        FreeDiskGiB = 30
+        TotalDiskGiB = 200
+        AvailableMemoryGiB = 1.05
+        LogicalProcessors = 4
+        LinkedTaskWorktrees = 0
+    }
+    Assert-True (-not $trippedState.HeavyOperationAdmission.Allowed) 'the durable circuit-breaker file must affect later admission'
+
+    & $circuitBreakerHelper -Action Clear -RepositoryRoot $testRoot -RunId test-run -Operation build -Reason 'owner-reviewed calibration' -ReviewedBy owner | Out-Null
+    $clearedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -StatePath (Join-Path $testRoot '.tmp/orchestration/resource-policy-state.json') -Sample @{
+        FreeDiskGiB = 30
+        TotalDiskGiB = 200
+        AvailableMemoryGiB = 1.05
+        LogicalProcessors = 4
+        LinkedTaskWorktrees = 0
+    }
+    Assert-True $clearedState.HeavyOperationAdmission.Allowed 'owner-reviewed clearing must restore the configured floor'
+}
+finally {
+    if (Test-Path -LiteralPath $testRoot) {
+        Remove-Item -LiteralPath $testRoot -Recurse -Force
+    }
+}
 
 Write-Output 'Orchestration resource snapshot tests passed.'

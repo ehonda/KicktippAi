@@ -1,6 +1,6 @@
 # Bundesliga 2026/27 Competition Profile
 
-Use this profile only for `bundesliga-2026-27`. Read [the plan](../../../../plans/bundesliga-2026-27/README.md), [execution strategy](../../../../plans/bundesliga-2026-27/execution-strategy.md), [P1-10](../../../../plans/bundesliga-2026-27/tasks/p1-10-schadensfresse-primary-community.md), [P0-06 cost/model evidence](../../../../plans/bundesliga-2026-27/tasks/p0-06-model-ledger-and-cost-baseline.md), [P0-21 activation evidence](../../../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md), and the linked accepted ADRs before altering a contract. The runtime source is `CompetitionCollectionProfileResolver`.
+Use this profile only for `bundesliga-2026-27`. Follow [the plan's current index](../../../../plans/bundesliga-2026-27/README.md), then read only the active task/design and operative ADRs it names for the assigned change. Read completed P0 tasks, historical activation evidence, and the broader [execution strategy](../../../../plans/bundesliga-2026-27/execution-strategy.md) only when the current contract or a cold reconstruction explicitly requires them. The runtime source is `CompetitionCollectionProfileResolver`.
 
 ## Contract
 

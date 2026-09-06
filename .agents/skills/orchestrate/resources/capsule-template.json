@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "session_id": "<run-id>",
   "run_id": "<run-id>",
   "updated_at_utc": "<ISO-8601 UTC>",
@@ -12,9 +12,26 @@
   "blockers": [],
   "freeze": {
     "preview_path": ".tmp/orchestration/<run-id>/preview.md",
-    "artifact_paths": [],
-    "exact_shas": [],
+    "instruction_manifest": {
+      "path": ".tmp/orchestration/<run-id>/instruction-manifest.json",
+      "sha256": "<64-character-sha256>"
+    },
+    "hook_manifest": {
+      "path": ".tmp/orchestration/<run-id>/hook-manifest.json",
+      "sha256": "<64-character-sha256>"
+    },
+    "active_contract_manifest": {
+      "path": ".tmp/orchestration/<run-id>/active-contract-manifest.json",
+      "sha256": "<64-character-sha256>"
+    },
     "deferred_nodes": []
+  },
+  "hook_trust": {
+    "schema_version": 1,
+    "repository": "https://github.com/ehonda/KicktippAi.git",
+    "session_id": "<exact-hook-session-id>",
+    "hook_definition_sha256": "<64-character-sha256>",
+    "script_sha256": "<64-character-sha256>"
   },
   "git": {
     "remote": "origin",
@@ -32,7 +49,8 @@
     "heavy_admission": "unknown",
     "disk_warning_band": "unknown",
     "memory_warning_band": "unknown",
-    "owner_override": null
+    "owner_override": null,
+    "worktree_reservations": []
   },
   "active_heavy_lease": null,
   "retained_agents": [],

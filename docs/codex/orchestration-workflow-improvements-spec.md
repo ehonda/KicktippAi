@@ -125,7 +125,8 @@ The hot path is bounded to:
 2. one deterministic local helper for packet validation and compact
    Git/worktree/resource/lease facts;
 3. one native live-agent inspection;
-4. only an active contract reported changed or insufficiently summarized; and
+4. only an unchanged active contract whose validated preview summary is
+   insufficient for the immediate control-plane decision; and
 5. remote CI only when the immediate next action depends on it.
 
 Do not parse transcripts or broadly reread unchanged policies, phase history,
@@ -158,7 +159,7 @@ fail-closed owner gate. A hook or script digest change invalidates the marker.
 - objective, lifecycle state, and current wave;
 - active, ready, deferred, and blocked lanes;
 - dependencies and accepted cross-lane seams;
-- concise durable decisions and packet digests;
+- concise durable decisions plus instruction- and hook-packet digests;
 - owner, authority, and production-continuity gates;
 - ownership, worktree, and heavy-lease reservations;
 - integration/publication topology; and
@@ -167,6 +168,9 @@ fail-closed owner gate. A hook or script digest change invalidates the marker.
 Exclude raw interview dialogue, completed-lane chronology, review transcripts,
 repeated resource samples, CI logs, and historical task evidence. Enforce an
 8 KiB warning/target and a 12 KiB hard ceiling for every sealed preview.
+Because `preview.md` belongs to the active-contract packet, it must not embed
+that packet's own manifest digest. The capsule is the authoritative location
+for the active-contract manifest path and digest.
 
 ### Milestones and architecture
 
@@ -253,8 +257,15 @@ primary checkout merely to evade admission.
   start/min/post available memory, commit/paging signals sufficient to
   assess pressure, duration/outcome, paging or OOM symptoms, and causal queue
   delay. Do not put this stream in the capsule or automatic recovery context.
-- A memory-related OOM, abnormal termination, or severe paging failure restores
-  the 1.10 GiB floor pending analysis. Do not impose a sample-count rule now.
+- A memory-related OOM, abnormal termination, or severe paging failure trips a
+  repository-local, machine-scoped circuit breaker at
+  `.tmp/orchestration/resource-policy-state.json`. The resource helper must
+  consult that state for every heavy admission and atomically restore the
+  effective floor to 1.10 GiB for resumed and later runs in this checkout.
+  Record the triggering run, operation, timestamp, and concise reason without
+  putting the evidence stream in recovery context. The breaker remains active
+  until an owner-reviewed analysis explicitly clears it; never clear it from a
+  successful sample or a new session. Do not impose a sample-count rule now.
 
 ### Durable repository instructions
 
