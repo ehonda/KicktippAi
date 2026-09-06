@@ -129,7 +129,10 @@ boundary. Historical-byte reactivation tests are owned by exactly
 
 ## Resource, authority, and continuity gates
 
-Current admission is allowed: this worktree is admitted; no heavy family is
+Current admission is allowed: this worktree is admitted and the preserved,
+out-of-scope P1-10 worktree remains untouched at exact tip
+`634b65316422b545ecd1956996a74525fafdd80d`. Those are the two admitted writable
+worktrees, so no third writable worktree may be admitted. No heavy family is
 active; available memory is `1.33 GiB`, warning-band but above the `1.10 GiB`
 hard floor. At most two writers and one heavy operation family are admitted.
 Focused TUnit uses `dotnet run` under the sole heavy lease; workflow/actionlint
