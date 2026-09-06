@@ -185,6 +185,11 @@ Luna/`none` recovery is complete and must not be repeated.
 
 P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions that exist only at or before go-live. Numbering of the remaining P1 tasks stays stable.
 
+The dated [P1 status snapshot](p1-status-snapshot.md) records the readiness
+classification verified on 2026-09-06. It is a handoff artifact rather than
+execution authority; the next orchestration session must re-verify and update
+it before relying on it.
+
 The resumed P1-10 recovery is frozen in the
 [P1 execution packet](p1-execution-packet.md) and
 [production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md).
