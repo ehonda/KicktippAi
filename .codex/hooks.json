@@ -9,8 +9,7 @@
             "type": "command",
             "command": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)/.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1\"",
             "commandWindows": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)\\.agents\\skills\\orchestrate\\scripts\\Invoke-OrchestrationCapsuleHook.ps1\"",
-            "timeout": 30,
-            "statusMessage": "Validating orchestration recovery capsule"
+            "timeout": 30
           }
         ]
       }
@@ -24,8 +23,7 @@
             "command": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)/.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1\"",
             "commandWindows": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)\\.agents\\skills\\orchestrate\\scripts\\Invoke-OrchestrationCapsuleHook.ps1\"",
             "timeout": 30,
-            "statusMessage": "Restoring orchestration recovery capsule",
-            "additionalContextLimit": 3500
+            "additionalContextLimit": 0
           }
         ]
       }

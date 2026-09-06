@@ -64,6 +64,13 @@ function New-ValidCapsule {
             reviewed_unpublished_sha = ''
         }
         ownership_reservations = @()
+        resource_state = [ordered] @{
+            worktree_admission = 'allowed'
+            heavy_admission = 'allowed'
+            disk_warning_band = 'normal'
+            memory_warning_band = 'warning'
+            owner_override = $null
+        }
         active_heavy_lease = $null
         retained_agents = @([ordered] @{
             agent_path = '/root/reviewer'
@@ -117,6 +124,20 @@ try {
     $validPreCompactOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'PreCompact')
     Assert-True ([string]::IsNullOrWhiteSpace($validPreCompactOutput)) 'valid pre-compaction checks must stay silent'
 
+    $invalidTargetCapsule = New-ValidCapsule
+    $invalidTargetCapsule.git.push_url = 'https://github.com/example/other.git'
+    $invalidTargetCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
+    $invalidTargetOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
+    Assert-True ($invalidTargetOutput.hookSpecificOutput.additionalContext -match 'invalid-git-target') 'wrong Git targets must be forwarded'
+
+    $invalidPreviewCapsule = New-ValidCapsule
+    $invalidPreviewCapsule.freeze.preview_path = '.tmp/orchestration/other/preview.md'
+    $invalidPreviewCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
+    $invalidPreviewOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
+    Assert-True ($invalidPreviewOutput.hookSpecificOutput.additionalContext -match 'invalid-preview-path') 'wrong-run preview paths must be forwarded'
+
+    New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
+    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
     Add-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Value ' '
     $hashOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
     Assert-True ($hashOutput.hookSpecificOutput.additionalContext -match 'checksum-mismatch') 'checksum mismatch must be forwarded'
@@ -135,6 +156,9 @@ try {
         $hooksConfig.hooks.PreCompact[0].hooks[0].timeout,
         $hooksConfig.hooks.SessionStart[0].hooks[0].timeout)
     Assert-True (@($timeouts | Where-Object { $_ -ne 30 }).Count -eq 0) 'both compaction hooks must allow 30 seconds'
+    Assert-True ($hooksConfig.hooks.SessionStart[0].hooks[0].additionalContextLimit -eq 0) 'the strict byte cap must prevent context spilling'
+    Assert-True ($hooksConfig.hooks.PreCompact[0].hooks[0].PSObject.Properties.Name -notcontains 'statusMessage') 'plain sessions must not display PreCompact status text'
+    Assert-True ($hooksConfig.hooks.SessionStart[0].hooks[0].PSObject.Properties.Name -notcontains 'statusMessage') 'plain sessions must not display SessionStart status text'
 
     Write-Output 'Orchestration capsule hook tests passed.'
 }

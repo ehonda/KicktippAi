@@ -118,12 +118,15 @@ adjustments be implemented. The selected policy is:
   use one bounded `followup_task` to consume it and retry admission once.
   Otherwise record the capacity blocker and queue the lane; do not spam
   messages, interrupts, or retries.
-- Reuse an agent with `followup_task` only when continuity is valuable. Use a
-  fresh agent when independence or clean context is more important.
+- Reuse an agent with `followup_task` only when continuity is valuable, its
+  role is unchanged, and its recorded observable context-cost limit remains
+  open. A role change or reached limit releases the old thread; use a fresh
+  bounded agent for the next role. When live tokens are unavailable, use an
+  enforceable proxy such as completed follow-up turns or one milestone.
 - Keep resource admission independent. If resource pressure persists without
   an explicit release operation, stop admitting affected work, record the
   blocker, and request an owner-controlled end/restart of the current session.
-  Recover from the run ledger and re-sample resources before new admission;
+  Recover from the run capsule and re-sample resources before new admission;
   do not open a concurrent replacement or claim cleanup.
 
 ## Gate completion

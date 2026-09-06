@@ -103,7 +103,7 @@ function Test-CapsuleStructure {
         'schema_version', 'session_id', 'run_id', 'updated_at_utc', 'status',
         'objective', 'wave', 'stop_condition', 'durable_decisions', 'owner_gates',
         'blockers', 'freeze', 'git', 'ownership_reservations',
-        'active_heavy_lease', 'retained_agents', 'next_root_action',
+        'resource_state', 'active_heavy_lease', 'retained_agents', 'next_root_action',
         'delegated_next_actions')
     $propertyNames = @($capsule.PSObject.Properties.Name)
     foreach ($property in $requiredProperties) {
@@ -128,6 +128,11 @@ function Test-CapsuleStructure {
             return New-ValidationResult $false 'empty-field' "capsule.json field '$field' must not be empty." $null
         }
     }
+    if (
+        [string] $capsule.status -notin @('complete', 'stopped') -and
+        [string]::IsNullOrWhiteSpace([string] $capsule.next_root_action)) {
+        return New-ValidationResult $false 'empty-field' "capsule.json field 'next_root_action' must not be empty for an active run." $null
+    }
 
     foreach ($field in @(
         'durable_decisions', 'owner_gates', 'blockers',
@@ -138,7 +143,7 @@ function Test-CapsuleStructure {
         }
     }
 
-    foreach ($objectField in @('freeze', 'git')) {
+    foreach ($objectField in @('freeze', 'git', 'resource_state')) {
         if ($null -eq $capsule.$objectField -or $capsule.$objectField -isnot [pscustomobject]) {
             return New-ValidationResult $false 'invalid-field-type' "capsule.json field '$objectField' must be an object." $null
         }
@@ -150,6 +155,9 @@ function Test-CapsuleStructure {
             'remote', 'push_url', 'integration_branch', 'allowed_branch_prefix',
             'initial_sha', 'latest_integrated_sha', 'latest_pushed_sha',
             'reviewed_unpublished_sha')
+        resource_state = @(
+            'worktree_admission', 'heavy_admission', 'disk_warning_band',
+            'memory_warning_band', 'owner_override')
     }
     foreach ($objectField in $requiredNestedProperties.Keys) {
         $nestedNames = @($capsule.$objectField.PSObject.Properties.Name)
@@ -162,6 +170,54 @@ function Test-CapsuleStructure {
     foreach ($field in @('artifact_paths', 'exact_shas', 'deferred_nodes')) {
         if (-not ($capsule.freeze.$field -is [System.Array])) {
             return New-ValidationResult $false 'invalid-field-type' "capsule.json field 'freeze.$field' must be an array." $null
+        }
+    }
+
+    $expectedPreviewPath = ".tmp/orchestration/$ExpectedRunId/preview.md"
+    if ([string] $capsule.freeze.preview_path -cne $expectedPreviewPath) {
+        return New-ValidationResult $false 'invalid-preview-path' 'freeze.preview_path does not point to the exact run preview.' $null
+    }
+    foreach ($sha in @($capsule.freeze.exact_shas)) {
+        if ([string] $sha -notmatch '^(?:[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64})$') {
+            return New-ValidationResult $false 'invalid-freeze-sha' 'freeze.exact_shas contains a non-exact SHA.' $null
+        }
+    }
+
+    if (
+        [string] $capsule.git.remote -cne 'origin' -or
+        [string] $capsule.git.push_url -cne 'https://github.com/ehonda/KicktippAi.git' -or
+        [string] $capsule.git.integration_branch -cne 'main' -or
+        [string] $capsule.git.allowed_branch_prefix -notmatch '^codex/[A-Za-z0-9][A-Za-z0-9._-]*-$') {
+        return New-ValidationResult $false 'invalid-git-target' 'git target fields do not match the canonical repository allowlist.' $null
+    }
+    if ([string] $capsule.git.initial_sha -notmatch '^[A-Fa-f0-9]{40}$') {
+        return New-ValidationResult $false 'invalid-git-sha' 'git.initial_sha must be an exact 40-character commit SHA.' $null
+    }
+    foreach ($field in @('latest_integrated_sha', 'latest_pushed_sha', 'reviewed_unpublished_sha')) {
+        $sha = [string] $capsule.git.$field
+        if (-not [string]::IsNullOrWhiteSpace($sha) -and $sha -notmatch '^[A-Fa-f0-9]{40}$') {
+            return New-ValidationResult $false 'invalid-git-sha' "git.$field must be empty or an exact 40-character commit SHA." $null
+        }
+    }
+
+    foreach ($field in @('worktree_admission', 'heavy_admission')) {
+        if ([string] $capsule.resource_state.$field -notin @('unknown', 'allowed', 'denied')) {
+            return New-ValidationResult $false 'invalid-resource-state' "resource_state.$field has an invalid verdict." $null
+        }
+    }
+    foreach ($field in @('disk_warning_band', 'memory_warning_band')) {
+        if ([string] $capsule.resource_state.$field -notin @('unknown', 'normal', 'warning')) {
+            return New-ValidationResult $false 'invalid-resource-state' "resource_state.$field has an invalid warning band." $null
+        }
+    }
+    if ($null -ne $capsule.resource_state.owner_override) {
+        $overrideProperties = @($capsule.resource_state.owner_override.PSObject.Properties.Name)
+        foreach ($field in @('scope', 'reason', 'reserved_capacity')) {
+            if (
+                $overrideProperties -notcontains $field -or
+                [string]::IsNullOrWhiteSpace([string] $capsule.resource_state.owner_override.$field)) {
+                return New-ValidationResult $false 'invalid-resource-state' "resource_state.owner_override requires non-empty '$field'." $null
+            }
         }
     }
 
@@ -178,8 +234,10 @@ function Test-CapsuleStructure {
         if (
             $null -eq $blocker -or
             $blocker.PSObject.Properties.Name -notcontains 'category' -or
-            [string] $blocker.category -notin $allowedBlockers) {
-            return New-ValidationResult $false 'invalid-blocker' 'capsule.json contains an invalid blocker category.' $null
+            $blocker.PSObject.Properties.Name -notcontains 'detail' -or
+            [string] $blocker.category -notin $allowedBlockers -or
+            [string]::IsNullOrWhiteSpace([string] $blocker.detail)) {
+            return New-ValidationResult $false 'invalid-blocker' 'capsule.json contains an invalid blocker entry.' $null
         }
     }
 
@@ -197,12 +255,18 @@ function Test-CapsuleStructure {
     foreach ($reservation in @($capsule.ownership_reservations)) {
         $reservationProperties = @($reservation.PSObject.Properties.Name)
         foreach ($field in @('agent_path', 'role', 'model', 'reasoning_effort', 'owned_paths', 'next_action')) {
-            if ($reservationProperties -notcontains $field) {
-                return New-ValidationResult $false 'invalid-reservation' "ownership_reservations entries require '$field'." $null
+            if (
+                $reservationProperties -notcontains $field -or
+                ($field -ne 'owned_paths' -and
+                    [string]::IsNullOrWhiteSpace([string] $reservation.$field))) {
+                return New-ValidationResult $false 'invalid-reservation' "ownership_reservations entries require non-empty '$field'." $null
             }
         }
-        if (-not ($reservation.owned_paths -is [System.Array])) {
-            return New-ValidationResult $false 'invalid-reservation' "ownership_reservations field 'owned_paths' must be an array." $null
+        if (
+            -not ($reservation.owned_paths -is [System.Array]) -or
+            @($reservation.owned_paths).Count -eq 0 -or
+            @($reservation.owned_paths | Where-Object { [string]::IsNullOrWhiteSpace([string] $_) }).Count -gt 0) {
+            return New-ValidationResult $false 'invalid-reservation' "ownership_reservations field 'owned_paths' must be a non-empty string array." $null
         }
     }
 

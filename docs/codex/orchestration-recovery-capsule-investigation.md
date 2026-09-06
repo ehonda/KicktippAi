@@ -40,8 +40,9 @@ The capsule is an overwrite-only snapshot capped at 8 KiB. It contains the
 objective and stop condition, lifecycle status and wave, durable decisions and
 owner gates, fixed-category blockers, frozen artifact pointers and exact SHAs,
 the Git allowlist and any reviewed unpublished recovery commit, current
-ownership/lease reservations, retained-agent release contracts, and the next
-safe root and delegated actions. It deliberately has no event history.
+ownership/lease reservations, compact resource verdict/warning/override state,
+retained-agent release contracts, and the next safe root and delegated actions.
+It deliberately has no event history.
 
 The root updates and reseals it only at a durability barrier: initial freeze,
 gate change, material reviewed re-freeze, runnable blocker change, reservation
@@ -73,7 +74,9 @@ This implementation uses two synchronous 30-second hooks:
 2. `SessionStart(source=compact)` repeats that validation. On success it
    injects the capsule together with an explicit instruction to continue under
    the already-invoked `$orchestrate` skill, re-read the skill and `AGENTS.md`,
-   and rehydrate live state before substantive work.
+   and rehydrate live state before substantive work. Because the hook enforces
+   the 8 KiB cap, `additionalContextLimit: 0` delivers the complete validated
+   output directly instead of spilling a worst-case valid capsule to disk.
 
 There is no `PostCompact` hook. `SessionStart(source=compact)` already occupies
 the reliable post-compaction seam and reaches the immediate model continuation;
@@ -84,10 +87,20 @@ Codex matchers cannot inspect whether a skill is active. The hook command is
 therefore registered for compaction lifecycle events, but its first operation
 is an exact-session `active`-marker check. A plain Codex session has no such
 marker and exits successfully with no capsule read, warning, or injected
-context. Sealing a `complete` or `stopped` capsule removes the marker, so ended
-runs are silent as well. Project-local hooks still require the user to review
-and trust their exact definition with `/hooks`, as described by the official
-hook documentation.
+context. The static command still has to start before it can read `session_id`;
+Codex exposes no skill-aware matcher. Status messages are omitted, but a plain
+compaction still pays PowerShell startup latency (warm samples were around one
+second and a cold sample exceeded three seconds on the trial system). Sealing a
+`complete` or `stopped` capsule removes the marker, so ended runs are silent as
+well. If that unavoidable cost becomes material, a future native gate is the
+next optimization rather than weakening the exact-session check.
+
+Project-local hooks require the user to review and trust their exact definition
+with `/hooks`, and changed definitions require renewed trust. Hook readiness is
+therefore a fail-closed execution gate: before writers, `$orchestrate` verifies
+that the hooks feature is enabled and requires owner confirmation of current
+trust. An untrusted or disabled hook must not be represented as automatic
+recovery coverage.
 
 ## Missing and corrupt recovery state
 

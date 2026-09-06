@@ -27,6 +27,13 @@
     "reviewed_unpublished_sha": ""
   },
   "ownership_reservations": [],
+  "resource_state": {
+    "worktree_admission": "unknown",
+    "heavy_admission": "unknown",
+    "disk_warning_band": "unknown",
+    "memory_warning_band": "unknown",
+    "owner_override": null
+  },
   "active_heavy_lease": null,
   "retained_agents": [],
   "next_root_action": "<next safe control-plane action>",

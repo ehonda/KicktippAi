@@ -7,7 +7,7 @@ description: Activate KicktippAi's full root-orchestrator control-plane workflow
 
 Activate the repository's explicit orchestration workflow for the objective in
 the user's invocation. The invocation opts into phase-scale intake, grilling,
-  delegation, model allocation, recovery capsule, and the bounded Git publication
+delegation, model allocation, recovery capsule, and the bounded Git publication
 contract in the repository-root `AGENTS.md`.
 
 ## Validated MultiAgent V2 Lifecycle
@@ -34,6 +34,12 @@ not proof of physical unload or proactive process and memory cleanup.
 - Keep the workflow active until the objective is complete or the user stops
   it. A phase or priority objective is valid; expand it during intake before
   admitting writers.
+- Treat operational hook readiness as an execution prerequisite. Confirm that
+  `codex features list` reports `hooks` enabled and that the current exact
+  `.codex/hooks.json` definition is trusted in `/hooks`. The root cannot grant
+  that client trust itself. Without current evidence, remain in
+  `awaiting-owner`, ask the owner to review/confirm the hook, and do not start
+  writers or claim automatic compaction recovery.
 
 ## Establish Run Identity And Preview State
 
@@ -56,7 +62,7 @@ status, and seal it with
 the first preview lane. Sealing writes the checksum and exact-session active
 marker atomically. Pass the run ID, capsule path, and preview path in every
 task-agent assignment and state that only the root edits them. Never use a
-  shared state file, a `current` pointer, or another run's files.
+shared state file, a `current` pointer, or another run's files.
 
 Overwrite and reseal the capsule only at the durability barriers defined in
 `AGENTS.md`. It is a recovery snapshot, not an event log. Store only facts that
@@ -66,9 +72,11 @@ and unchanged resource samples are capsule-silent. Set status to `complete` or
 
 Follow the object shapes in the template. Blockers use `{category, detail}`.
 Ownership reservations use `{agent_path, role, model, reasoning_effort,
-owned_paths, next_action}`. A non-null heavy lease uses `{owner, operation}`.
-Retained agents use `{agent_path, role, reason, release_trigger,
-context_cost_limit}`. Do not add live counters or history to these records.
+owned_paths, next_action}`. Resource state stores only admission verdicts,
+warning bands, and any bounded owner override; a non-null heavy lease uses
+`{owner, operation}`. Retained agents use `{agent_path, role, reason,
+release_trigger, context_cost_limit}`. Do not add live counters or history to
+these records.
 
 ## Complete Intake Before Writers
 
@@ -141,9 +149,9 @@ machine budgets permit it; never manufacture work simply to fill slots.
   nor a reason to throttle useful ready work.
 
 Keep Sol/xhigh as the independent-review default during the pilot. Sol/high is
-allowed only with a frozen-preview justification that the contract, exact tip, paths,
-and deterministic acceptance criteria are frozen and no ADR, invariant,
-ownership, architecture, or production-continuity question remains.
+allowed only with a frozen-preview justification that the contract, exact tip,
+bounded paths, and deterministic acceptance criteria are frozen and no ADR,
+invariant, ownership, architecture, or production-continuity question remains.
 
 ## Admit Resources And Publish Deliberately
 
