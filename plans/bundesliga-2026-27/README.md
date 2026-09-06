@@ -196,19 +196,22 @@ The resumed P1-10 recovery is frozen in the
 They govern the temporary recovery and atomic PR delivery; they do not claim
 that the full P1-10 primary implementation is complete. Fully grilled runnable
 milestones may proceed while the remaining frontier stays `needs-interview`.
-P1-04 is the first next implementation priority and P1-05 is second under the
-accepted planning-only [context-refresh design](designs/p1-04-05-context-refresh.md)
-and [ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md);
-neither task is runtime implementation or activation evidence. Other open P1
-work follows that order. P1-13 remains a prerequisite planning frontier and
+P1-04 and P1-05 share the accepted/frozen
+[context-refresh design](designs/p1-04-05-context-refresh.md),
+[ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md),
+[ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md),
+and [execution packet](p1-04-05-execution-packet.md). P1-05 proceeds
+independently after the common seam; P1-04 accepting-source work remains
+separately gated. Neither task is runtime completion or activation evidence.
+P1-13 remains a prerequisite planning frontier and
 P1-10 is last: its recovery/target-primary delivery stays isolated until its
 own accepted replacement condition and atomic PR gate.
 
 | Task | Outcome | Depends on |
 |---|---|---|
 | [P1-03](tasks/p1-03-generic-onboarding-skill.md) | Extract generic competition onboarding tooling | P0-21 |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) **Next implementation priority** | Refresh Club Elo within existing context cycles with strict provenance/freshness/LKG gates | P0-21, ADR-0073 |
-| [P1-05](tasks/p1-05-roster-refresh.md) **Second implementation priority** | Refresh valid DuckDB membership/enrichment within existing context cycles | P0-21, ADR-0073 |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | Refresh Club Elo within existing context cycles with strict provenance/freshness/LKG gates | P0-21, common ADR-0074 seam, accepted source contract |
+| [P1-05](tasks/p1-05-roster-refresh.md) **Ready independently after common seam** | Refresh valid DuckDB membership/enrichment within existing context cycles | P0-21, ADR-0074 |
 | [P1-06](tasks/p1-06-observability-datasets.md) | Make experiment preparation explicitly 2026/27-capable | P0-12, P0-21 |
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
@@ -298,6 +301,7 @@ contract:
 - [ADR-0068: Replace the copy calendar sunset with a reviewed replacement condition](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md)
 - [ADR-0072: Operate history-date maintenance manually](decisions/0072-operate-history-date-maintenance-manually.md)
 - [ADR-0073: Refresh strength and rosters during context collection](decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
+- [ADR-0074: Freeze context-source cycles, handoff, health, and successor provenance](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
 - [ADR-0045: Verify versioned prompt promotion before validation](decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
 - [ADR-0046: Bind cost usage to exact Langfuse dataset runs](decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
 - [ADR-0047: Observe one temporary arena Luna scheduled cycle](decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)

@@ -1,16 +1,26 @@
 # P1-04 — Refresh Club Elo during context collection
 
-- Status: Interview complete — not implemented
-- Priority: Highest remaining P1 priority (first)
-- Depends on: [P0-21](p0-21-production-activation.md)
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
+- Status: Common seam frozen; accepting source and implementation not started
+- Priority: Deferred accepting-source lane
+- Depends on: [P0-21](p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), accepted source/date contract
+- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
 - Design: [P1-04/P1-05 context refresh](../designs/p1-04-05-context-refresh.md)
+- Packet: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)
 
 ## Outcome
 
 Club strength observations run only inside existing Bundesliga context-collection
 cycles and publish only a valid, strictly newer, fully mapped snapshot without
 weakening dated-seed or last-known-good protection.
+
+## Current evidence — not completion
+
+The current Club Elo Germany page is healthy and advertises `2026-09-04`, but
+it is not an accepted direct-CSV date contract. Bounded current/historical HTTP
+CSV requests returned empty `502` responses and HTTPS timed out. ADR-0013 and
+ADR-0073 forbid HTTP downgrade or deriving a rating date from filename,
+`From`/`To`, HTTP metadata, or observation time. The truthful candidate result
+is transport rejection/`UNKNOWN_SOURCE_DATE`, retaining the dated seed/LKG.
 
 ## Work items
 

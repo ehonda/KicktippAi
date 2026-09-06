@@ -1,13 +1,16 @@
 # P1-04 / P1-05 context-refresh design
 
-- Status: Owner-confirmed planning contract; implementation seams/evidence pending
-- Authority: [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
-- Tasks: [P1-04](../tasks/p1-04-club-elo-refresh.md) then [P1-05](../tasks/p1-05-roster-refresh.md)
+- Status: Shared implementation seam accepted and frozen; source activation remains gated
+- Authority: [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md) and [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
+- Execution: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)
+- Tasks: [P1-04](../tasks/p1-04-club-elo-refresh.md) and [P1-05](../tasks/p1-05-roster-refresh.md); P1-05 is independent after the common seam
 
 ## Purpose and seam
 
 P1-04 and P1-05 observe mutable strength and roster sources only as part of an
-existing Bundesliga context cycle. The implementation must preserve the serial
+existing Bundesliga context cycle. ADR-0074 freezes the durable cycle, bundle,
+handoff, receipt, health, disabled-bypass, and successor-provenance seam. The
+implementation must preserve the serial
 context-to-prediction topology, independent community heads, atomic context
 publication, and all existing seed/LKG safety boundaries.
 
@@ -37,9 +40,8 @@ through separately authorized retry or the next cycle; it grants no retry author
   retain their original provenance and age.
 
 Existing Club Elo v1 and roster v1/v2 metadata stays immutable and
-reconstructable. Implementation adds a Club Elo v2 successor and roster v3
-successor; neither rewrites historical metadata or labels carried data newly
-sourced.
+reconstructable. ADR-0074 fixes Club Elo v2 and self-contained roster v3;
+neither rewrites historical metadata or labels carried data newly sourced.
 
 ## Club Elo candidate
 

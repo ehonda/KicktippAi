@@ -1,10 +1,11 @@
 # P1-05 — Refresh quality-gated DuckDB roster membership and enrichment
 
-- Status: Interview complete — not implemented
-- Priority: Highest remaining P1 priority (second, after P1-04)
-- Depends on: [P0-21](p0-21-production-activation.md)
-- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
+- Status: Common seam frozen; implementation not started
+- Priority: Ready independently after the common seam
+- Depends on: [P0-21](p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
+- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
 - Design: [P1-04/P1-05 context refresh](../designs/p1-04-05-context-refresh.md)
+- Packet: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)
 
 ## Outcome
 
@@ -12,6 +13,16 @@ Roster membership and enrichment are observed only in existing context cycles.
 Valid current-season membership may publish per club when its strict gates pass;
 rejected candidates retain fallback/last-known-good data without obscuring
 membership, enrichment, field-effective, or artifact source dates.
+
+## Current evidence — safe rejection, not completion
+
+The exact 2026-09-06 artifact is `210,776,064` bytes, SHA-256
+`ba1eff7337b8ca78cb533df0b6eba0d6fc58218e0767460f6770e0b37f5a2113`,
+revision `e44f186d6f06dd8452aaf54c7921ba66c961f637`. It has zero eligible
+`last_season=2026` L1 clubs/players for all 18 manifest IDs and no authoritative
+revision-bound capture/effective date. It must reject with
+`NO_ELIGIBLE_2026_MEMBERSHIP` and `UNKNOWN_SOURCE_DATE`, retaining seed/LKG;
+synthetic future artifacts prove the automatic takeover path.
 
 ## Work items
 
