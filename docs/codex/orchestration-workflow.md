@@ -88,8 +88,8 @@ milestone at a time. The owner may stop between those units and release the
 already frozen independent graph; deferred nodes are `needs-interview`.
 
 Raw interview state remains in
-`.tmp/orchestration/<run-id>/preview.md`. The compact recovery snapshot remains
-in sibling `state.md`. Stable phase ordering, authority, and review results are
+`.tmp/orchestration/<run-id>/preview.md`. The compact, sealed recovery snapshot
+remains in sibling `capsule.json`. Stable phase ordering, authority, and review results are
 promoted into the competition's tracked execution packet only after review.
 High-risk architecture belongs in a dedicated design artifact rather than an
 ever-growing task checklist. The restarted P1 run—not this policy change—will
@@ -103,8 +103,10 @@ Phase-wide or cross-cutting architecture always uses a
 during this pilot. Getting the seam map, invariants, non-goals, dependency
 graph, owned paths, and verification strategy right is cheaper than correcting
 downstream drift. The accepted lead remains recallable only with a concrete
-near-term retention reason and release trigger, and never when retention blocks
-useful ready work merely to preserve optional continuity.
+near-term retention reason, unchanged role, and observable context-cost limit,
+and never when retention blocks useful ready work merely to preserve optional
+continuity. A role change or reached limit makes it reclaimable; a fresh
+bounded thread owns the next role.
 
 A semantic discovery—not a line-count threshold—reopens design: a new
 cross-cutting invariant, missing ADR, new dependency seam, invalidated
@@ -130,7 +132,8 @@ Sol/xhigh remains the independent-review default during this pilot. Sol/high
 may review a frozen exact artifact only when the root records bounded paths and
 deterministic acceptance criteria and confirms there is no open ADR, invariant,
 ownership, architecture, or production-continuity question. Retained reviewers
-need the same reason/release-trigger discipline as architecture specialists.
+need the same reason, role, and context-cost-limit discipline as architecture
+specialists.
 
 Direct `main` integration remains useful for independently production-safe
 milestones. A change that temporarily disables or regresses active workflow
@@ -189,8 +192,10 @@ The default profile admits at most two linked task worktrees and reserves 1.25
 GiB for each new one. It requires at least 10 GiB free after reservation and
 warns below 15% disk free. Heavy work has one lease on every host, requires at
 least 1.10 GiB available memory, and warns below 1.50 GiB. The warning is
-calibration evidence rather than a denial. At admission/release transitions,
-the ledger records operation type, start/post memory, duration, and outcome.
+calibration evidence rather than a denial. Detailed operation type, start/post
+memory, duration, and outcome stay outside recovery context; only changed
+verdicts, warning bands, overrides, reservations, or lease owners change the
+capsule. No-change samples are capsule-silent.
 Missing required measurements still fail closed; an explicit run-scoped owner
 override remains available for a measured exceptional shortfall.
 
@@ -222,18 +227,19 @@ about 0.096 GiB during the diagnostic. That sample cannot establish proactive
 resource cleanup, so machine admission remains separate. Persistent resource
 pressure without a supported release operation stops affected admission and
 requires an owner-controlled end/restart of the current session. Recovery from
-the ledger must re-sample resources before new admission; a concurrent
+the capsule must re-sample resources before new admission; a concurrent
 replacement session or a claim that automatic eviction freed memory is unsafe.
 
 The immediate preview-to-execution UX remains intentionally small: one
-`EXECUTION START` commentary marker before the first writer. A durable,
+`EXECUTION START` commentary marker before the first writer, repeated only
+when an independently reviewed material re-freeze starts a new wave. A durable,
 discoverable status surface that does not require scrolling the root thread is
 a future improvement, not a reason to build ad-hoc high-frequency telemetry in
-the ledger now.
+the capsule now.
 
 ## Evaluation
 
-Do not add a telemetry service or turn the ledger into an event stream. The
+Do not add a telemetry service or turn the capsule into an event stream. The
 current P1 run may finish under its existing workflow; after the merge gates
 pass, a fresh run will use this revision and trigger another analysis at a
 useful checkpoint. That review
@@ -247,3 +253,7 @@ publication and CI count, owner waits, and escaped defects. Generic event-wait
 frequency and raw token burn are contextual utilization measures, not
 standalone efficiency KPIs. Early results guide parameter changes; they are not
 hard pass/fail targets.
+
+The initial capsule and Codex-hook design, failure behavior, alternatives, and
+next-run evaluation plan are recorded in
+[`orchestration-recovery-capsule-investigation.md`](orchestration-recovery-capsule-investigation.md).

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "session_id": "<run-id>",
+  "run_id": "<run-id>",
+  "updated_at_utc": "<ISO-8601 UTC>",
+  "status": "preview",
+  "objective": "<objective>",
+  "wave": "preview",
+  "stop_condition": "<objective completion or explicit owner stop>",
+  "durable_decisions": [],
+  "owner_gates": [],
+  "blockers": [],
+  "freeze": {
+    "preview_path": ".tmp/orchestration/<run-id>/preview.md",
+    "artifact_paths": [],
+    "exact_shas": [],
+    "deferred_nodes": []
+  },
+  "git": {
+    "remote": "origin",
+    "push_url": "https://github.com/ehonda/KicktippAi.git",
+    "integration_branch": "main",
+    "allowed_branch_prefix": "codex/<run-or-objective>-",
+    "initial_sha": "<exact SHA>",
+    "latest_integrated_sha": "",
+    "latest_pushed_sha": "",
+    "reviewed_unpublished_sha": ""
+  },
+  "ownership_reservations": [],
+  "active_heavy_lease": null,
+  "retained_agents": [],
+  "next_root_action": "<next safe control-plane action>",
+  "delegated_next_actions": []
+}

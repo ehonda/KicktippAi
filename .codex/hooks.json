@@ -1,0 +1,34 @@
+{
+  "description": "Recover active $orchestrate sessions across compaction without affecting ordinary Codex sessions.",
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "^(manual|auto)$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)/.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1\"",
+            "commandWindows": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)\\.agents\\skills\\orchestrate\\scripts\\Invoke-OrchestrationCapsuleHook.ps1\"",
+            "timeout": 30,
+            "statusMessage": "Validating orchestration recovery capsule"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "^compact$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)/.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1\"",
+            "commandWindows": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)\\.agents\\skills\\orchestrate\\scripts\\Invoke-OrchestrationCapsuleHook.ps1\"",
+            "timeout": 30,
+            "statusMessage": "Restoring orchestration recovery capsule",
+            "additionalContextLimit": 3500
+          }
+        ]
+      }
+    ]
+  }
+}
