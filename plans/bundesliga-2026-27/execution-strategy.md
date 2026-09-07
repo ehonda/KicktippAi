@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted execution strategy; P0 complete, P1 restarts under ADR-0061
-- Last updated: 2026-08-31
+- Status: Accepted execution strategy; P0 complete, P1 restarts under ADR-0075
+- Last updated: 2026-09-07
 - Implementation state: P0-01 through P0-25 are complete. The failing P1-10
   runtime is preserved for an atomic future PR; recovery `main` retains the
   eight-pair source-copy lane under ADR-0062 until ADR-0068's reviewed
@@ -33,9 +33,9 @@ model follow-ups also remain outside P0.
 - Run P0 as one gated release train rather than unrelated planning exercises.
 - Keep one strongest orchestration agent as the control plane for dependency order, ADR gates, integration, validation evidence, machine load, launch gates, and cross-task judgment. It is the coordinator, not the default writer or reviewer.
 - Delegate bounded work only, with explicit owned paths, inputs, outputs, tests, and completion criteria.
-- Under [ADR-0061](decisions/0061-preview-and-milestone-orchestration.md), audit the whole requested phase before the first writer. Freeze the dependency graph, seams, milestones, owner/external gates, production-continuity declaration, Git targets, resource budget, and review/CI cadence. Create the substantive P1 execution packet only from that preview.
+- Under [ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md), audit the whole requested phase before the first writer. Freeze the dependency graph, seams, milestones, owner/external gates, production-continuity declaration, Git targets, resource budget, and review/CI cadence. Create the substantive P1 execution packet only from that preview.
 - Use `$grill-me` automatically for readiness defects. Finish the phase foundation first, then fully grill one task or cohesive milestone at a time; a timeboxed owner session may release the completed independent subgraph and defer the rest as `needs-interview`.
-- Give cross-cutting or high-risk architecture and independent specification review to different `gpt-5.6-sol` / `xhigh` agents. Recall the architecture lead when a semantic scope-growth trigger invalidates a frozen seam.
+- Give genuinely phase-wide or cross-cutting architecture to a `gpt-6-astra` / `high` architecture lead only, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. Recall a fresh architecture lead only when a semantic scope-growth trigger reveals a genuinely architectural seam.
 - Treat P0-15 context hygiene and P0-16 bonus-context budgeting as launch work. Other P1 tasks do not delay go-live.
 - Apply [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)'s
   temporary recovery: restore target-owned Schadensfresse context and its
@@ -113,7 +113,7 @@ The orchestration agent owns the cross-task plan, delegation, integration checkp
 
 For each frozen task or milestone:
 
-1. Read this directory's `AGENTS.md`, the plan index, frozen phase packet, assigned task/design, prerequisites, and linked ADRs.
+1. Read this directory's `AGENTS.md`, the current plan index, frozen preview summary, and only the assigned task/design and operative ADRs named by its active-contract packet.
 2. Confirm the owned paths, inputs, outputs, focused validation, production-impact declaration, and exact handoff boundary. A writer does not redesign a frozen seam inline.
 3. Pause only the affected branch for a semantic scope-growth trigger or owner decision; recall the architecture lead and continue proven-independent work.
 4. Implement the smallest complete frozen change, run focused validation, and self-review against every completion criterion.
@@ -124,16 +124,16 @@ Fact-finding agents may establish evidence and recommend; they may not silently 
 
 ## Bounded parallelism and worktrees
 
-- Use at most two simultaneous writers and two writable task worktrees, but admit actual concurrency from the frozen dependency graph and `.agents/skills/orchestrate/resources/resource-policy.json`. Read-only/review agent capacity remains separate. Default to at most two writers touching related architecture; additional available agent slots do not prove machine or seam capacity.
+- Do not impose a universal writer or linked-worktree count. Choose a run-local wave throttle from the frozen graph, path-disjoint ownership, reservation-based disk admission, external-side-effect leases, and defined review/serialized-integration routes. Read-only/review agent capacity remains separate; available slots do not prove useful work or seam capacity.
 - Before each worktree or heavy local gate, run `.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1` in the applicable admission mode and record lease transitions. On this host the default heavy-operation budget is one, so a second writer may edit/research/review while its full validation waits.
-- Create each admitted writer branch from the primary checkout with `./New-AgentWorktree.ps1 -Name <lane> -Branch <branch> -StartPoint <sha>`. The helper fails closed on worktree resource admission, creates the command-line worktree below ignored `.tmp/worktrees`, and installs the required original-checkout locator. Give each lane exact, disjoint path ownership and keep one active writer per worktree.
+- Create each admitted writer branch from the primary checkout with `./New-AgentWorktree.ps1 -Name <lane> -Branch <branch> -StartPoint <sha> -WorktreeInventoryConfirmed -OutstandingWorktreeReservationsGiB <gib>`. The helper fails closed on reconciled reservation-based admission, creates the command-line worktree below ignored `.tmp/worktrees`, and installs the required original-checkout locator. Give each lane exact, disjoint path ownership and keep one active writer per worktree.
 - Keep the primary checkout as an integration-only checkout while lanes are active. The orchestrator creates worktrees, reviews frozen lane commits, and integrates them sequentially; lane agents never mutate `main` or another lane's worktree.
 - `New-AgentWorktree.ps1` writes and validates the ignored `.codex-local/original-repository-path` locator in every command-line worktree. The locator contains only the canonical primary-checkout path and allows repository code to resolve the sibling `KicktippAi.Secrets` checkout without copying or printing credentials. Do not replace the helper with a raw `git worktree add`. `.worktreeinclude` remains optional support for Codex desktop-managed worktrees; command-line worktree creation does not process it.
 - Treat focused builds/tests as lane checks and full solution/test or multi-job families as heavy operations sharing the root-owned lease. `Start-Job` children cannot bypass that budget. Queue excess heavy work; do not kill unrelated processes or delete caches/user files to regain capacity.
 - During P0/P1, every test project using WireMock or an equivalent local listener that triggers Defender must set `<UseAppHost>false</UseAppHost>` so unattended worktrees use the stable installed `dotnet.exe` host. Adding such a listener to another project requires adding and validating the setting there. Re-evaluate and remove this temporary convention after P1; production projects and unrelated test projects remain unchanged.
 - Serialize Git integration and primary-checkout mutation, live external collection or writes, and final integrated validation against the exact combined head.
 - Each lane verifies its exact local target and commits only owned paths. Keep ordinary lane branches local; push recovery-critical long lanes and cohesive milestone commits under the frozen topology. The orchestrator integrates reviewed commits in dependency order.
-- Worktree cleanup is a completion gate, not optional housekeeping: after each lane commit is integrated or safely published, verify the worktree is clean, remove it, prune stale metadata, and confirm only actively admitted worktrees remain. A clean admitted worktree may be reused for sequential work after its prior commit is recoverable.
+- At each lane boundary, reclassify the worktree. Reuse a clean admitted worktree after its prior commit is recoverable; park a worktree when recovery state must remain but edits/builds must stop; remove it only after exact removal-ready proof and deliberate cleanup. Prune stale metadata after removals and reconcile reservations before further admission.
 - Do not recursively delegate unless the orchestrator explicitly determines that the bounded saving justifies the coordination cost.
 - For the 18-club fallback seed, small research batches are acceptable, but one owner assembles the canonical seed and one targeted independent audit checks provenance and coverage.
 
@@ -141,7 +141,7 @@ Fact-finding agents may establish evidence and recommend; they may not silently 
 
 Agent usage varies with model, task complexity, context, reasoning, tools, retrieval, and caching. Budget qualitatively rather than treating prompt count as a reliable allowance measure. See [OpenAI Codex pricing and usage limits](https://learn.chatgpt.com/docs/pricing#what-are-the-usage-limits-for-my-plan).
 
-- Reserve the strongest capability tier and highest reasoning for orchestration, launch gates, and difficult failure analysis. During the ADR-0061 pilot, cross-cutting/high-risk architecture and its independent specification review are the explicit exception: both always use different `gpt-5.6-sol` / `xhigh` agents.
+- Use `gpt-6-astra` / `high` only for a necessary phase-wide or cross-cutting architecture lead. Keep `gpt-5.6-sol` / `xhigh` for its independent specification review and the default independent/final correctness review; use lighter tiers for bounded implementation and mechanical evidence.
 - Prefer a balanced everyday capability tier for normal implementation and a lightweight tier for narrow deterministic work, read-only research, status gathering, and mechanical verification.
 - Use one task-agent self-review during implementation. Independently review frozen milestone SHAs and exceptional high-risk lanes; repeat only after a concrete finding.
 - Run focused tests per lane and broader affected suites at published milestone gates. Avoid redundant full-suite runs and honor the global heavy-operation lease even when branches are independent.
@@ -150,7 +150,7 @@ Agent usage varies with model, task complexity, context, reasoning, tools, retri
 
 ## Git integration policy
 
-Use the preview-and-milestone policy from [ADR-0061](decisions/0061-preview-and-milestone-orchestration.md):
+Use the preview-and-milestone policy refined by [ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md):
 
 - Integrate independently production-safe changes directly to `main` as small,
   cohesive milestone commits when that route remains useful.
@@ -201,8 +201,8 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 
 | Area | Accepted direction |
 |---|---|
-| Git and isolation | ADR-0061 production-safe direct-main/PR integration; mandatory integration branch for temporary production regression; reusable worktrees for simultaneous writers; bounded routine draft-PR lifecycle autonomous |
-| Capacity | Admit at most two linked task worktrees and use a separate heavy-operation lease; the checked-in resource policy and live snapshot may reduce concurrency before any new worktree or heavy operation |
+| Git and isolation | ADR-0061 production-safe direct-main/PR integration, refined by ADR-0075's bounded continuity/final-review contract; mandatory integration branch for temporary production regression; reusable worktrees for simultaneous writers; bounded routine draft-PR lifecycle autonomous |
+| Capacity | No universal writer/worktree count; classify worktrees and admit against the 14 GiB effective post-reservation disk floor, current graph/ownership/review route, and separate sole-heavy-operation lease |
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
 | Prediction topology | Independent primary `pes-squad`; relaxdays and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; recovery `main` temporarily uses target-context Schadensfresse copy from `pes-squad` in the eight-pair lane, while P1-10's target-primary route remains PR-only |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |

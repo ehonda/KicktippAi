@@ -34,12 +34,15 @@ not proof of physical unload or proactive process and memory cleanup.
 - Keep the workflow active until the objective is complete or the user stops
   it. A phase or priority objective is valid; expand it during intake before
   admitting writers.
-- Treat operational hook readiness as an execution prerequisite. Confirm that
-  `codex features list` reports `hooks` enabled and that the current exact
-  `.codex/hooks.json` definition is trusted in `/hooks`. The root cannot grant
-  that client trust itself. Without current evidence, remain in
-  `awaiting-owner`, ask the owner to review/confirm the hook, and do not start
-  writers or claim automatic compaction recovery.
+- Treat operational hook readiness as an execution prerequisite. For an
+  explicit invocation, require the versioned `ORCHESTRATION HOOK TRUST
+  EVIDENCE` injected by the synchronous `UserPromptSubmit` hook. Verify its
+  repository, exact session, `.codex/hooks.json` digest, and recovery-script
+  digest against the current files. The marker proves execution of a trusted
+  current definition but does not activate orchestration. If it is absent or
+  mismatched, remain `awaiting-owner`, ask the owner to review/trust the
+  current definition through `/hooks`, and do not start writers or claim
+  automatic compaction recovery.
 
 ## Establish Run Identity And Preview State
 
@@ -53,11 +56,21 @@ Use only these run-scoped files:
 
 - `.tmp/orchestration/<run-id>/capsule.json` plus `capsule.sha256` for the
   sealed, size-capped recovery snapshot;
-- `.tmp/orchestration/<run-id>/preview.md` for the design tree, readiness
-  findings, settled decisions, deferred nodes, and frozen runnable graph.
+- `.tmp/orchestration/<run-id>/preview.md` for the compact replace-in-place
+  current graph; and
+- separate `instruction-manifest.json`, `hook-manifest.json`, and
+  `active-contract-manifest.json` files containing canonical ordered raw-byte
+  SHA-256 entries.
 
-Create the capsule from `resources/capsule-template.json`, set `preview`
-status, and seal it with
+Create the capsule and preview from their templates in `resources/`, set
+`preview` status, and fill the preview's exact instruction-input and
+active-contract marker blocks. Create each packet with
+`scripts/New-OrchestrationRecoveryManifest.ps1`; it automatically discovers
+applicable nested instructions, expands transitive instruction includes, and
+adds the exact packet/recovery, worktree-admission, and memory-breaker controls
+plus their admission-policy input. Sealing
+rejects missing preview-declared contracts or applicable nested instructions.
+Then seal with
 `scripts/Invoke-OrchestrationCapsuleHook.ps1 -Mode Seal -RunId <run-id>` before
 the first preview lane. Sealing writes the checksum and exact-session active
 marker atomically. Pass the run ID, capsule path, and preview path in every
@@ -70,6 +83,14 @@ cannot be safely reconstructed; keep it at or below 8 KiB. Routine activity
 and unchanged resource samples are capsule-silent. Set status to `complete` or
 `stopped` and reseal at the end so the active marker is removed.
 
+Keep `preview.md` at or below the 12 KiB hard ceiling and target 8 KiB. Include
+only current objective/state/wave, lane graph and seams, concise decisions,
+instruction/hook digests, gates, reservations, publication topology, and exact
+next actions. Exclude transcript/history, completed-lane chronology, repeated
+measurements, logs, and historical evidence. Do not place the active-contract
+digest in the preview because the preview is itself a member of that packet;
+the capsule owns that manifest reference.
+
 Follow the object shapes in the template. Blockers use `{category, detail}`.
 Ownership reservations use `{agent_path, role, model, reasoning_effort,
 owned_paths, next_action}`. Resource state stores only admission verdicts,
@@ -77,6 +98,29 @@ warning bands, and any bounded owner override; a non-null heavy lease uses
 `{owner, operation}`. Retained agents use `{agent_path, role, reason,
 release_trigger, context_cost_limit}`. Do not add live counters or history to
 these records.
+
+## Recover Hot Or Cold
+
+Treat the injected capsule/preview as **root-read**, unchanged governing
+instructions/hooks/contracts/ADRs as **hash-only**, and full lane-specific
+task/design/code/test material as **specialist-read**. The root normally reads
+only an ADR's identity, status, applicability, concise consequence, and digest;
+read the full ADR only for an open or conflicting cross-task, authority,
+production-continuity, or material re-freeze decision.
+
+On a `HOT $orchestrate RECOVERY` injection, run
+`scripts/Get-OrchestrationRecoverySnapshot.ps1 -RunId <run-id>` once, inspect
+live agents once, and reconcile ownership. Do not reread unchanged policies,
+task/phase history, ADR chains, or unrelated evidence. Read an unchanged active
+contract only when the validated preview is insufficient for the immediate
+control-plane decision; query CI only when the next action depends on it. If
+ownership cannot be reconciled, switch to cold recovery.
+
+On a cold injection, material re-freeze, unresolved owner/authority gate, or
+ownership uncertainty, use only the exact run directory and complete the full
+cold Recovery Preflight in `AGENTS.md`. Recreate the packet manifests and
+independently review a material re-freeze before resealing. Never choose a run
+by recency or parse transcripts as a recovery mechanism.
 
 ## Complete Intake Before Writers
 
@@ -91,9 +135,11 @@ targets, resource admission, and proposed milestones.
   foundation first, then grill one complete task or cohesive milestone at a
   time. The owner may stop only between those units and start the already
   frozen independent graph; mark the remainder `needs-interview`.
-- Require a `gpt-5.6-sol` / `xhigh` architecture lead and a different
-  `gpt-5.6-sol` / `xhigh` specification reviewer for cross-cutting or high-risk
-  work. Keep the lead recallable only while a near-term reuse reason and
+- Require a `gpt-6-astra` / `high` architecture lead only for genuinely
+  phase-wide or cross-cutting architecture, and a different `gpt-5.6-sol` /
+  `xhigh` specification reviewer. The lead defines semantic independently
+  acceptable milestones and a downstream-release matrix without transient
+  machine-capacity inputs. Keep the lead recallable only while a near-term reuse reason and
   release trigger are recorded and retention does not block useful ready work.
 - Writers may start only from a frozen contract. A new cross-cutting
   invariant, missing ADR, dependency seam, invalidated architecture, or
@@ -114,10 +160,21 @@ Treat the repository's eight spawned-agent threads as capacity, not a target.
 Admit independent ready work when dependencies, authority, ownership, and
 machine budgets permit it; never manufacture work simply to fill slots.
 
-- Keep at most two concurrent writers with disjoint ownership and at most two
-  admitted writable task worktrees.
+- Do not impose a universal writer or linked-worktree count. Choose a run-local
+  wave throttle from the ready graph, path-disjoint ownership, dynamic disk
+  admission, external-side-effect leases, and defined review/serialized
+  integration routes. Count is inventory, not a target or architecture input.
 - Keep at most one active heavy-operation family. Read, review, research, or bounded
   editing may overlap it.
+- Give one writer one frozen milestone and at most three correction turns. The
+  first implementation reviewer gets at most two incremental follow-ups and
+  cannot grant final acceptance. Final acceptance requires a fresh reviewer
+  with no earlier milestone role, supplied the exact tip/full diff, frozen
+  contract/invariants, and closed-findings checklist without the prior
+  conversation or intended conclusion. At a correction limit, pause only that
+  lane and re-slice local defects, return ambiguous criteria to specification,
+  return genuinely architectural seams to a fresh Astra/high lead plus
+  independent review/re-freeze, or split ownership as diagnosis requires.
 - Give every retained specialist a retention reason and release trigger. At
   acceptance, freeze, review-surface change, or the recorded trigger, stop
   intentional retention and mark a terminal, idle, mailbox-clean specialist
@@ -161,11 +218,30 @@ mode. Respect its fail-closed verdict and the resource lease recorded in the
 capsule. Resource pressure queues work; it never authorizes killing unrelated
 processes or deleting caches or user files.
 
-The sole heavy lease has a `1.10 GiB` available-memory hard floor and a
-`1.50 GiB` warning threshold. A warning does not deny work by itself. Preserve
-detailed sample/calibration evidence outside the recovery capsule. Change the
-capsule only when admission, warning band, override, reservation, or lease
-ownership changes; no-change samples remain silent.
+Classify linked worktrees as active/build-capable (1.25 GiB growth
+reservation), parked/recovery-only (no edits/builds and no growth reservation),
+removal-ready (exact proof and deliberate removal), or uncertain (1.25 GiB).
+Reconcile the inventory and outstanding reservations before admission.
+Existing bytes are already represented by measured free space. Admit when free
+space minus outstanding and proposed reservations remains at least 14 GiB;
+apply the 15% warning after reservations. Never use worktree count as a gate,
+infer cleanup authority from missing ownership, or move work into the primary
+checkout to bypass admission.
+
+The sole heavy lease has a configured `1.00 GiB` available-memory hard floor
+and a `1.50 GiB` warning threshold. The 1.00–1.10 GiB band permits only bounded,
+recoverable local work with no external/live side effects. Preserve operation
+family, start/min/post memory, commit/paging signals, duration/outcome,
+OOM/paging symptoms, and causal queue delay outside the recovery capsule. On a
+memory-related OOM, abnormal termination, or severe paging failure, run
+`scripts/Set-OrchestrationMemoryCircuitBreaker.ps1 -Action Trip ...`; every
+later admission across the primary checkout and its linked worktrees then uses
+1.10 GiB until owner-reviewed analysis explicitly clears the preserved
+trigger. A linked-worktree locator is valid only when it matches that
+worktree's Git common-directory identity; otherwise admission fails closed.
+Change the capsule only when admission, warning
+band, override, reservation, or lease ownership changes; no-change samples
+remain silent.
 
 Automatic residency eviction is not evidence of proactive memory cleanup. If
 resource pressure persists and no supported release operation is exposed,

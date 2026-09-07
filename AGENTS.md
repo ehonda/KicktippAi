@@ -23,7 +23,7 @@ While this workflow is inactive, the root acts as a normal Codex working agent. 
 
 Once `$orchestrate` is explicitly invoked, the workflow remains active for that objective in the current root thread until the objective is complete or the user explicitly stops the workflow. The root orchestrator is the original user-facing thread, identified by the canonical agent path `/root` when agent paths are available. A task agent is any spawned child such as `/root/<task>`.
 
-The repository compaction hooks are an execution-readiness dependency. Before the first writer, verify that `codex features list` reports `hooks` enabled and that the current exact `.codex/hooks.json` definition has been reviewed and trusted through `/hooks`. The root cannot grant client hook trust. If current trust is not evidenced or hooks are disabled, remain `awaiting-owner`, request owner confirmation, and do not start writers or claim automatic compaction recovery.
+The repository compaction hooks are an execution-readiness dependency. A trusted synchronous `UserPromptSubmit` hook emits versioned positive evidence for an explicit `$orchestrate` prompt, binding the canonical repository, exact session, `.codex/hooks.json` digest, and recovery-script digest without activating orchestration. Verify that marker against the current files before the first writer. Its absence is ambiguous: remain `awaiting-owner`, ask the owner to review and trust the current definition through `/hooks`, and do not start writers or claim automatic compaction recovery. A changed hook or script invalidates earlier evidence.
 
 The explicit invocation also authorizes the bounded repository publication work needed to finish that objective: staging owned in-scope paths, creating scoped commits, and non-force pushing reviewed or frozen commits to the startup-verified canonical repository and allowlisted branch family. It authorizes the draft-PR and CI operations in [Bounded Git And GitHub Authorization](#bounded-git-and-github-authorization). It does not authorize unrelated repositories or remotes, force pushes, history rewrites, tags or releases, secrets, destructive Git, spending, production activation, or other external scope expansion. Platform approval boundaries still apply and must not be bypassed.
 
@@ -60,7 +60,7 @@ The root may delegate bounded read-only preview audits. It must then freeze a re
 - the verified canonical repository, remote URL, integration branch, allowed run-branch prefix, initial local/remote SHA, and whether direct-main, draft-PR, or milestone-branch publication is permitted; and
 - the resource snapshot, worktree reservation, heavy-operation budget, and throttle rules.
 
-Cross-cutting or high-risk work requires one `gpt-5.6-sol` / `xhigh` architecture lead to produce the seam map, invariants, non-goals, dependency graph, owned paths, and verification strategy, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. After acceptance, keep a specialist recallable only when reuse is expected before the next milestone and retention does not block useful ready work or a lightweight monitor. Record the retention reason and release trigger; architecture acceptance alone is not a reason to retain a thread indefinitely.
+Genuinely phase-wide or cross-cutting architecture requires one `gpt-6-astra` / `high` architecture lead to produce the seam map, invariants, non-goals, semantic dependency graph, independently acceptable milestones, downstream-release matrix, owned paths, and verification strategy, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. Do not give the architecture lead transient machine-capacity data; the root schedules the accepted graph against current operational constraints. Use Astra/high only for this necessary architecture-lead role. After acceptance, keep a specialist recallable only when reuse is expected before the next milestone and retention does not block useful ready work or a lightweight monitor. Record the retention reason and release trigger; architecture acceptance alone is not a reason to retain a thread indefinitely.
 
 When preview exposes genuine owner decisions, invocation of `$orchestrate` is explicit consent to invoke the installed explicit-only `$grill-me` skill. Complete the phase-wide foundation first, then interview one whole task or cohesive milestone at a time. The owner may timebox the session and stop between those complete units. Freeze the interview-complete independent graph, mark the rest `needs-interview`, and execute the ready work without guessing the deferred decisions. Preserve the design tree and frontier in `.tmp/orchestration/<run-id>/preview.md`; stop clearly if `$grill-me` is unavailable.
 
@@ -70,7 +70,9 @@ Transition `preview -> ready -> active` automatically when the frozen packet con
 
 When `$orchestrate` activates the workflow, the root must resolve a run ID from `CODEX_THREAD_ID`, falling back to `CODEX_SESSION_ID`. This exact identity binds the capsule to Codex's hook `session_id`. If neither variable is available, generate a UUID, preserve it explicitly in commentary and the capsule, and record that automatic hook lookup cannot be assumed until the client exposes a matching session identity.
 
-The root must maintain `.tmp/orchestration/<run-id>/preview.md` as the design-tree and frozen-graph source and `.tmp/orchestration/<run-id>/capsule.json` as a sealed, size-capped recovery snapshot. Initialize both before the first preview lane using the capsule template in `.agents/skills/orchestrate/resources/capsule-template.json`, then seal the capsule with `.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1 -Mode Seal -RunId <run-id>`. The root exclusively edits these files; task agents report evidence but never patch them.
+The root must maintain `.tmp/orchestration/<run-id>/preview.md` as the replace-in-place current graph and `.tmp/orchestration/<run-id>/capsule.json` as a sealed, size-capped recovery snapshot. It must also maintain separate canonical instruction, hook, and active-contract manifests in that exact run directory. Each manifest uses normalized, uniquely ordered identifiers and raw-byte SHA-256 values; the capsule stores its path and digest. The instruction packet covers root and applicable nested instructions plus explicitly governing skills and transitive references. The hook packet covers `.codex/hooks.json`, exact trust/recovery and packet-construction scripts, the worktree and memory admission controls, and their checked-in policy inputs. The active-contract packet covers `preview.md` plus only tasks, execution packets, designs, operative ADRs, and handoff evidence named by the frozen graph. Never substitute a repository commit SHA for these scoped manifests.
+
+Initialize the run files before the first preview lane using the capsule and preview templates in `.agents/skills/orchestrate/resources/`. In the preview's exact marker blocks, list any extra governing skill/reference inputs and every active task/execution/design/ADR/handoff contract path named by the graph. Create manifests with `.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1`; it adds root/orchestrate and applicable nested instructions, expands transitive `@` includes, and fixes the exact hook/recovery helper and admission-policy set. Sealing rejects a manifest that omits preview-declared contracts, applicable nested `AGENTS.md`, transitive includes, or required recovery dependencies. Then seal with `.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1 -Mode Seal -RunId <run-id>`. The root exclusively edits these files; task agents report evidence but never patch them. `preview.md` must remain at or below 12 KiB and targets 8 KiB. It contains objective/lifecycle/wave, current lane graph and seams, concise durable decisions, instruction/hook digests, owner/authority/continuity gates, reservations, publication topology, and exact next actions. It excludes transcripts, chronology, repeated samples, logs, and historical evidence. Because it belongs to the active-contract packet, it never embeds that packet's own digest; the capsule owns that reference.
 
 Overwrite the capsule only at a durability barrier:
 
@@ -85,9 +87,11 @@ Overwrite the capsule only at a durability barrier:
 
 Coalesce barriers that occur together. Do not update the capsule for routine spawns, messages, polls, test output, ordinary agent completion, unchanged gates, or a resource sample that leaves admission, warnings, reservations, and lease ownership unchanged. Seal every capsule update immediately; a missing, malformed, oversized, session-mismatched, or checksum-mismatched capsule is recovery evidence, not a reason to select another run by recency.
 
-Keep only non-derivable recovery facts in the capsule: objective and stop condition, lifecycle status and work wave, durable decisions, owner gates, fixed-category blockers, frozen artifact paths and exact SHAs, Git allowlist and reviewed unpublished commit, active ownership reservations, the latest admission verdicts/warning bands/owner override, retained-agent release contracts, and the next root/delegated actions. Do not store live agent status or counts, current capacity, ordinary completion history, raw resource measurements, worktree/Git/CI observations, or event history. Rehydrate those from their authoritative surfaces after compaction. Keep the capsule at or below the hook's 8 KiB limit and mark it `complete` or `stopped` when the workflow ends.
+Keep only non-derivable recovery facts in the capsule: objective and stop condition, lifecycle status and work wave, durable decisions, owner gates, fixed-category blockers, recovery-manifest references, exact hook-trust evidence, Git allowlist and reviewed unpublished commit, active ownership/worktree reservations, the latest admission verdicts/warning bands/owner override, retained-agent release contracts, and the next root/delegated actions. Do not store live agent status or counts, current capacity, ordinary completion history, raw resource measurements, worktree/Git/CI observations, or event history. Rehydrate those from their authoritative surfaces after compaction. Keep the capsule at or below the hook's 8 KiB limit and mark it `complete` or `stopped` when the workflow ends.
 
-The repository hooks validate the exact-session capsule before manual or automatic compaction. After root compaction, the `SessionStart` `compact` hook injects the validated capsule plus an explicit instruction to re-read and continue under `$orchestrate`. The hooks do not parse the unstable Codex transcript format and no `PostCompact` diagnostics hook is configured. They exit with no output unless the exact session has an orchestration `active` marker. If that marker exists but the capsule or checksum is missing or corrupt, the recovery hook forwards that failure and requires full reconstruction before substantive work.
+The repository hooks validate the exact-session capsule, preview ceiling, packet manifests/material, and current hook evidence before manual or automatic compaction. After root compaction, the `SessionStart` `compact` hook injects either a validated hot-recovery capsule or an explicit cold-reconstruction cause. The hooks do not parse the unstable Codex transcript format and no `PostCompact` diagnostics hook is configured. They exit with no output unless the exact session has an orchestration `active` marker. Missing/corrupt state, drift, a material re-freeze, an unresolved owner/authority gate, or unreconciled ownership requires cold recovery; ordinary agent, Git, CI, memory, or lease changes require live refresh but do not by themselves make recovery cold.
+
+Use three context tiers. **Root-read** is concise control-plane policy, current objective/index, capsule, compact preview, accepted cross-cutting conclusions, and immediate live reconciliation. **Hash-only** is unchanged governing instructions, hooks, frozen contracts, operative ADRs, and exact artifacts whose equality matters but whose contents the root does not need. **Specialist-read** is the full lane-specific task, design, ADR, code, tests, or review material. The root normally consumes only ADR identity, status, applicability, concise consequence, and digest; read the full ADR only to resolve an open/conflicting cross-task, authority, production-continuity, or material re-freeze question.
 
 Include the run ID, capsule path, and preview path in every task-agent assignment. Never use the former shared `.tmp/orchestration-state.md`, a shared `current` pointer, or another run's artifacts. Existing artifacts from other runs do not activate this workflow and must not be selected by recency. Do not add blocker categories or higher-frequency fields unless a later evaluation proves that native transcripts plus durability snapshots cannot answer a specific operational question.
 
@@ -99,11 +103,29 @@ primary thread. This is capacity, not a target and not a second resource model.
 - Admit useful independent ready work when ownership and machine budgets allow
   it. Do not invent, prematurely grill, or speculatively start work merely to
   fill slots.
-- Keep at most two concurrent writers, each with disjoint owned paths and an
-  admitted writable worktree when one is required. Keep at most one heavy
-  operation family regardless of how many read, review, or edit lanes run.
-- Do not impose another universal active-agent cap. Writer/worktree, heavy,
-  and spawned-thread capacity remain separate.
+- Do not impose a universal concurrent-writer or linked-worktree count. For
+  each frozen wave, admit useful writers only for ready, semantically
+  independent, path-disjoint lanes with one writer per worktree, dynamic disk
+  admission, required external-side-effect leases, and a defined review and
+  serialized-integration route. The root chooses a run-local wave throttle;
+  it is an operational control, not an architecture property or occupancy
+  target. Keep at most one heavy-operation family regardless of how many read,
+  review, or edit lanes run. Spawned-thread, worktree/disk, writer, and heavy
+  capacity remain separate.
+- A writer owns one frozen milestone and receives at most three correction
+  turns. Acceptance, a material role/contract change, or a third unsuccessful
+  correction releases it. The first implementation reviewer receives at most
+  two incremental follow-ups on its own findings and cannot grant final
+  acceptance. Final acceptance uses a fresh reviewer with no architecture,
+  specification, writing, reconciliation, or incremental-review role in that
+  milestone; give it the exact tip/full diff, frozen contract and invariants,
+  and a closed-findings checklist, but not prior conversation or an intended
+  conclusion.
+- When a correction limit is reached, pause only that lane for fresh diagnosis:
+  narrow or re-slice local defects, return ambiguous criteria to specification,
+  return new seams/invariants/continuity issues to a fresh necessary
+  Astra/high architecture lead plus independent review/re-freeze, and split
+  ownership/surface problems. Other independent ready lanes continue.
 - At acceptance, freeze, review-surface change, or a recorded release trigger,
   stop intentional retention and mark a terminal, idle, mailbox-clean
   specialist reclaimable. Retain it only when near-term continuity is
@@ -143,12 +165,26 @@ admitting work; do not open a concurrent replacement or claim cleanup.
 
 ### Resource Admission
 
-Agent capacity, writable-worktree capacity, and heavy-operation capacity are separate budgets. Before creating a worktree or launching a heavy local gate, run `.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1` with the applicable admission mode and the checked-in `.agents/skills/orchestrate/resources/resource-policy.json` profile. Record only a changed admission verdict, warning-threshold crossing, reservation, override, or lease-owner transition in the capsule; no-change samples are capsule-silent.
+Agent capacity, writable-worktree capacity, and heavy-operation capacity are separate budgets. Before creating or reactivating a writable/build-capable worktree or launching a heavy local gate, run `.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1` with the applicable admission mode and the checked-in `.agents/skills/orchestrate/resources/resource-policy.json` profile. Record only a changed admission verdict, warning-threshold crossing, reservation, override, or lease-owner transition in the capsule; no-change samples are capsule-silent.
 
-- Keep at most two writable task worktrees. Reuse a clean admitted worktree for sequential work only after its prior commit is integrated or safely published; remove idle recoverable worktrees promptly.
+- Classify every existing linked worktree during intake. `active-build-capable`
+  owns a provisional 1.25 GiB future-growth reservation;
+  `parked-recovery-only` retains its existing bytes but receives no edits or
+  builds until re-admitted and reserves no growth; `removal-ready` requires
+  exact proof and deliberate removal; `uncertain` reserves 1.25 GiB. Record
+  owner, branch/tip, dirty summary, retention reason, and release condition in
+  the preview, with current reservation facts in the capsule. Existing bytes
+  are already reflected in volume free space and are not charged again.
+- Worktree count is inventory only. Admission computes measured free space
+  minus outstanding reservations minus the proposed reservation, requires at
+  least 14 GiB effective post-admission free, and calculates the 15% warning
+  after reservations. Missing disk, inventory, or reservation reconciliation
+  fails closed. The 1.25 GiB value is provisional, based only on a rounded
+  buffer over one historical roughly 1.1 GiB mature worktree observation.
+- Reuse a clean admitted worktree for sequential work only after its prior commit is integrated or safely published. Never treat absent ownership as cleanup permission or implement in the primary checkout to evade admission.
 - Admit only one full build/test or other heavy job family at once. Other agents may edit, research, or review while that lease is occupied.
 - The helper's disk and memory gates fail closed. A run-scoped owner override must state the measured shortfall and reserved capacity; a task agent cannot override admission itself.
-- Heavy admission uses a `1.10 GiB` available-memory hard floor and a `1.50 GiB` warning threshold. A warning does not deny the sole lease. Keep detailed start/post memory, duration, and outcome evidence outside the recovery capsule for later calibration; write the capsule only when the verdict, warning band, override, or lease owner changes.
+- Heavy admission uses a `1.00 GiB` available-memory hard floor and a `1.50 GiB` warning threshold. The 1.00–1.10 GiB band is experimental and may run only bounded, recoverable local operations without external/live side effects. Record operation family, start/min/post memory, commit/paging signals, duration/outcome, OOM/paging symptoms, and causal queue delay outside the capsule and automatic recovery context. A memory-related OOM, abnormal termination, or severe paging failure must atomically trip the primary checkout's shared `.tmp/orchestration/resource-policy-state.json` with `.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1`; linked worktrees resolve it through `.codex-local/original-repository-path`, cross-checked against their actual Git common directory. A missing, stale, or mismatched locator fails closed. This restores an effective 1.10 GiB floor for all later checks in the worktree family until owner-reviewed analysis explicitly clears the preserved trigger.
 - PowerShell `Start-Job` children share the same global heavy-operation lease. Admit the whole job family before launching it.
 - Under pressure, queue new heavy work and allow the current bounded command to finish. Do not kill unrelated host processes or delete caches, build trees, worktrees, or user files merely to regain capacity.
 
@@ -169,14 +205,17 @@ Authorization expires when the objective completes or stops, or when repository 
 
 ### Recovery Preflight
 
-Only while the `$orchestrate` workflow is active, after any compaction or automatic continuation, or whenever current ownership is uncertain, the root must complete this recovery preflight before substantive task work:
+Only while the `$orchestrate` workflow is active, after compaction or automatic continuation, the root must complete the injected hot or cold path before substantive task work.
 
-1. Re-read `.agents/skills/orchestrate/SKILL.md`, the repository-root `AGENTS.md`, and every applicable nested `AGENTS.md`, task record, execution strategy, and active decision document. During the current Bundesliga 2026/27 work, this includes `plans/bundesliga-2026-27/AGENTS.md`, `plans/bundesliga-2026-27/execution-strategy.md`, the active task file, and its linked ADRs.
-2. Resolve the exact active run ID and validate `.tmp/orchestration/<run-id>/capsule.json` against its sibling checksum, then read its sibling `preview.md`. If the identity cannot be recovered, or the capsule is missing or corrupt, do not choose artifacts by recency: report the failure, reconstruct from the exact run directory and authoritative live surfaces, then repair and seal the capsule before continuing.
-3. Inspect live agent state and Git/worktree state rather than relying on the compacted summary alone.
-4. Reconcile every active lane's owner, status, model allocation, owned paths, and next action; re-sample resource admission and reconcile the active heavy-operation lease.
-5. State in a concise commentary update which next actions belong to the root and which remain delegated.
-6. Delegate worker work before doing it inline. If an allowed exception applies, record the reason before starting that work.
+For **hot recovery**:
+
+1. Use the validated injected capsule; do not broadly reread unchanged instructions or contracts.
+2. Run `.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1 -RunId <run-id>` once to revalidate packets and collect compact Git/worktree/resource/lease facts.
+3. Inspect native live agent state once and reconcile every active lane's owner, role/model, paths, and next action against the capsule and current worktrees. If ownership is uncertain, switch to cold recovery.
+4. Read an unchanged active contract only if the validated preview is insufficient for the immediate control-plane decision. Query remote CI only when the immediate next action depends on it.
+5. State concisely which next actions belong to the root and which remain delegated, then delegate worker work before doing it inline. If an allowed exception applies, record why.
+
+For **cold recovery**, resolve the exact active run and use only its directory; never choose another run by recency. Re-read the governing root/skill/nested instructions and the active frozen contracts required to reconstruct the current objective. Reconcile live agents, Git/worktrees, ownership, resources, heavy lease, and any immediately relevant CI; recreate canonical packet manifests, repair/re-freeze the compact preview and capsule, independently review a material re-freeze, and seal before resuming. Record the specific cold-recovery cause as purpose-specific evidence, not a general event journal.
 
 Recovery reads, agent-status inspection, Git/worktree inspection, and capsule repair are control-plane work. Do not edit source or planning artifacts, run task validation, or perform substantive research until the preflight is complete.
 
@@ -193,9 +232,9 @@ Use these starting points:
 - Normal bounded implementation and deterministic fixes: `gpt-5.6-terra` / `medium`; raise to `high` when the implementation has substantial ambiguity, integration risk, or difficult edge cases.
 - Independent correctness, security, or regression review: default to `gpt-5.6-sol` / `xhigh` during this pilot. `gpt-5.6-sol` / `high` is allowed only when the root records in the frozen preview that the contract, exact commit or tip, and owned paths are bounded, acceptance criteria are deterministic, and no ADR, invariant, ownership, architecture, or production-continuity question is open.
 - Open-ended or complex research whose conclusions will guide later design or implementation: prefer `gpt-5.6-sol` / `high`. Use a lighter model only when the question is bounded, evidence gathering is mechanical, and the result will receive stronger independent synthesis or review.
-- Ambiguous cross-cutting work, launch gates, architecture decisions, or difficult failure analysis: `gpt-5.6-sol` / `high`.
+- Difficult non-architectural failure analysis and launch gates: `gpt-5.6-sol` / `high`.
 
-Phase-wide or cross-cutting architecture and its independent specification review always use different `gpt-5.6-sol` / `xhigh` agents in the current pilot because architecture drift multiplies downstream rework. Post-freeze review remains xhigh by default, but the bounded Sol/high downgrade above does not require pretending an exact artifact reopened architecture.
+Use `gpt-6-astra` / `high` only as a genuinely necessary phase-wide or cross-cutting architecture lead. Its independent specification reviewer is a different `gpt-5.6-sol` / `xhigh` agent. A correction circuit breaker may use a fresh Astra/high reconciliation lead only when diagnosis reveals a genuinely architectural seam, invariant, or continuity problem. Do not use Astra for mechanical status, worktree, capacity, or local-defect work. Post-freeze review remains Sol/xhigh by default, but the bounded Sol/high downgrade above does not require pretending an exact artifact reopened architecture.
 
 Every override-compatible spawn must explicitly set both `model` and `reasoning_effort`. Omitting either field is a protocol violation.
 
@@ -273,7 +312,7 @@ Hosted Langfuse prompts are an established runtime path, not merely a POC. WM26 
 - The same Luna/none participant in `ehonda-ai-arena` is authorized for the Bundesliga validation ladder: local CLI, `workflow_dispatch`, then an arena-only schedule with result, Firestore, Langfuse, and ordering inspection.
 - Never silently promote the Luna/none validation configuration to production. The project owner selects and approves the final production model, reasoning effort, output cap, prompt versions, cost ceiling, and arena challenger matrix.
 - For local community writes, load the matching sibling `.env.<community>` credentials where available. Do not swap or overwrite the base development `.env`, and never print secret values while inspecting configuration.
-- Final production schedules remain disabled until the Bundesliga activation task's manual evidence and owner-controlled decisions pass. See [the Bundesliga execution strategy](plans/bundesliga-2026-27/execution-strategy.md), [ADR-0005](plans/bundesliga-2026-27/decisions/0005-launch-community-and-prediction-topology.md), and [ADR-0006](plans/bundesliga-2026-27/decisions/0006-stage-validation-with-a-cheap-test-model.md).
+- The established production matchday schedule remains active only through the current accepted Bundesliga topology. Do not silently promote validation configuration, add or activate schedules, change model/prompt/credential routing, or alter production continuity. Follow the current plan index and operative activation/topology ADRs for the assigned lane; consult completed P0 activation evidence only when a current gate or cold reconstruction explicitly requires it.
 
 ## Python Tooling
 

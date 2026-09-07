@@ -4,8 +4,14 @@ param(
     [string] $Admission = 'Snapshot',
     [string] $RepositoryRoot,
     [string] $ConfigPath,
+    [string] $StatePath,
     [ValidateRange(0, [int]::MaxValue)]
     [int] $ActiveHeavyOperations = 0,
+    [ValidateRange(0, [double]::MaxValue)]
+    [double] $OutstandingWorktreeReservationsGiB = 0,
+    [switch] $WorktreeInventoryConfirmed,
+    [ValidateSet('ActiveBuildCapable', 'ParkedRecoveryOnly', 'RemovalReady', 'Uncertain')]
+    [string] $ProposedWorktreeClass = 'ActiveBuildCapable',
     [hashtable] $Sample,
     [switch] $AsJson
 )
@@ -31,27 +37,91 @@ if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
     throw "Orchestration resource policy does not exist: $ConfigPath"
 }
 
+function Resolve-OrchestrationPrimaryCheckout {
+    param([Parameter(Mandatory)][string] $CheckoutRoot)
+
+    $commonDirectoryOutput = @(
+        & git -C $CheckoutRoot rev-parse --path-format=absolute --git-common-dir 2>$null)
+    $gitExitCode = $LASTEXITCODE
+    $commonDirectory = [string] ($commonDirectoryOutput | Select-Object -First 1)
+    if ($gitExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($commonDirectory)) {
+        throw 'Git common-directory identity is unavailable.'
+    }
+    $commonDirectory = [System.IO.Path]::GetFullPath($commonDirectory.Trim())
+
+    if (Test-Path -LiteralPath (Join-Path $CheckoutRoot '.git') -PathType Container) {
+        $primaryGitDirectory = [System.IO.Path]::GetFullPath((Join-Path $CheckoutRoot '.git'))
+        if (-not $commonDirectory.Equals($primaryGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw 'The checkout Git directory does not match its Git common-directory identity.'
+        }
+        return $CheckoutRoot
+    }
+
+    $locatorPath = Join-Path $CheckoutRoot '.codex-local/original-repository-path'
+    if (-not (Test-Path -LiteralPath $locatorPath -PathType Leaf)) {
+        throw 'The original-checkout locator is missing.'
+    }
+    $primaryRoot = [System.IO.Path]::GetFullPath(
+        ([System.IO.File]::ReadAllText($locatorPath).Trim()))
+    $primaryGitDirectory = [System.IO.Path]::GetFullPath((Join-Path $primaryRoot '.git'))
+    if (
+        -not (Test-Path -LiteralPath $primaryGitDirectory -PathType Container) -or
+        -not (Test-Path -LiteralPath (Join-Path $primaryRoot 'KicktippAi.slnx') -PathType Leaf)) {
+        throw 'The original-checkout locator target is invalid.'
+    }
+    if (-not $commonDirectory.Equals($primaryGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'The original-checkout locator does not match this worktree Git common directory.'
+    }
+    return $primaryRoot
+}
+
+$statePathResolutionValid = $true
+try {
+    $stateRepositoryRoot = Resolve-OrchestrationPrimaryCheckout -CheckoutRoot $RepositoryRoot
+}
+catch {
+    $statePathResolutionValid = $false
+    $stateRepositoryRoot = $RepositoryRoot
+}
+$expectedStatePath = [System.IO.Path]::GetFullPath(
+    (Join-Path $stateRepositoryRoot '.tmp/orchestration/resource-policy-state.json'))
+if ([string]::IsNullOrWhiteSpace($StatePath)) {
+    $StatePath = $expectedStatePath
+}
+else {
+    $StatePath = [System.IO.Path]::GetFullPath($StatePath)
+    if (
+        -not $statePathResolutionValid -or
+        -not $StatePath.Equals($expectedStatePath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        $statePathResolutionValid = $false
+    }
+}
+
 $policy = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
-if ($policy.schemaVersion -ne 2) {
+if ($policy.schemaVersion -ne 3) {
     throw "Unsupported orchestration resource policy schema: $($policy.schemaVersion)"
 }
 
-$maximumLinkedTaskWorktrees = [int] $policy.worktree.maximumLinkedTaskWorktrees
-$reservedGiBPerNewWorktree = [double] $policy.worktree.reservedGiBPerNewWorktree
-$minimumFreeGiBAfterReservation = [double] $policy.worktree.minimumFreeGiBAfterReservation
+$activeReservationGiB = [double] $policy.worktree.activeBuildCapableGrowthReservationGiB
+$uncertainReservationGiB = [double] $policy.worktree.uncertainGrowthReservationGiB
+$minimumEffectiveFreeGiB = [double] $policy.worktree.minimumEffectiveFreeGiBAfterReservation
 $minimumFreeDiskPercentWarning = [double] $policy.worktree.minimumFreeDiskPercentWarning
 $heavyLimit = [int] $policy.heavyOperation.concurrentLimit
-$minimumAvailableMemoryGiB = [double] $policy.heavyOperation.minimumAvailableMemoryGiB
+$configuredMemoryFloorGiB = [double] $policy.heavyOperation.minimumAvailableMemoryGiB
+$experimentalBandUpperGiB = [double] $policy.heavyOperation.experimentalBandUpperGiB
+$circuitBreakerFloorGiB = [double] $policy.heavyOperation.circuitBreakerFloorGiB
 $warningAvailableMemoryGiB = [double] $policy.heavyOperation.warningAvailableMemoryGiB
 
 if (
-    $maximumLinkedTaskWorktrees -lt 1 -or
-    $reservedGiBPerNewWorktree -le 0 -or
-    $minimumFreeGiBAfterReservation -le 0 -or
+    $activeReservationGiB -le 0 -or
+    $uncertainReservationGiB -le 0 -or
+    $minimumEffectiveFreeGiB -le 0 -or
     $minimumFreeDiskPercentWarning -le 0 -or
     $heavyLimit -lt 1 -or
-    $minimumAvailableMemoryGiB -le 0 -or
-    $warningAvailableMemoryGiB -lt $minimumAvailableMemoryGiB) {
+    $configuredMemoryFloorGiB -le 0 -or
+    $experimentalBandUpperGiB -lt $configuredMemoryFloorGiB -or
+    $circuitBreakerFloorGiB -lt $experimentalBandUpperGiB -or
+    $warningAvailableMemoryGiB -lt $circuitBreakerFloorGiB) {
     throw 'The orchestration resource policy contains invalid limits.'
 }
 
@@ -89,11 +159,37 @@ function Get-AvailableMemoryGiB {
     }
 }
 
+function Test-OrchestrationTimestamp {
+    param([string] $Value)
+
+    $parsed = [DateTimeOffset]::MinValue
+    return (
+        -not [string]::IsNullOrWhiteSpace($Value) -and
+        [DateTimeOffset]::TryParse(
+            $Value,
+            [System.Globalization.CultureInfo]::InvariantCulture,
+            [System.Globalization.DateTimeStyles]::AssumeUniversal,
+            [ref] $parsed))
+}
+
 $freeDiskGiB = Get-SyntheticValue -Name 'FreeDiskGiB'
 $totalDiskGiB = Get-SyntheticValue -Name 'TotalDiskGiB'
 $availableMemoryGiB = Get-SyntheticValue -Name 'AvailableMemoryGiB'
 $logicalProcessors = Get-SyntheticValue -Name 'LogicalProcessors'
 $linkedTaskWorktrees = Get-SyntheticValue -Name 'LinkedTaskWorktrees'
+$inventoryConfirmed = if ($useSyntheticSample) {
+    [bool] (Get-SyntheticValue -Name 'WorktreeInventoryConfirmed')
+}
+else {
+    [bool] $WorktreeInventoryConfirmed
+}
+$outstandingReservationsGiB = if ($useSyntheticSample) {
+    $sampleReservation = Get-SyntheticValue -Name 'OutstandingWorktreeReservationsGiB'
+    if ($null -eq $sampleReservation) { $null } else { [double] $sampleReservation }
+}
+else {
+    [double] $OutstandingWorktreeReservationsGiB
+}
 
 if (-not $useSyntheticSample) {
     try {
@@ -116,53 +212,123 @@ if (-not $useSyntheticSample) {
     }
     else {
         $linkedTaskWorktrees = $null
+        $inventoryConfirmed = $false
     }
 }
 
+$circuitBreakerActive = $false
+$circuitBreakerStateValid = $statePathResolutionValid
+$circuitBreakerReason = if ($statePathResolutionValid) { $null } else {
+    'The shared memory circuit-breaker path could not be resolved to the primary checkout.'
+}
+if ($useSyntheticSample -and $Sample.ContainsKey('MemoryCircuitBreakerActive')) {
+    $circuitBreakerActive = [bool] (Get-SyntheticValue -Name 'MemoryCircuitBreakerActive')
+    $circuitBreakerReason = [string] (Get-SyntheticValue -Name 'MemoryCircuitBreakerReason')
+}
+elseif ($statePathResolutionValid -and (Test-Path -LiteralPath $StatePath -PathType Leaf)) {
+    try {
+        $state = Get-Content -LiteralPath $StatePath -Raw | ConvertFrom-Json
+        if (
+            [int] $state.schema_version -ne 1 -or
+            [string] $state.status -notin @('active', 'cleared') -or
+            -not (Test-OrchestrationTimestamp -Value ([string] $state.updated_at_utc)) -or
+            $null -eq $state.trigger -or
+            [string]::IsNullOrWhiteSpace([string] $state.trigger.run_id) -or
+            [string]::IsNullOrWhiteSpace([string] $state.trigger.operation) -or
+            -not (Test-OrchestrationTimestamp -Value ([string] $state.trigger.at_utc)) -or
+            [string]::IsNullOrWhiteSpace([string] $state.trigger.reason) -or
+            ([string] $state.status -eq 'active' -and
+                ([double] $state.effective_floor_gib -ne $circuitBreakerFloorGiB -or
+                 $null -ne $state.clearance)) -or
+            ([string] $state.status -eq 'cleared' -and
+                ([double] $state.effective_floor_gib -ne $configuredMemoryFloorGiB -or
+                 $null -eq $state.clearance -or
+                 -not (Test-OrchestrationTimestamp -Value ([string] $state.clearance.at_utc)) -or
+                 [string]::IsNullOrWhiteSpace([string] $state.clearance.reviewed_by) -or
+                 [string]::IsNullOrWhiteSpace([string] $state.clearance.reason)))) {
+            throw 'invalid state shape'
+        }
+        $circuitBreakerActive = [string] $state.status -eq 'active'
+        $circuitBreakerReason = if ($circuitBreakerActive) { [string] $state.trigger.reason } else { $null }
+    }
+    catch {
+        $circuitBreakerStateValid = $false
+        $circuitBreakerReason = 'The memory circuit-breaker state is unreadable or invalid.'
+    }
+}
+
+$effectiveMemoryFloorGiB = if ($circuitBreakerActive) {
+    [Math]::Max($configuredMemoryFloorGiB, $circuitBreakerFloorGiB)
+}
+else {
+    $configuredMemoryFloorGiB
+}
+
+$proposedReservationGiB = switch ($ProposedWorktreeClass) {
+    'ActiveBuildCapable' { $activeReservationGiB }
+    'Uncertain' { $uncertainReservationGiB }
+    default { 0.0 }
+}
+
+$effectivePostReservationFreeGiB = $null
+$effectivePostReservationFreePercent = $null
 $freeDiskPercent = $null
 if ($null -ne $freeDiskGiB -and $null -ne $totalDiskGiB -and [double] $totalDiskGiB -gt 0) {
     $freeDiskPercent = [Math]::Round(([double] $freeDiskGiB / [double] $totalDiskGiB * 100), 1)
 }
+if ($null -ne $freeDiskGiB -and $null -ne $outstandingReservationsGiB) {
+    $effectivePostReservationFreeGiB = [Math]::Round(
+        ([double] $freeDiskGiB - [double] $outstandingReservationsGiB - $proposedReservationGiB), 2)
+    if ($null -ne $totalDiskGiB -and [double] $totalDiskGiB -gt 0) {
+        $effectivePostReservationFreePercent = [Math]::Round(
+            ($effectivePostReservationFreeGiB / [double] $totalDiskGiB * 100), 1)
+    }
+}
 
 $warnings = [System.Collections.Generic.List[string]]::new()
-if ($null -ne $freeDiskPercent -and $freeDiskPercent -lt $minimumFreeDiskPercentWarning) {
+if (
+    $null -ne $effectivePostReservationFreePercent -and
+    $effectivePostReservationFreePercent -lt $minimumFreeDiskPercentWarning) {
     $warnings.Add(
-        "Disk free space is $freeDiskPercent%, below the $minimumFreeDiskPercentWarning% warning threshold.")
+        "Effective disk free space after reservations is $effectivePostReservationFreePercent%, below the $minimumFreeDiskPercentWarning% warning threshold.")
 }
 if (
     $null -ne $availableMemoryGiB -and
     [double] $availableMemoryGiB -lt $warningAvailableMemoryGiB) {
     $warnings.Add(
-        "Available memory is $availableMemoryGiB GiB, below the $warningAvailableMemoryGiB GiB warning threshold; the hard floor is $minimumAvailableMemoryGiB GiB.")
+        "Available memory is $availableMemoryGiB GiB, below the $warningAvailableMemoryGiB GiB warning threshold; the effective hard floor is $effectiveMemoryFloorGiB GiB.")
+}
+if (-not $circuitBreakerStateValid) {
+    $warnings.Add($circuitBreakerReason)
 }
 
 $worktreeAllowed = $false
 $worktreeReason = ''
-$postReservationFreeGiB = $null
-if ($null -eq $freeDiskGiB -or $null -eq $linkedTaskWorktrees) {
-    $worktreeReason = 'Denied: disk or linked-worktree measurements are unavailable.'
+$postReservationFreeGiB = $effectivePostReservationFreeGiB
+if ($null -eq $freeDiskGiB -or $null -eq $totalDiskGiB) {
+    $worktreeReason = 'Denied: disk measurements are unavailable.'
 }
-elseif ([int] $linkedTaskWorktrees -ge $maximumLinkedTaskWorktrees) {
-    $worktreeReason = "Denied: $linkedTaskWorktrees linked task worktrees already meet the limit of $maximumLinkedTaskWorktrees."
+elseif (-not $inventoryConfirmed -or $null -eq $linkedTaskWorktrees -or $null -eq $outstandingReservationsGiB) {
+    $worktreeReason = 'Denied: worktree inventory or reservation reconciliation is unavailable.'
+}
+elseif ($postReservationFreeGiB -lt $minimumEffectiveFreeGiB) {
+    $worktreeReason = "Denied: outstanding ($outstandingReservationsGiB GiB) and proposed ($proposedReservationGiB GiB) reservations would leave $postReservationFreeGiB GiB, below the $minimumEffectiveFreeGiB GiB floor."
 }
 else {
-    $postReservationFreeGiB = [Math]::Round(([double] $freeDiskGiB - $reservedGiBPerNewWorktree), 2)
-    if ($postReservationFreeGiB -lt $minimumFreeGiBAfterReservation) {
-        $worktreeReason = "Denied: reserving $reservedGiBPerNewWorktree GiB would leave $postReservationFreeGiB GiB, below the $minimumFreeGiBAfterReservation GiB floor."
-    }
-    else {
-        $worktreeAllowed = $true
-        $worktreeReason = "Allowed: reservation leaves $postReservationFreeGiB GiB and uses $linkedTaskWorktrees of $maximumLinkedTaskWorktrees linked task-worktree slots."
-    }
+    $worktreeAllowed = $true
+    $worktreeReason = "Allowed: $linkedTaskWorktrees linked task worktrees are inventoried; outstanding ($outstandingReservationsGiB GiB) and proposed ($proposedReservationGiB GiB) reservations leave $postReservationFreeGiB GiB."
 }
 
 $heavyAllowed = $false
 $heavyReason = ''
-if ($null -eq $availableMemoryGiB -or $null -eq $logicalProcessors) {
+if (-not $circuitBreakerStateValid) {
+    $heavyReason = 'Denied: memory circuit-breaker state is unreadable or invalid.'
+}
+elseif ($null -eq $availableMemoryGiB -or $null -eq $logicalProcessors) {
     $heavyReason = 'Denied: available-memory or logical-processor measurements are unavailable.'
 }
-elseif ([double] $availableMemoryGiB -lt $minimumAvailableMemoryGiB) {
-    $heavyReason = "Denied: $availableMemoryGiB GiB available memory is below the $minimumAvailableMemoryGiB GiB floor."
+elseif ([double] $availableMemoryGiB -lt $effectiveMemoryFloorGiB) {
+    $heavyReason = "Denied: $availableMemoryGiB GiB available memory is below the $effectiveMemoryFloorGiB GiB effective floor."
 }
 elseif ($ActiveHeavyOperations -ge $heavyLimit) {
     $heavyReason = "Denied: $ActiveHeavyOperations active heavy operations meet the current limit of $heavyLimit."
@@ -171,6 +337,10 @@ else {
     $heavyAllowed = $true
     $heavyReason = "Allowed: $ActiveHeavyOperations of $heavyLimit heavy-operation leases are active."
 }
+
+$experimentalMemoryBand = (
+    $heavyAllowed -and
+    [double] $availableMemoryGiB -lt $experimentalBandUpperGiB)
 
 $heavyProcesses = @()
 if (-not $useSyntheticSample) {
@@ -198,17 +368,30 @@ $snapshot = [pscustomobject] [ordered] @{
     WorktreeAdmission = [pscustomobject] [ordered] @{
         Allowed = $worktreeAllowed
         Reason = $worktreeReason
-        ReservedGiB = $reservedGiBPerNewWorktree
-        PostReservationFreeGiB = $postReservationFreeGiB
-        MaximumLinkedTaskWorktrees = $maximumLinkedTaskWorktrees
+        InventoryConfirmed = $inventoryConfirmed
+        ExistingLinkedTaskWorktrees = $linkedTaskWorktrees
+        ProposedClass = $ProposedWorktreeClass
+        OutstandingReservedGiB = $outstandingReservationsGiB
+        ProposedReservedGiB = $proposedReservationGiB
+        EffectivePostReservationFreeGiB = $postReservationFreeGiB
+        EffectivePostReservationFreePercent = $effectivePostReservationFreePercent
+        MinimumEffectiveFreeGiB = $minimumEffectiveFreeGiB
     }
     HeavyOperationAdmission = [pscustomobject] [ordered] @{
         Allowed = $heavyAllowed
         Reason = $heavyReason
         ActiveLeases = $ActiveHeavyOperations
         CurrentLimit = $heavyLimit
-        HardFloorGiB = $minimumAvailableMemoryGiB
+        ConfiguredHardFloorGiB = $configuredMemoryFloorGiB
+        EffectiveHardFloorGiB = $effectiveMemoryFloorGiB
+        ExperimentalBandUpperGiB = $experimentalBandUpperGiB
+        InExperimentalBand = $experimentalMemoryBand
+        ExperimentalUse = if ($experimentalMemoryBand) { 'recoverable-local-only' } else { $null }
         WarningThresholdGiB = $warningAvailableMemoryGiB
+        CircuitBreakerActive = $circuitBreakerActive
+        CircuitBreakerReason = $circuitBreakerReason
+        CircuitBreakerStateValid = $circuitBreakerStateValid
+        CircuitBreakerStatePath = [System.IO.Path]::GetFullPath($StatePath)
     }
     Warnings = @($warnings)
 }
