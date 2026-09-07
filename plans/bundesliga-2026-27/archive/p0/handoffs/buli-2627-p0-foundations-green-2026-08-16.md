@@ -73,7 +73,7 @@ These conclusions came from completed read-only audits. Revalidate against the c
 
 - Do not enable production schedules or silently promote the Luna/none plumbing model.
 - Autonomous prediction writes remain limited to the approved dev/arena Luna/none path with an explicit output cap.
-- The owner still chooses the final production model/reasoning/output cap, prompt versions, cost ceiling, arena challengers, Club Elo unattended-network policy, production schedules/rollback, and confirms production community season setup. See [`../execution-strategy.md`](../../../execution-strategy.md#deliberately-late-owner-gates).
+- The owner still chooses the final production model/reasoning/output cap, prompt versions, cost ceiling, arena challengers, Club Elo unattended-network policy, production schedules/rollback, and confirms production community season setup. See [`execution-strategy.md`](../../../execution-strategy.md#owner-and-authority-gates).
 - Do not print credentials, overwrite the base `.env`, delete historical Firestore data, reintroduce transfer documents, restore null competition scope, or change prediction GUID identity.
 - Run all `dotnet` commands outside the sandbox with `dotnet run`, use targeted TUnit filters during tasks, and serialize full suites/Testcontainers.
 
