@@ -184,7 +184,7 @@ function Assert-PublishableTextPrivacy {
     param([string[]]$Paths)
 
     $patterns = @(
-        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s]+|/(?:home|Users)/[^/\s]+|/root/(?:\.[A-Za-z0-9._-]+|private(?=[/\s"''<>]|$)|[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,8}(?=[/\s"''<>]|$))|/var/root(?=[/\s"''<>]|$))',
+        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s]+|/(?:home|Users)/[^/\s]+|/root/(?:[A-Za-z0-9._-]+/)*(?:\.[A-Za-z0-9._-]+|private(?=[/\s"''<>]|$)|[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+(?=[/\s"''<>]|$))|/var/root(?=[/\s"''<>]|$))',
         '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',
         '\b(?:sk-(?:proj-)?|ghp_|github_pat_|glpat-)[A-Za-z0-9_-]{16,}',
         '\bAKIA[0-9A-Z]{16}\b',

@@ -494,7 +494,10 @@ class ReportManifestTests(unittest.TestCase):
                     with self.subTest(agent_path=value):
                         path.write_text(json.dumps({"agent_path": value}), encoding="utf-8")
                         privacy_checks.verify_text_privacy([path])
-                for value in ("/root/private", "/root/.codex/session.jsonl", "/root/key.pem"):
+                for value in (
+                    "/root/private", "/root/.codex/session.jsonl", "/root/key.pem",
+                    "/root/work/.env", "/root/work/key.pem", "/root/archive.tar.gz",
+                ):
                     with self.subTest(private_path=value):
                         path.write_text(json.dumps({"path": value}), encoding="utf-8")
                         with self.assertRaisesRegex(focus_registry.RegistryError, "private user-home"):
