@@ -18,8 +18,11 @@ SECRET_PATTERNS = (
 )
 GENERIC_HOME_PATTERNS = (
     re.compile(
-        r"(?i)(?<![A-Za-z0-9])(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+|"
-        r"/(?:home|Users)/)[^\\/\s\"'<>]+"
+        r"(?i)(?<![A-Za-z0-9])(?:"
+        r"[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s\"'<>]+|"
+        r"/(?:home|Users)/[^/\s\"'<>]+|"
+        r"/(?:root|var/root)/(?:\.[^/\s\"'<>]+|private(?=[/\s\"'<>]|$)|"
+        r"[^/\s\"'<>]+\.[A-Za-z0-9]{1,8}(?:/|$)))"
     ),
 )
 

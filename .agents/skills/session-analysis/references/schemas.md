@@ -55,7 +55,9 @@ elements. Manifest paths reject `.` and `..` components and are resolved under
 their repository, source, report, and publication roots before use. Pages copies
 only the manifest-declared self-contained HTML file and privacy-checks the
 manifest, complete report directory, future source directory, and generated
-session-analysis publication surface.
+session-analysis publication surface. Home-path checks cover Windows user
+profiles, Linux/macOS user homes, and root-home markers while leaving canonical
+Codex `/root/<task>` agent identities usable as operational evidence.
 The validator rejects unknown fields, unsafe paths, network-capable HTML assets,
 and high-confidence private-path or credential leakage. Run it rather than
 copying an example by hand.

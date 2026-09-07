@@ -166,7 +166,7 @@ try
     }
 
     $originalSummary = $manifest.summary
-    $manifest.summary = "Leaked C:\Users\reviewer\private"
+    $manifest.summary = "Leaked /root/.codex/private"
     $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
     $privacyRejected = $false
     try
@@ -195,6 +195,48 @@ try
     if (-not $privacyRejected)
     {
         throw "A manifest containing a private home path was accepted"
+    }
+
+    if (-not $IsWindows)
+    {
+        $caseVariantRoot = Join-Path $testRoot "Session-Analysis"
+        $caseVariantTarget = Join-Path $caseVariantRoot "case-link"
+        $caseLink = Join-Path $sessionDir "case-link"
+        New-Item -ItemType Directory -Path $caseVariantTarget -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $newReportDir "index.html") -Destination (Join-Path $caseVariantTarget "index.html")
+        New-Item -ItemType SymbolicLink -Path $caseLink -Target $caseVariantTarget | Out-Null
+        $manifest.site_path = "session-analysis/case-link"
+        $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+        $caseEscapeRejected = $false
+        try
+        {
+            & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+                -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+                -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+                -SessionAnalysisDir $sessionDir `
+                -SessionAnalysisManifestDir $manifestDir `
+                -RepositoryRoot $testRepo `
+                -OutputDir (Join-Path $testRoot "case-escape-site")
+        }
+        catch
+        {
+            if ($_.Exception.Message -notmatch "resolves outside its allowed root")
+            {
+                throw
+            }
+            $caseEscapeRejected = $true
+        }
+        finally
+        {
+            $manifest.site_path = $originalSitePath
+            $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+            Remove-Item -LiteralPath $caseLink -Force
+            Remove-Item -LiteralPath $caseVariantRoot -Recurse -Force
+        }
+        if (-not $caseEscapeRejected)
+        {
+            throw "A case-variant symlink escape was accepted"
+        }
     }
 
     $analysisPath = Join-Path $sourceDir "analysis.json"

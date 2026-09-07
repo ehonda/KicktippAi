@@ -10,6 +10,8 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+$script:PathComparer = if ($IsWindows) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
 
 function Initialize-Directory {
     param([string]$Path)
@@ -95,7 +97,16 @@ function Resolve-ContainedPath {
     }
     $resolvedRoot = if (Test-Path -LiteralPath $Root)
     {
-        (Resolve-Path -LiteralPath $Root).Path.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+        $rootItem = Get-Item -LiteralPath $Root -Force
+        $rootTarget = if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+        {
+            $rootItem.ResolveLinkTarget($true)
+        }
+        else
+        {
+            $null
+        }
+        $(if ($null -ne $rootTarget) { $rootTarget.FullName } else { (Resolve-Path -LiteralPath $Root).Path }).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     }
     else
     {
@@ -104,10 +115,19 @@ function Resolve-ContainedPath {
     $candidate = [IO.Path]::GetFullPath((Join-Path $resolvedRoot ($RelativePath -replace "/", [IO.Path]::DirectorySeparatorChar)))
     if (Test-Path -LiteralPath $candidate)
     {
-        $candidate = (Resolve-Path -LiteralPath $candidate).Path
+        $candidateItem = Get-Item -LiteralPath $candidate -Force
+        $candidateTarget = if (($candidateItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+        {
+            $candidateItem.ResolveLinkTarget($true)
+        }
+        else
+        {
+            $null
+        }
+        $candidate = if ($null -ne $candidateTarget) { $candidateTarget.FullName } else { (Resolve-Path -LiteralPath $candidate).Path }
     }
     $prefix = $resolvedRoot + [IO.Path]::DirectorySeparatorChar
-    if (-not $candidate.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase))
+    if (-not $candidate.StartsWith($prefix, $script:PathComparison))
     {
         throw "$Field resolves outside its allowed root"
     }
@@ -157,13 +177,13 @@ function Assert-PublishableTextPrivacy {
     param([string[]]$Paths)
 
     $patterns = @(
-        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+|/(?:home|Users)/)[^\\/\s]+',
+        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s]+|/(?:home|Users)/[^/\s]+|/(?:root|var/root)/(?:\.[^/\s]+|private(?=[/\s"''<>]|$)|[^/\s]+\.[A-Za-z0-9]{1,8}(?:/|$)))',
         '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',
         '\b(?:sk-(?:proj-)?|ghp_|github_pat_|glpat-)[A-Za-z0-9_-]{16,}',
         '\bAKIA[0-9A-Z]{16}\b',
         '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{20,}'
     )
-    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $seen = [Collections.Generic.HashSet[string]]::new($script:PathComparer)
     foreach ($path in $Paths)
     {
         $files = if (Test-Path -LiteralPath $path -PathType Container)

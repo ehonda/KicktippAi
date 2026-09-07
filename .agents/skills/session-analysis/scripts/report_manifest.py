@@ -52,36 +52,60 @@ REQUIRED_CSP = {
 
 
 class OfflineHtmlParser(HTMLParser):
+    VOID_TAGS = {
+        "area", "base", "br", "col", "embed", "hr", "img", "input", "link",
+        "meta", "param", "source", "track", "wbr",
+    }
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.csp_values: list[str] = []
         self.violations: list[str] = []
         self.csp_placement_violations: list[str] = []
         self.in_head = False
+        self.head_seen = False
+        self.head_closed = False
+        self.body_seen = False
+        self.open_elements: list[str] = []
 
     def handle_endtag(self, tag: str) -> None:
-        if tag.lower() == "head":
+        tag = tag.lower()
+        if tag == "head":
+            if not self.in_head:
+                self.csp_placement_violations.append("invalid head closure")
             self.in_head = False
+            self.head_closed = True
+        if tag in self.open_elements:
+            index = len(self.open_elements) - 1 - self.open_elements[::-1].index(tag)
+            del self.open_elements[index:]
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         values = {name.lower(): value or "" for name, value in attrs}
         if tag == "head":
+            if self.head_seen or self.head_closed or self.body_seen:
+                self.csp_placement_violations.append("reopened or misplaced head")
+            self.head_seen = True
             self.in_head = True
+        elif tag == "body":
+            self.body_seen = True
+            if self.in_head:
+                self.in_head = False
+                self.head_closed = True
         is_csp = (
             tag == "meta" and
             values.get("http-equiv", "").lower() == "content-security-policy"
         )
-        protected_tags = {
-            "audio", "body", "embed", "iframe", "img", "link", "object", "script",
-            "source", "style", "video",
-        }
         if is_csp:
-            if not self.in_head or self.csp_values:
+            if (
+                not self.in_head or self.head_closed or self.body_seen or
+                not self.open_elements or self.open_elements[-1] != "head" or
+                self.csp_values
+            ):
                 self.csp_placement_violations.append("ineffective CSP placement")
             self.csp_values.append(values.get("content", ""))
-        elif tag in protected_tags and not self.csp_values:
-            self.csp_placement_violations.append(f"<{tag}> before CSP")
+        elif not self.csp_values and tag not in {"html", "head", "meta"}:
+            self.csp_placement_violations.append(f"non-allowlisted <{tag}> before CSP")
         if tag == "meta" and values.get("http-equiv", "").lower() == "refresh":
             self.violations.append("meta refresh")
         if tag in {"embed", "iframe", "object"}:
@@ -101,6 +125,8 @@ class OfflineHtmlParser(HTMLParser):
                         self.violations.append("a[href]")
                 elif not (tag == "use" and lowered.startswith("#")):
                     self.violations.append(f"{tag}[href]")
+        if tag not in self.VOID_TAGS:
+            self.open_elements.append(tag)
 
 
 def parse_csp(value: str) -> dict[str, set[str]]:
