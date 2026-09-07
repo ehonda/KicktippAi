@@ -321,7 +321,7 @@ function Get-SessionAnalysisReports {
         "p1-orchestration-interim", "urgent-production-orchestration"
     ) | ForEach-Object { [void]$legacyIds.Add($_) }
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $sitePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $sitePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $reports = foreach ($manifestFile in $manifestFiles)
     {
         try
@@ -345,6 +345,10 @@ function Get-SessionAnalysisReports {
         if ([string]$manifest.id -notmatch "^[a-z0-9]+(?:-[a-z0-9]+)*$")
         {
             throw "Invalid report ID in $($manifestFile.Name)"
+        }
+        if ($manifestFile.Name -cne "$($manifest.id).report.json")
+        {
+            throw "Session-analysis manifest filename must match its ID: $($manifestFile.Name)"
         }
         if (-not $ids.Add([string]$manifest.id))
         {

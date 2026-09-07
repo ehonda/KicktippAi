@@ -35,6 +35,10 @@ Every discoverable report has one
   report uses `legacy: false`, a repository-relative normalized artifact under
   `source_path`, and a non-null extraction configuration.
 
+The manifest filename is exactly `<id>.report.json`. Publication `site_path`
+values are unique under a case-insensitive comparison so the same report set
+behaves identically on Windows and case-sensitive CI hosts.
+
 An extraction configuration fixes the root thread/log, UTC cutoff, generation
 timestamp, timezone, an explicit privacy choice for bounded excerpts, a
 repository-relative transcript snapshot lock, full base/final commits, dated

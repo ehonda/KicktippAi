@@ -388,10 +388,18 @@ def read_manifests(directory: pathlib.Path) -> list[tuple[pathlib.Path, dict[str
     paths = sorted(directory.glob("*.report.json"))
     require(bool(paths), f"no *.report.json files found in {directory}")
     manifests = [(path, read_manifest(path)) for path in paths]
+    for path, manifest in manifests:
+        require(
+            path.name == f"{manifest['id']}.report.json",
+            f"{path}: filename must match manifest ID",
+        )
     ids = [manifest["id"] for _, manifest in manifests]
     sites = [manifest["site_path"] for _, manifest in manifests]
     require(len(ids) == len(set(ids)), "report manifest IDs must be unique")
-    require(len(sites) == len(set(sites)), "report manifest site paths must be unique")
+    require(
+        len(sites) == len({site.casefold() for site in sites}),
+        "report manifest site paths must be unique ignoring case",
+    )
     return manifests
 
 

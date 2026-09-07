@@ -199,6 +199,33 @@ class FocusRegistryTests(unittest.TestCase):
 
 
 class ReportManifestTests(unittest.TestCase):
+    def test_manifest_discovery_requires_id_filename_and_casefolded_site_uniqueness(self) -> None:
+        repo = REPO_TMP.parent
+        report_dir = repo / "docs" / "codex" / "session-analysis" / "reports"
+        p0 = json.loads((report_dir / "p0-closeout.report.json").read_text(encoding="utf-8"))
+        p1 = json.loads((report_dir / "p1-context-refresh.report.json").read_text(encoding="utf-8"))
+        with temporary_directory() as directory:
+            root = pathlib.Path(directory)
+            filename_case = root / "filename"
+            filename_case.mkdir()
+            (filename_case / "wrong-name.report.json").write_text(
+                json.dumps(p0), encoding="utf-8"
+            )
+            with self.assertRaisesRegex(focus_registry.RegistryError, "filename must match"):
+                report_manifest.read_manifests(filename_case)
+
+            collision_case = root / "collision"
+            collision_case.mkdir()
+            p1["site_path"] = "session-analysis/" + p0["site_path"].split("/", 1)[1].upper()
+            (collision_case / "p0-closeout.report.json").write_text(
+                json.dumps(p0), encoding="utf-8"
+            )
+            (collision_case / "p1-context-refresh.report.json").write_text(
+                json.dumps(p1), encoding="utf-8"
+            )
+            with self.assertRaisesRegex(focus_registry.RegistryError, "unique ignoring case"):
+                report_manifest.read_manifests(collision_case)
+
     def test_relative_paths_reject_traversal_components(self) -> None:
         for value in ("../outside", "source/./file.json", "source/../outside.json"):
             with self.subTest(value=value):

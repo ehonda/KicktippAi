@@ -33,9 +33,10 @@ $manifestDir = Join-Path $testRepo "docs\codex\session-analysis\reports"
 $sessionDir = Join-Path $testRoot "session-analysis"
 $outputDir = Join-Path $testRoot "site"
 $missingArtifactOutputDir = Join-Path $testRoot "missing-artifact-site"
-$duplicateOutputDir = Join-Path $testRoot "duplicate-site"
 $traversalOutputDir = Join-Path $testRoot "traversal-site"
 $privacyOutputDir = Join-Path $testRoot "privacy-site"
+$filenameOutputDir = Join-Path $testRoot "filename-site"
+$caseCollisionOutputDir = Join-Path $testRoot "case-collision-site"
 
 try
 {
@@ -197,6 +198,69 @@ try
         throw "A manifest containing a private home path was accepted"
     }
 
+    $wrongManifestPath = Join-Path $manifestDir "wrong-name.report.json"
+    Move-Item -LiteralPath $manifestPath -Destination $wrongManifestPath
+    $filenameRejected = $false
+    try
+    {
+        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+            -SessionAnalysisDir $sessionDir `
+            -SessionAnalysisManifestDir $manifestDir `
+            -RepositoryRoot $testRepo `
+            -OutputDir $filenameOutputDir
+    }
+    catch
+    {
+        if ($_.Exception.Message -notmatch "filename must match its ID")
+        {
+            throw
+        }
+        $filenameRejected = $true
+    }
+    finally
+    {
+        Move-Item -LiteralPath $wrongManifestPath -Destination $manifestPath
+    }
+    if (-not $filenameRejected)
+    {
+        throw "A report manifest whose filename differs from its ID was accepted"
+    }
+
+    $caseCollision = $manifest | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+    $caseCollision.id = "zz-case-collision"
+    $caseCollision.site_path = "session-analysis/MANIFEST-DISCOVERY-TEST"
+    $caseCollisionPath = Join-Path $manifestDir "zz-case-collision.report.json"
+    $caseCollision | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $caseCollisionPath -Encoding utf8
+    $caseCollisionRejected = $false
+    try
+    {
+        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+            -SessionAnalysisDir $sessionDir `
+            -SessionAnalysisManifestDir $manifestDir `
+            -RepositoryRoot $testRepo `
+            -OutputDir $caseCollisionOutputDir
+    }
+    catch
+    {
+        if ($_.Exception.Message -notmatch "Duplicate session-analysis site_path")
+        {
+            throw
+        }
+        $caseCollisionRejected = $true
+    }
+    finally
+    {
+        Remove-Item -LiteralPath $caseCollisionPath -Force
+    }
+    if (-not $caseCollisionRejected)
+    {
+        throw "Case-colliding session-analysis site paths were accepted"
+    }
+
     if (-not $IsWindows)
     {
         $caseVariantRoot = Join-Path $testRoot "Session-Analysis"
@@ -269,32 +333,6 @@ try
     if (-not $missingArtifactRejected)
     {
         throw "A future report without its normalized artifact was accepted"
-    }
-
-    $duplicate = $manifest | ConvertTo-Json -Depth 20 | ConvertFrom-Json
-    $duplicate | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath (Join-Path $manifestDir "zz-duplicate.report.json") -Encoding utf8
-    $duplicateRejected = $false
-    try
-    {
-        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
-            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
-            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
-            -SessionAnalysisDir $sessionDir `
-            -SessionAnalysisManifestDir $manifestDir `
-            -RepositoryRoot $testRepo `
-            -OutputDir $duplicateOutputDir
-    }
-    catch
-    {
-        if ($_.Exception.Message -notmatch "Duplicate session-analysis report ID")
-        {
-            throw
-        }
-        $duplicateRejected = $true
-    }
-    if (-not $duplicateRejected)
-    {
-        throw "Duplicate session-analysis report ID was accepted"
     }
 
     Write-Host "Session-analysis Pages discovery tests passed"
