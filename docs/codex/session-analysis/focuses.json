@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-07",
+  "focuses": [
+    {
+      "id": "astra-high-architecture-lead-next-p1",
+      "questions": [
+        "Was gpt-6-astra/high used only for a genuinely necessary phase-wide or cross-cutting architecture-lead role in the next P1 orchestration run?",
+        "How did its architecture hold up under independent specification review and downstream implementation?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The first Bundesliga P1 orchestration run after the workflow-improvement PRs."
+      },
+      "cadence": "once",
+      "status": "active",
+      "evidence_source_hints": [
+        "git",
+        "independent review outcomes",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "compaction-recovery-and-context-occupancy",
+      "questions": [
+        "How much work and wall time did compaction recovery require?",
+        "What occupied context before and after recovery, and which reads were avoidable?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions that compact or exercise recovery behavior."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "compaction events",
+        "recovery manifests",
+        "tool calls",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "hot-recovery-compact-preview-effectiveness",
+      "questions": [
+        "Did hot recovery and the compact-preview contract reduce recovery work without weakening safety?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The first orchestration run using the hot-recovery and compact-preview contract from ADR-0075."
+      },
+      "cadence": "once",
+      "status": "active",
+      "evidence_source_hints": [
+        "compaction events",
+        "recovery manifests",
+        "safety gates",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "memory-policy-restrictiveness",
+      "questions": [
+        "Is the heavy-operation memory policy too restrictive?",
+        "What outcomes, paging or OOM symptoms, and causal queue delays occurred in the 1.00–1.10 GiB experimental band?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions that sample or exercise heavy-operation admission."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "heavy-operation outcomes",
+        "resource samples",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "owner-waiting-vs-agent-blocking",
+      "questions": [
+        "How much waiting was caused by genuine owner or external gates versus avoidable agent-created blocking?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions with owner decisions, external dependencies, or queued ready work."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "owner messages",
+        "preview gates",
+        "task timeline",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "reconciliation-models-and-stability",
+      "questions": [
+        "How often did correction limits trigger reconciliation, and what graph, contract, or implementation was reconciled?",
+        "Which model and reasoning-effort combinations were used for every reconciliation, was each role classified correctly, what did independent review find, and did the result remain stable downstream?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions with review corrections or explicit graph/contract reconciliation."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "agent model and effort records",
+        "downstream changes",
+        "independent review outcomes",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "review-correction-churn",
+      "questions": [
+        "Where did review and correction churn occur, how many cycles were needed, and what acceptance bottlenecks caused it?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions that use independent specification, implementation, or final review."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "commits",
+        "review outcomes",
+        "task timeline",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "useful-parallelism-and-wave-throttle",
+      "questions": [
+        "How much useful parallelism was achieved and what writer-wave throttle was chosen?",
+        "Which ready work was blocked by the actual graph, ownership, review, integration, worktree, disk-reservation, or heavy-lease constraints?"
+      ],
+      "created_at": "2026-09-07",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions that schedule multiple ready or potentially ready lanes."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "agent intervals",
+        "ownership reservations",
+        "preview graph",
+        "resource admission",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": null,
+        "retired_by": null,
+        "superseded_by": null
+      }
+    }
+  ]
+}

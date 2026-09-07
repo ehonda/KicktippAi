@@ -1,0 +1,6 @@
+interface:
+  display_name: "Session Analysis"
+  short_description: "Analyze a Codex session reproducibly"
+  default_prompt: "Use $session-analysis to analyze this Codex session with the active focus registry."
+policy:
+  allow_implicit_invocation: false

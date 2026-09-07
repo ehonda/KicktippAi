@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "id": "p1-orchestration-follow-up",
+  "title": "P1 orchestration follow-up",
+  "summary": "Compare parallelism, quota-efficiency proxies, machine admission, role behavior, milestone publication, and control-plane overhead.",
+  "eyebrow": "Codex investigation",
+  "published_at": "2026-09-01",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/p1-orchestration-follow-up-investigation",
+  "site_path": "session-analysis/p1-orchestration-follow-up",
+  "html_file": "index.html",
+  "focus_ids": [],
+  "legacy": true,
+  "analysis_file": null,
+  "analysis": null
+}

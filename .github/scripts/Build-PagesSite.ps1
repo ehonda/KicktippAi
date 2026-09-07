@@ -3,11 +3,15 @@ param(
     [string]$CoverageReportDir = "coverage-report",
     [string]$ExperimentAnalysisDir = "experiment-analysis",
     [string]$SessionAnalysisDir = "session-analysis",
+    [string]$SessionAnalysisManifestDir = "docs/codex/session-analysis/reports",
+    [string]$RepositoryRoot = ".",
     [string]$OutputDir = "pages-site"
 )
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+$script:PathComparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+$script:PathComparer = if ($IsWindows) { [StringComparer]::OrdinalIgnoreCase } else { [StringComparer]::Ordinal }
 
 function Initialize-Directory {
     param([string]$Path)
@@ -61,6 +65,411 @@ function ConvertTo-TitleLabel {
 
     $textInfo = [System.Globalization.CultureInfo]::InvariantCulture.TextInfo
     return $textInfo.ToTitleCase($clean.ToLowerInvariant())
+}
+
+function Get-NormalizedTextSha256 {
+    param([string]$Path)
+
+    $content = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.Encoding]::UTF8.GetBytes($content)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try
+    {
+        return [Convert]::ToHexString($sha.ComputeHash($bytes)).ToLowerInvariant()
+    }
+    finally
+    {
+        $sha.Dispose()
+    }
+}
+
+function Resolve-PhysicalPath {
+    param([string]$Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $pathRoot = [IO.Path]::GetPathRoot($fullPath)
+    $current = $pathRoot
+    $relative = [IO.Path]::GetRelativePath($pathRoot, $fullPath)
+    foreach ($component in @($relative -split "[\\/]" | Where-Object { $_ }))
+    {
+        $next = Join-Path $current $component
+        if (Test-Path -LiteralPath $next)
+        {
+            $item = Get-Item -LiteralPath $next -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+            {
+                $target = $item.ResolveLinkTarget($true)
+                if ($null -eq $target)
+                {
+                    throw "Unable to resolve symbolic-link component: $next"
+                }
+                $current = $target.FullName
+            }
+            else
+            {
+                $current = $item.FullName
+            }
+        }
+        else
+        {
+            $current = $next
+        }
+    }
+    return [IO.Path]::GetFullPath($current)
+}
+
+function Resolve-ContainedPath {
+    param(
+        [string]$Root,
+        [string]$RelativePath,
+        [string]$Field
+    )
+
+    if ($RelativePath -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+        @($RelativePath -split "/" | Where-Object { $_ -in @("", ".", "..") }).Count -ne 0)
+    {
+        throw "$Field must be a safe normalized relative path"
+    }
+    $resolvedRoot = (Resolve-PhysicalPath -Path $Root).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    $candidate = [IO.Path]::GetFullPath((Join-Path $resolvedRoot ($RelativePath -replace "/", [IO.Path]::DirectorySeparatorChar)))
+    $candidate = Resolve-PhysicalPath -Path $candidate
+    $prefix = $resolvedRoot + [IO.Path]::DirectorySeparatorChar
+    if (-not $candidate.StartsWith($prefix, $script:PathComparison))
+    {
+        throw "$Field resolves outside its allowed root"
+    }
+    return $candidate
+}
+
+function Get-PublishableText {
+    param([string]$Path)
+
+    $bytes = [IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xff -and $bytes[1] -eq 0xfe)
+    {
+        return [Text.Encoding]::Unicode.GetString($bytes)
+    }
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xfe -and $bytes[1] -eq 0xff)
+    {
+        return [Text.Encoding]::BigEndianUnicode.GetString($bytes)
+    }
+    try
+    {
+        return ([Text.UTF8Encoding]::new($false, $true)).GetString($bytes)
+    }
+    catch [Text.DecoderFallbackException]
+    {
+        if ($bytes -contains 0)
+        {
+            return $null
+        }
+        $sampleLength = [Math]::Min(8192, $bytes.Length)
+        $controls = 0
+        for ($index = 0; $index -lt $sampleLength; $index++)
+        {
+            if ($bytes[$index] -lt 32 -and $bytes[$index] -notin @(9, 10, 13))
+            {
+                $controls++
+            }
+        }
+        if ($sampleLength -gt 0 -and ($controls / $sampleLength) -gt 0.05)
+        {
+            return $null
+        }
+        return [Text.Encoding]::GetEncoding(1252).GetString($bytes)
+    }
+}
+
+function Assert-PublishableTextPrivacy {
+    param([string[]]$Paths)
+
+    $patterns = @(
+        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s]+|/(?:home|Users)/[^/\s]+|/root/(?:[A-Za-z0-9._-]+/)*(?:\.[A-Za-z0-9._-]+|private(?=[/\s"''<>]|$)|[A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)+(?=[/\s"''<>]|$))|/var/root(?=[/\s"''<>]|$))',
+        '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',
+        '\b(?:sk-(?:proj-)?|ghp_|github_pat_|glpat-)[A-Za-z0-9_-]{16,}',
+        '\bAKIA[0-9A-Z]{16}\b',
+        '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{20,}'
+    )
+    $seen = [Collections.Generic.HashSet[string]]::new($script:PathComparer)
+    foreach ($path in $Paths)
+    {
+        $files = if (Test-Path -LiteralPath $path -PathType Container)
+        {
+            @(Get-ChildItem -LiteralPath $path -File -Recurse)
+        }
+        elseif (Test-Path -LiteralPath $path -PathType Leaf)
+        {
+            @((Get-Item -LiteralPath $path))
+        }
+        else
+        {
+            @()
+        }
+        foreach ($file in $files)
+        {
+            if (-not $seen.Add($file.FullName))
+            {
+                continue
+            }
+            $content = Get-PublishableText -Path $file.FullName
+            if ($null -eq $content)
+            {
+                continue
+            }
+            foreach ($pattern in $patterns)
+            {
+                if ($content -match $pattern)
+                {
+                    throw "Private path or possible credential remains in publishable output: $($file.FullName)"
+                }
+            }
+        }
+    }
+}
+
+function Test-SessionAnalysisArtifact {
+    param(
+        [object]$Manifest,
+        [string]$ManifestPath,
+        [string]$RepoRoot,
+        [string]$SourcePath
+    )
+
+    $analysisRelative = ([string]$Manifest.analysis_file).Substring(([string]$Manifest.source_path).Length + 1)
+    $analysisPath = Resolve-ContainedPath -Root $SourcePath -RelativePath $analysisRelative -Field "analysis_file"
+    if (-not (Test-Path -LiteralPath $analysisPath -PathType Leaf))
+    {
+        throw "Normalized session-analysis artifact is missing for $($Manifest.id): $analysisPath"
+    }
+    $analysis = Get-Content -LiteralPath $analysisPath -Raw | ConvertFrom-Json
+    if ($null -eq $analysis.source)
+    {
+        throw "Normalized session-analysis artifact has no source object: $analysisPath"
+    }
+    $source = $analysis.source
+    if ($source.complete_message_bodies_included -ne $false)
+    {
+        throw "Normalized session-analysis artifact does not exclude complete messages for $($Manifest.id)"
+    }
+    $relativeManifest = [IO.Path]::GetRelativePath($RepoRoot, $ManifestPath).Replace("\", "/")
+    $manifestHash = Get-NormalizedTextSha256 -Path $ManifestPath
+    if ([string]$source.report_manifest -cne $relativeManifest -or
+        [string]$source.report_manifest_sha256 -cne $manifestHash)
+    {
+        throw "Normalized session-analysis manifest binding drifted for $($Manifest.id)"
+    }
+    if ((@($source.focus_ids) | ConvertTo-Json -Compress) -cne (@($Manifest.focus_ids) | ConvertTo-Json -Compress))
+    {
+        throw "Normalized session-analysis focus IDs drifted for $($Manifest.id)"
+    }
+    $expected = $Manifest.analysis
+    $rootLog = ([string]$source.root_log).Replace("\", "/").Split("/")[-1]
+    if ([string]$analysis.generated_at -cne [string]$expected.generated_at -or
+        [string]$source.root_thread_id -cne [string]$expected.root_thread_id -or
+        $rootLog -cne [string]$expected.root_log_name -or
+        [string]$source.event_cutoff_at -cne [string]$expected.event_cutoff_at -or
+        [string]$source.repository.base_commit -cne [string]$expected.repository.base_commit -or
+        [string]$source.repository.final_commit -cne [string]$expected.repository.final_commit -or
+        [bool]$source.bounded_excerpts_included -ne [bool]$expected.privacy.include_bounded_excerpts)
+    {
+        throw "Normalized session-analysis snapshot contract drifted for $($Manifest.id)"
+    }
+    if (-not ([string]$expected.snapshot_lock).StartsWith(([string]$Manifest.source_path) + "/", [StringComparison]::Ordinal))
+    {
+        throw "snapshot_lock must be under source_path for $($Manifest.id)"
+    }
+    $lockRelative = ([string]$expected.snapshot_lock).Substring(([string]$Manifest.source_path).Length + 1)
+    $lockPath = Resolve-ContainedPath -Root $SourcePath -RelativePath $lockRelative -Field "snapshot_lock"
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf))
+    {
+        throw "Session-analysis snapshot lock is missing for $($Manifest.id): $lockPath"
+    }
+    $lockHash = Get-NormalizedTextSha256 -Path $lockPath
+    if ([string]$source.snapshot_lock -cne [string]$expected.snapshot_lock -or
+        [string]$source.snapshot_lock_sha256 -cne $lockHash)
+    {
+        throw "Normalized session-analysis snapshot-lock binding drifted for $($Manifest.id)"
+    }
+}
+
+function Get-SessionAnalysisReports {
+    param(
+        [string]$ManifestDir,
+        [string]$SessionSourceRoot,
+        [string]$RepoRoot
+    )
+
+    if (-not (Test-Path -LiteralPath $ManifestDir -PathType Container))
+    {
+        throw "Session-analysis manifest directory does not exist: $ManifestDir"
+    }
+
+    $manifestFiles = @(Get-ChildItem -LiteralPath $ManifestDir -File -Filter "*.report.json" | Sort-Object Name)
+    if ($manifestFiles.Count -eq 0)
+    {
+        throw "No session-analysis report manifests found in $ManifestDir"
+    }
+
+    $requiredFields = @(
+        "analysis", "analysis_file", "eyebrow", "focus_ids", "html_file", "id",
+        "legacy", "published_at", "schema_version", "session_kind", "site_path",
+        "source_path", "summary", "title"
+    )
+    $legacyIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    @(
+        "p0-closeout", "p1-context-refresh", "p1-orchestration-follow-up",
+        "p1-orchestration-interim", "urgent-production-orchestration"
+    ) | ForEach-Object { [void]$legacyIds.Add($_) }
+    $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $sitePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $reports = foreach ($manifestFile in $manifestFiles)
+    {
+        try
+        {
+            $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json
+        }
+        catch
+        {
+            throw "Invalid session-analysis manifest $($manifestFile.FullName): $($_.Exception.Message)"
+        }
+
+        $actualFields = @($manifest.PSObject.Properties.Name | Sort-Object)
+        if (($actualFields -join "`n") -ne ($requiredFields -join "`n"))
+        {
+            throw "Unexpected fields in session-analysis manifest $($manifestFile.Name)"
+        }
+        if ($manifest.schema_version -ne 1)
+        {
+            throw "Unsupported schema_version in $($manifestFile.Name)"
+        }
+        if ([string]$manifest.id -notmatch "^[a-z0-9]+(?:-[a-z0-9]+)*$")
+        {
+            throw "Invalid report ID in $($manifestFile.Name)"
+        }
+        if ($manifestFile.Name -cne "$($manifest.id).report.json")
+        {
+            throw "Session-analysis manifest filename must match its ID: $($manifestFile.Name)"
+        }
+        if (-not $ids.Add([string]$manifest.id))
+        {
+            throw "Duplicate session-analysis report ID: $($manifest.id)"
+        }
+        $expectedLegacy = $legacyIds.Contains([string]$manifest.id)
+        if ($manifest.legacy -isnot [bool] -or [bool]$manifest.legacy -ne $expectedLegacy)
+        {
+            throw "legacy must match the fixed report allowlist in $($manifestFile.Name)"
+        }
+        if ($expectedLegacy)
+        {
+            if ($null -ne $manifest.analysis -or $null -ne $manifest.analysis_file -or @($manifest.focus_ids).Count -ne 0)
+            {
+                throw "Legacy report fields are invalid in $($manifestFile.Name)"
+            }
+        }
+        else
+        {
+            if ($null -eq $manifest.analysis -or [string]::IsNullOrWhiteSpace([string]$manifest.analysis_file))
+            {
+                throw "Future report requires analysis and analysis_file in $($manifestFile.Name)"
+            }
+            if ([string]$manifest.analysis_file -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+                @(([string]$manifest.analysis_file) -split "/" | Where-Object { $_ -in @("", ".", "..") }).Count -ne 0 -or
+                -not ([string]$manifest.analysis_file).StartsWith(([string]$manifest.source_path) + "/"))
+            {
+                throw "Unsafe analysis_file in $($manifestFile.Name)"
+            }
+            if (-not ([string]$manifest.analysis_file).EndsWith("/analysis.json", [StringComparison]::Ordinal))
+            {
+                throw "analysis_file must end in analysis.json in $($manifestFile.Name)"
+            }
+        }
+        foreach ($field in @("title", "summary", "eyebrow", "published_at", "session_kind", "source_path", "site_path", "html_file"))
+        {
+            if ([string]::IsNullOrWhiteSpace([string]$manifest.$field))
+            {
+                throw "Missing $field in $($manifestFile.Name)"
+            }
+        }
+        foreach ($field in @("source_path", "site_path", "html_file"))
+        {
+            if ([string]$manifest.$field -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+                @(([string]$manifest.$field) -split "/" | Where-Object { $_ -in @("", ".", "..") }).Count -ne 0)
+            {
+                throw "Unsafe $field in $($manifestFile.Name)"
+            }
+        }
+        if (([string]$manifest.html_file).Contains("/"))
+        {
+            throw "html_file must be a basename in $($manifestFile.Name)"
+        }
+        if ([string]$manifest.site_path -notmatch "^session-analysis/")
+        {
+            throw "site_path must be under session-analysis/ in $($manifestFile.Name)"
+        }
+        if (-not $sitePaths.Add([string]$manifest.site_path))
+        {
+            throw "Duplicate session-analysis site_path: $($manifest.site_path)"
+        }
+        try
+        {
+            $publishedAt = [DateTime]::ParseExact(
+                [string]$manifest.published_at,
+                "yyyy-MM-dd",
+                [Globalization.CultureInfo]::InvariantCulture
+            )
+        }
+        catch
+        {
+            throw "published_at must use YYYY-MM-DD in $($manifestFile.Name)"
+        }
+
+        $relativeSitePath = ([string]$manifest.site_path).Substring("session-analysis/".Length)
+        $reportDirectory = Resolve-ContainedPath -Root $SessionSourceRoot -RelativePath $relativeSitePath -Field "site_path"
+        $publishedHtml = Resolve-ContainedPath -Root $reportDirectory -RelativePath ([string]$manifest.html_file) -Field "html_file"
+        if (-not (Test-Path -LiteralPath $publishedHtml -PathType Leaf))
+        {
+            throw "Published session-analysis HTML is missing for $($manifest.id): $publishedHtml"
+        }
+        $sourcePath = Resolve-ContainedPath -Root $RepoRoot -RelativePath ([string]$manifest.source_path) -Field "source_path"
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Container))
+        {
+            throw "Session-analysis source path is missing for $($manifest.id): $sourcePath"
+        }
+        Assert-PublishableTextPrivacy -Paths @($manifestFile.FullName, $reportDirectory)
+        if (-not $expectedLegacy)
+        {
+            Test-SessionAnalysisArtifact -Manifest $manifest -ManifestPath $manifestFile.FullName -RepoRoot $RepoRoot -SourcePath $sourcePath
+            Assert-PublishableTextPrivacy -Paths @($sourcePath)
+        }
+
+        [pscustomobject]@{
+            Id = [string]$manifest.id
+            Title = [string]$manifest.title
+            Summary = [string]$manifest.summary
+            Eyebrow = [string]$manifest.eyebrow
+            PublishedAt = $publishedAt
+            Href = "$($manifest.site_path)/$($manifest.html_file)"
+            SitePath = [string]$manifest.site_path
+            HtmlFile = [string]$manifest.html_file
+            SourceHtml = $publishedHtml
+        }
+    }
+
+    return @($reports | Sort-Object @{ Expression = "PublishedAt"; Descending = $true }, Title)
+}
+
+function New-SessionAnalysisCards {
+    param([object[]]$Reports)
+
+    $cards = foreach ($report in $Reports)
+    {
+        $href = Escape-Html -Value $report.Href
+        $eyebrow = Escape-Html -Value $report.Eyebrow
+        $title = Escape-Html -Value $report.Title
+        $summary = Escape-Html -Value $report.Summary
+        "<a class='card' href='$href'><span class='eyebrow'>$eyebrow</span><strong>$title</strong><p>$summary</p></a>"
+    }
+    return $cards -join "`n      "
 }
 
 function Get-ExperimentReportTypeLabel {
@@ -431,16 +840,21 @@ $sessionAnalysisTarget = Join-Path $OutputDir "session-analysis"
 
 Copy-DirectoryContents -SourceDir $CoverageReportDir -DestinationDir $coverageTarget
 Copy-DirectoryContents -SourceDir $ExperimentAnalysisDir -DestinationDir $experimentTarget
-Copy-DirectoryContents -SourceDir $SessionAnalysisDir -DestinationDir $sessionAnalysisTarget
 New-ExperimentAnalysisIndex -ExperimentRoot $experimentTarget
 
 $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
-$hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-closeout/index.html")
-$hasP1SessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-interim/index.html")
-$hasP1FollowUpAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-follow-up/index.html")
-$hasUrgentProductionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "urgent-production-orchestration/index.html")
-$hasP1ContextRefreshAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-context-refresh/index.html")
+$resolvedRepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
+$resolvedSessionAnalysisSource = [IO.Path]::GetFullPath($SessionAnalysisDir)
+$sessionAnalysisReports = Get-SessionAnalysisReports -ManifestDir $SessionAnalysisManifestDir -SessionSourceRoot $resolvedSessionAnalysisSource -RepoRoot $resolvedRepositoryRoot
+foreach ($report in $sessionAnalysisReports)
+{
+    $destinationDirectory = Resolve-ContainedPath -Root $OutputDir -RelativePath $report.SitePath -Field "published site_path"
+    $destinationHtml = Resolve-ContainedPath -Root $destinationDirectory -RelativePath $report.HtmlFile -Field "published html_file"
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($destinationHtml)) -Force | Out-Null
+    Copy-Item -LiteralPath $report.SourceHtml -Destination $destinationHtml -Force
+}
+$sessionAnalysisCards = New-SessionAnalysisCards -Reports $sessionAnalysisReports
 
 $coverageCard = if ($hasCoverage)
 {
@@ -458,51 +872,6 @@ $experimentCard = if ($hasExperimentAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Experiment analysis</span><strong>Published experiment reports</strong><p>No experiment reports have been published yet.</p></section>"
-}
-
-$sessionAnalysisCard = if ($hasSessionAnalysis)
-{
-    "<a class='card' href='session-analysis/p0-closeout/index.html'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>Explore orchestration, cost, interventions, task timing, and autonomous repair.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>No session investigation has been published yet.</p></section>"
-}
-
-$p1SessionAnalysisCard = if ($hasP1SessionAnalysis)
-{
-    "<a class='card' href='session-analysis/p1-orchestration-interim/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>Examine task complexity, machine/tool time, model allocation, review churn, branch gates, and protocol overhead.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>No P1 orchestration investigation has been published yet.</p></section>"
-}
-
-$p1FollowUpAnalysisCard = if ($hasP1FollowUpAnalysis)
-{
-    "<a class='card' href='session-analysis/p1-orchestration-follow-up/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>Compare parallelism, quota-efficiency proxies, machine admission, role behavior, milestone publication, and control-plane overhead.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>No P1 follow-up investigation has been published yet.</p></section>"
-}
-
-$urgentProductionAnalysisCard = if ($hasUrgentProductionAnalysis)
-{
-    "<a class='card' href='session-analysis/urgent-production-orchestration/index.html'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>Assess the PR #98 workflow changes and compare the gpt-6-astra orchestrator cost with gpt-5.6-sol.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>No urgent-production orchestration investigation has been published yet.</p></section>"
-}
-
-$p1ContextRefreshAnalysisCard = if ($hasP1ContextRefreshAnalysis)
-{
-    "<a class='card' href='session-analysis/p1-context-refresh/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 context-refresh orchestration</strong><p>Analyze startup gates, task velocity, review serialization, recovery context, preview churn, model roles, and memory admission.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 context-refresh orchestration</strong><p>No P1 context-refresh investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -629,11 +998,7 @@ $rootIndex = @"
     <section class="grid">
       $coverageCard
       $experimentCard
-      $sessionAnalysisCard
-      $p1SessionAnalysisCard
-      $p1FollowUpAnalysisCard
-      $urgentProductionAnalysisCard
-      $p1ContextRefreshAnalysisCard
+      $sessionAnalysisCards
     </section>
   </main>
 </body>
@@ -641,4 +1006,5 @@ $rootIndex = @"
 "@
 
 Set-Content -Path (Join-Path $OutputDir "index.html") -Value $rootIndex -Encoding utf8
+Assert-PublishableTextPrivacy -Paths @($sessionAnalysisTarget, (Join-Path $OutputDir "index.html"))
 Write-Host "Pages site written to $OutputDir"

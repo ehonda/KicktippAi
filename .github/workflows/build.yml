@@ -213,10 +213,18 @@ jobs:
           name: coverage-report
           path: coverage-report/
           retention-days: 30
-          
+
+      - name: Validate session-analysis tooling
+        run: |
+          python3 -B .agents/skills/session-analysis/scripts/test_tooling.py
+          python3 -B .agents/skills/session-analysis/scripts/focus_registry.py --registry docs/codex/session-analysis/focuses.json validate
+          python3 -B .agents/skills/session-analysis/scripts/report_manifest.py validate --manifest-dir docs/codex/session-analysis/reports --registry docs/codex/session-analysis/focuses.json --repo . --verify-html
+
       - name: Build Pages site
         shell: pwsh
-        run: .github/scripts/Build-PagesSite.ps1 -CoverageReportDir coverage-report -ExperimentAnalysisDir experiment-analysis -OutputDir pages-site
+        run: |
+          .github/scripts/Test-SessionAnalysisPages.ps1
+          .github/scripts/Build-PagesSite.ps1 -CoverageReportDir coverage-report -ExperimentAnalysisDir experiment-analysis -OutputDir pages-site
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
