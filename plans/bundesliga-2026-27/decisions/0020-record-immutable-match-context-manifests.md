@@ -35,9 +35,9 @@ For Bundesliga, a prediction with a manifest is saved only through a provenance-
 
 ## Affected tasks
 
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
-- [P0-13](../tasks/p0-13-bonus-context-baseline.md)
-- [P0-15](../tasks/p0-15-context-document-hygiene.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-13](../archive/p0/tasks/p0-13-bonus-context-baseline.md)
+- [P0-15](../archive/p0/tasks/p0-15-context-document-hygiene.md)
 - [P1-06](../tasks/p1-06-observability-datasets.md)
 
 ## Supersedes

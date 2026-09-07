@@ -41,8 +41,8 @@ On an enrichment query/schema failure, the collector retains a valid headed last
 
 ## Affected tasks
 
-- [P0-09](../tasks/p0-09-roster-collector.md)
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-09](../archive/p0/tasks/p0-09-roster-collector.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
 - [P1-05](../tasks/p1-05-roster-refresh.md)
 
 ## Supersedes

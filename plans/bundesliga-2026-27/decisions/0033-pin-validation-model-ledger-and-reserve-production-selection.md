@@ -39,10 +39,10 @@ Official capability and pricing evidence is recorded directly from [the `gpt-5.6
 
 ## Affected tasks
 
-- [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md)
-- [P0-19](../tasks/p0-19-community-workflow-triad.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-06](../archive/p0/tasks/p0-06-model-ledger-and-cost-baseline.md)
+- [P0-19](../archive/p0/tasks/p0-19-community-workflow-triad.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 

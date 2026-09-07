@@ -42,10 +42,10 @@ P0-16 may refine question categories, language variants, document/token budgets,
 
 ## Affected tasks
 
-- [P0-13](../tasks/p0-13-bonus-context-baseline.md)
-- [P0-15](../tasks/p0-15-context-document-hygiene.md)
-- [P0-16](../tasks/p0-16-question-aware-bonus-context.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
+- [P0-13](../archive/p0/tasks/p0-13-bonus-context-baseline.md)
+- [P0-15](../archive/p0/tasks/p0-15-context-document-hygiene.md)
+- [P0-16](../archive/p0/tasks/p0-16-question-aware-bonus-context.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
 
 ## Supersedes
 

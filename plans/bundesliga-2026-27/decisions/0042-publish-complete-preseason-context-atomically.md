@@ -97,10 +97,10 @@ can begin through this runner.
 
 ## Affected tasks
 
-- [P0-14](../tasks/p0-14-profile-driven-collection.md)
-- [P0-15](../tasks/p0-15-context-document-hygiene.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-22](../tasks/p0-22-history-played-dates.md)
+- [P0-14](../archive/p0/tasks/p0-14-profile-driven-collection.md)
+- [P0-15](../archive/p0/tasks/p0-15-context-document-hygiene.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-22](../archive/p0/tasks/p0-22-history-played-dates.md)
 
 ## Supersedes
 

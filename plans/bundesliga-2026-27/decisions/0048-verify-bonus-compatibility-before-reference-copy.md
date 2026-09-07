@@ -95,8 +95,8 @@ service nor fetches its hosted prompt.
 
 ## Affected tasks
 
-- [P0-21](../tasks/p0-21-production-activation.md)
-- [P0-24](../tasks/p0-24-bonus-copy-post-compatibility.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
+- [P0-24](../archive/p0/tasks/p0-24-bonus-copy-post-compatibility.md)
 
 ## Supersedes
 

@@ -26,7 +26,7 @@ runtime identity contamination, retry, queued relevant run, or overlap.
 GitHub delivered the nominal 02:07 UTC occurrence 2h46m22s late, beyond the
 90-minute observation envelope, but its 38m46s execution completed before the
 second daily occurrence. The exact job IDs and payload-safe evidence are in
-[P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md).
+[P0-21](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-21-production-activation.md).
 This addendum supersedes later pre-observation statements and closes the
 preregistered P0 runtime gate. Bonus remains outside the outer lane. P1-08 is
 still open and non-P0 for `schadensfresse` mixed-competition routing.
@@ -319,7 +319,7 @@ repository contracts:
 - [ADR-0047](../../plans/bundesliga-2026-27/decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)
   proved that one outer workflow with `needs` dependencies is the safe ordering
   primitive. Independent offset crons do not establish completion ordering.
-- [P0-24](../../plans/bundesliga-2026-27/tasks/p0-24-bonus-copy-post-compatibility.md)
+- [P0-24](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-24-bonus-copy-post-compatibility.md)
   governs arena bonus reuse. Compatible questions/options may copy; an ordinary
   mismatch creates exactly one independent target prediction using
   `community_context: "ehonda-ai-arena"`; invalid target selection or immutable
@@ -367,7 +367,7 @@ those experiment families under the consumed P0-23 authorization.
 
 ## Evidence-backed duration envelope
 
-[P0-20's observed scheduled arena cycle](../../plans/bundesliga-2026-27/tasks/p0-20-seed-and-development-validation.md)
+[P0-20's observed scheduled arena cycle](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-20-seed-and-development-validation.md)
 ran in one strict dependency chain:
 
 | Stage | Observed UTC interval | Observed duration |

@@ -1,272 +1,129 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted execution strategy; P0 complete, P1 restarts under ADR-0075
+- Status: Accepted current P1 strategy
 - Last updated: 2026-09-07
-- Implementation state: P0-01 through P0-25 are complete. The failing P1-10
-  runtime is preserved for an atomic future PR; recovery `main` retains the
-  eight-pair source-copy lane under ADR-0062 until ADR-0068's reviewed
-  replacement condition is met.
+- Historical P0 execution and launch evidence: [P0 archive](archive/p0/README.md)
 
-This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
+This document defines current dependencies, milestones, production continuity,
+and phase-specific execution policy. Repository-wide orchestration mechanics
+remain in the root `AGENTS.md` and `$orchestrate`; task and design files remain
+the implementation contracts named by a frozen active-contract packet.
 
-## P0 closeout — 2026-08-28
+## Current objective and graph
 
-Natural scheduled run
-[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
-succeeded on exact `main` head
-`50f3ed148891977b5909659f9986c9c9958d7875`. All 16 jobs followed the accepted
-eight-pair serial topology. Context remained on the approved dated Club Elo and
-enriched roster snapshots; all match jobs verified 9/9 current predictions and
-skipped generation/posting, so the run produced no write, reprediction, usage,
-or cost. GitHub delivered the nominal 02:07 UTC event 2h46m22s late, outside
-the 90-minute monitoring envelope, but the 38m46s execution succeeded before
-the 09:07 UTC occurrence with no overlap. [P0-21](tasks/p0-21-production-activation.md)
-holds the complete job-level evidence.
+P1 improves live context freshness, experiment readiness, cost calibration,
+and typed Schadensfresse routing without regressing the established production
+lane.
 
-This section supersedes later execution-state text that directs agents to
-continue P0-21. The central P0 train is closed and P1 is next. P1-08 is
-superseded and fully absorbed by P1-10; Club Elo network refresh and exploratory
-model follow-ups also remain outside P0.
+1. Reconcile the retained P1-04/P1-05 common-runtime work and independently
+   accept its current contracts.
+2. Release P1-05 after the common seam. Keep P1-04 separately gated on an
+   accepted Club Elo source/date/provenance contract.
+3. Run other semantically independent ready P1 work only after its task is
+   frozen and its owner/authority gates are explicit.
+4. Keep P1-10 last. Reconcile and complete its P1-13/R4a predecessor before the
+   atomic target-primary replacement.
 
-## Operating principles
+The [current plan index](README.md) owns task status and routing. The
+[P1 status snapshot](p1-status-snapshot.md) is dated handoff evidence and must
+be reconciled with live Git, PR, worktree, and agent state before use.
 
-- Run P0 as one gated release train rather than unrelated planning exercises.
-- Keep one strongest orchestration agent as the control plane for dependency order, ADR gates, integration, validation evidence, machine load, launch gates, and cross-task judgment. It is the coordinator, not the default writer or reviewer.
-- Delegate bounded work only, with explicit owned paths, inputs, outputs, tests, and completion criteria.
-- Under [ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md), audit the whole requested phase before the first writer. Freeze the dependency graph, seams, milestones, owner/external gates, production-continuity declaration, Git targets, resource budget, and review/CI cadence. Create the substantive P1 execution packet only from that preview.
-- Use `$grill-me` automatically for readiness defects. Finish the phase foundation first, then fully grill one task or cohesive milestone at a time; a timeboxed owner session may release the completed independent subgraph and defer the rest as `needs-interview`.
-- Give genuinely phase-wide or cross-cutting architecture to a `gpt-6-astra` / `high` architecture lead only, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. Recall a fresh architecture lead only when a semantic scope-growth trigger reveals a genuinely architectural seam.
-- Treat P0-15 context hygiene and P0-16 bonus-context budgeting as launch work. Other P1 tasks do not delay go-live.
-- Apply [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)'s
-  temporary recovery: restore target-owned Schadensfresse context and its
-  `pes-squad` source-compatible copy match after `pes-squad-matchday`, then
-  make relaxdays depend on it. Preserve the eight-pair serial topology, exact
-  ADR-0053 cadence/concurrency/failure/no-bonus/rollback contract, and
-  manual-only leaves. ADR-0068 requires a reviewed successor before the route
-  is replaced or terminated; no manual copy contingency or primary activation follows from it.
+## Milestones and release seams
 
-## Execution waves
-
-| Wave | Work | Gate before advancing |
+| Milestone | Acceptance boundary | Downstream release |
 |---|---|---|
-| Foundations | P0-01 through P0-11 in dependency-safe lanes, leaving P0-06's final production choice open | Identity, storage, prompt, model-test, roster, and Club Elo contracts are fixed; targeted tests pass |
-| Context integration | P0-12 through P0-16 plus P0-22 | Match/bonus allowlists, exact history played dates, and budgets pass; no WM26, old-season, stale, duplicate, or transfer context leaks |
-| Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; leaf entrypoints are explicit and manual-only |
-| Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
-| Production evidence and copy safety | P0-23 and P0-24 complete | Owner-authorized GPT-5.6 cost/quality evidence is published with Luna/`max` explicitly incomplete and post-hoc Sol/`xhigh` exploratory; P0-24 proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
-| Launch roster remediation | P0-25 complete | ADR-0051's explicit overlay republish passed the final reconstructed 18-team / 18-derived-row / 464-age / 464-position / 450-value gate from exact-green main; the headed snapshot remained unchanged, and exactly one authorized Luna/none index-0 replacement round passed payload-safe pre/post and trace validation |
-| Production selection and activation | Complete through P0-21 | Ordered manual validation and the first natural ADR-0053/0055 scheduled sequence are green |
+| P1-04/P1-05 common context-refresh seam | Exact common tip independently reviewed against ADR-0074 and the frozen execution packet | P1-05 may proceed independently; P1-04 remains source-contract gated |
+| P1-05 roster refresh | Candidate/rejection/LKG/provenance behavior and affected tests accepted without activating a new source prematurely | P1-07 may consume live roster-refresh evidence after activation evidence exists |
+| P1-04 Club Elo refresh | Source/date semantics, freshness, LKG, provenance, and rollback independently accepted | P1-07 may consume live Club Elo refresh evidence after activation evidence exists |
+| Independent maintenance lanes | Each bounded task meets its own contract and does not reopen a shared seam | Integrate independently when production-safe |
+| P1-13/R4a predecessor | Preserved implementation and review state reconciled; exact successor boundary frozen | Releases final P1-10 implementation |
+| P1-10 target-primary replacement | One atomic PR covers typed identity, target-owned routes, persistence/provenance, validation, and reviewed transition | Replaces or terminates temporary copy only under ADR-0068 |
 
-The implementation path through P0-25 is complete, including P0-06 and every
-schedule-free P0-19 row. P0-21 preserved P0-25's enriched-publication
-precondition and the exact context-first, primary-before-secondary order.
-Bundesliga P0 prompt work is fixed at match v3 / bonus v1. ADR-0058's distinct
-DFB/CL prompt routes remain fail closed until immutable promotion. Club Elo
-network reuse and roster refresh are now owner-accepted P1 planning work under
-[ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
-and the frozen common seam in
-[ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md).
-The dated-seed and roster LKG paths remain launch-safe. P1-05 may implement
-independently after that common seam; P1-04 still needs an accepted source
-contract. No production source enablement, workflow/profile/schedule change, or
-activation follows from this planning freeze.
+A necessary cross-cutting architecture lead derives the detailed milestone and
+downstream-release matrix from the current graph. Do not hard-code an old run's
+implementation sequence into a new preview.
 
-## P1-10 recovery safety boundary — 2026-08-31
+## Production continuity
 
-Authenticated read-only evidence invalidated schadensfresse's copy premise:
-match scoring is now `2/3/5` for wins and `3/-/5` for draws, bonus answers score
-nine points, and three open CL questions are due
-`2026-09-08T16:45:00Z`. [ADR-0058](decisions/0058-make-schadensfresse-a-competition-typed-primary.md)
-makes P1-10 the sole primary-routing owner and supersedes P1-08.
+- ADR-0062's current recovery topology remains eight strict context→match
+  pairs/16 jobs. Schadensfresse target context and `pes-squad`-source copy match
+  run after `pes-squad`; relaxdays follows Schadensfresse.
+- ADR-0068 replaces only ADR-0062's calendar sunset. The recovery remains until
+  a reviewed successor names the replacement topology, rollback and recovery
+  owner, exact integrated revision, and required green validation.
+- Preserve cron `7 2,9 * * *`, non-cancelling concurrency, serial/default-
+  success ordering, manual-only leaf callers, no scheduled bonus, and
+  ADR-0053's monitoring and whole-cron rollback contract.
+- The recovery grants no manual dispatch, prediction replacement/delete, force,
+  model call/change, prompt promotion, POST, Firestore/Langfuse mutation,
+  credential change, or target-primary activation.
+- Existing dated Club Elo seed and roster last-known-good consumers remain the
+  fallback until P1-04/P1-05 replacements are separately reviewed and activated.
+- A milestone that temporarily disables or regresses live behavior remains on
+  an integration branch/draft PR until the production-safe release unit is
+  ready. Any separate quarantine requires explicit owner approval of impact,
+  fallback, rollback, recovery owner, and restoration deadline.
 
-The failing head `71637cc154cfdcbe2436069470b5e04b0d4f753d` has green
-Build-and-Test run `33340578338`, but production-live runs `33350964121` and
-`33377913801` fail on the `pes-squad` ordinary blank typed-fixture validation
-before model/post work. ADR-0062 restores the eight-pair/16-job copy lane from
-the `3a2ba35529b262327a3ec08e6bde47b186c8e5b2` runtime baseline, retaining
-P1-09/P1-12. It uses target context, `pes-squad` source context, target
-credentials, zero expected copy model calls, and fail-closed compatibility.
-The resulting checked-in recovery grants no dispatch, cancellation, model call,
-replacement/delete, POST, Firestore/Langfuse mutation, prompt promotion, or
-credential change.
+## Orchestration and implementation policy
 
-DFB/CL implementation uses ADR-0058's Accepted rules-only profiles: exact typed
-fixture/question inputs plus only the hash-bound target rules document, with a
-one-document/2048-estimated-token budget and no Bundesliga team, Club Elo,
-roster, history, generic-latest, or cross-community leakage. ADR-0059 makes the
-typed `schadensfresse-live-rules-v1` record/hash—not ADR-0058's legacy
-keyword-array hash—the no-older-than-24-hours semantic publication, freshness,
-and canonical provenance gate. This is deliberately safe but evidence-poor;
-richer cross-competition context needs an Accepted successor.
-ADR-0060 keeps each prediction's generation manifest immutable and moves
-current freshness to a separately stored publication binding addressed only
-by the exact season/community/profile/routing-seed key. An identical fresh
-authenticated re-attestation may validate reuse with no model call and no
-prediction mutation; generation and current observations remain distinct.
-The binding refresh proves only rules/profile/seed/document identity; reuse
-separately compares the current typed invocation and exact pinned prompt/model
-configuration with the prediction's immutable provenance.
+- Invoke `$orchestrate` explicitly for a phase execution run. Before writers,
+  audit the whole supplied objective and freeze only interview-complete tasks or
+  cohesive milestones; leave the rest `needs-interview` without guessing.
+- Use `gpt-6-astra/high` only for a genuinely necessary phase-wide or cross-
+  cutting architecture lead. A different `gpt-5.6-sol/xhigh` specification
+  reviewer remains mandatory.
+- Give each writer one frozen milestone, disjoint owned paths, one admitted
+  worktree, focused tests, and a defined review/integration route. Keep the
+  primary checkout for serialized integration while writers are active.
+- Do not impose a universal writer or worktree count. Select a wave-local
+  throttle from useful ready work, path ownership, disk reservations, external
+  leases, review capacity, and integration routes. Keep the sole-heavy-family
+  lease independent.
+- Before worktree creation/reactivation or heavy validation, use the checked-in
+  reservation-based resource helper. Preserve intentionally retained worktrees;
+  missing ownership is never cleanup permission.
+- Use the compact preview and scoped recovery manifests from ADR-0075. Archive
+  material is opt-in and must not enter startup/hot recovery merely because it
+  shares this plan tree.
 
-## Agent roles and task loop
+## Review, integration, and CI
 
-The orchestration agent owns the cross-task plan, delegation, integration checkpoints, and final judgment. A task agent owns only its named task or slice. The default expectation is that bounded implementation work is assigned to a task agent whose capability tier matches the task's risk and ambiguity, while the orchestration agent stays free for coordination and hard decisions.
+1. A writer self-reviews and runs the focused gate for its exact milestone.
+2. The first independent implementation reviewer may follow up only on its own
+   findings within ADR-0075's correction limits.
+3. Final milestone acceptance uses a fresh reviewer with the exact tip, full
+   diff, frozen contract, operative decisions, and closed-findings checklist.
+4. Publish only a cohesive reviewed milestone or recovery-critical long lane.
+   Before every push, verify branch, remotes, status, exact tip, scoped payload,
+   and the allowlisted explicit refspec.
+5. Reconcile required CI against the exact pushed SHA. One failed-workflow rerun
+   is allowed only after diagnosis; repeated failure requires correction.
+6. Merge a clean green PR only when its frozen publication route permits it,
+   then synchronize local `main` before beginning a dependent PR.
 
-For each frozen task or milestone:
+## Owner and authority gates
 
-1. Read this directory's `AGENTS.md`, the current plan index, frozen preview summary, and only the assigned task/design and operative ADRs named by its active-contract packet.
-2. Confirm the owned paths, inputs, outputs, focused validation, production-impact declaration, and exact handoff boundary. A writer does not redesign a frozen seam inline.
-3. Pause only the affected branch for a semantic scope-growth trigger or owner decision; recall the architecture lead and continue proven-independent work.
-4. Implement the smallest complete frozen change, run focused validation, and self-review against every completion criterion.
-5. Commit the owned local scope. Independently review exceptional high-risk lanes and the exact cohesive milestone SHA; update compact task status and durable evidence links.
-6. Publish the reviewed milestone or recovery-critical long lane under the frozen Git topology, run full CI for the published milestone, and reconcile the exact SHA.
+The owner retains decisions that change:
 
-Fact-finding agents may establish evidence and recommend; they may not silently decide final production model/configuration, Club Elo network reuse, final schedules, or a new product/data policy. Read-only research, status, and CI reconciliation should prefer the fastest reliable agent tier that can accurately gather the evidence.
+- Club Elo unattended-network activation or source semantics;
+- production model, reasoning, output cap, service/fallback, or hosted prompt;
+- Schadensfresse replacement rows, cost/force/reprediction/cutoff bounds, or
+  target-primary activation;
+- production schedules, topology, credentials, or external/live side effects;
+  and
+- any production-safety quarantine outside an already accepted rollback contract.
 
-## Bounded parallelism and worktrees
-
-- Do not impose a universal writer or linked-worktree count. Choose a run-local wave throttle from the frozen graph, path-disjoint ownership, reservation-based disk admission, external-side-effect leases, and defined review/serialized-integration routes. Read-only/review agent capacity remains separate; available slots do not prove useful work or seam capacity.
-- Before each worktree or heavy local gate, run `.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1` in the applicable admission mode and record lease transitions. On this host the default heavy-operation budget is one, so a second writer may edit/research/review while its full validation waits.
-- Create each admitted writer branch from the primary checkout with `./New-AgentWorktree.ps1 -Name <lane> -Branch <branch> -StartPoint <sha> -WorktreeInventoryConfirmed -OutstandingWorktreeReservationsGiB <gib>`. The helper fails closed on reconciled reservation-based admission, creates the command-line worktree below ignored `.tmp/worktrees`, and installs the required original-checkout locator. Give each lane exact, disjoint path ownership and keep one active writer per worktree.
-- Keep the primary checkout as an integration-only checkout while lanes are active. The orchestrator creates worktrees, reviews frozen lane commits, and integrates them sequentially; lane agents never mutate `main` or another lane's worktree.
-- `New-AgentWorktree.ps1` writes and validates the ignored `.codex-local/original-repository-path` locator in every command-line worktree. The locator contains only the canonical primary-checkout path and allows repository code to resolve the sibling `KicktippAi.Secrets` checkout without copying or printing credentials. Do not replace the helper with a raw `git worktree add`. `.worktreeinclude` remains optional support for Codex desktop-managed worktrees; command-line worktree creation does not process it.
-- Treat focused builds/tests as lane checks and full solution/test or multi-job families as heavy operations sharing the root-owned lease. `Start-Job` children cannot bypass that budget. Queue excess heavy work; do not kill unrelated processes or delete caches/user files to regain capacity.
-- During P0/P1, every test project using WireMock or an equivalent local listener that triggers Defender must set `<UseAppHost>false</UseAppHost>` so unattended worktrees use the stable installed `dotnet.exe` host. Adding such a listener to another project requires adding and validating the setting there. Re-evaluate and remove this temporary convention after P1; production projects and unrelated test projects remain unchanged.
-- Serialize Git integration and primary-checkout mutation, live external collection or writes, and final integrated validation against the exact combined head.
-- Each lane verifies its exact local target and commits only owned paths. Keep ordinary lane branches local; push recovery-critical long lanes and cohesive milestone commits under the frozen topology. The orchestrator integrates reviewed commits in dependency order.
-- At each lane boundary, reclassify the worktree. Reuse a clean admitted worktree after its prior commit is recoverable; park a worktree when recovery state must remain but edits/builds must stop; remove it only after exact removal-ready proof and deliberate cleanup. Prune stale metadata after removals and reconcile reservations before further admission.
-- Do not recursively delegate unless the orchestrator explicitly determines that the bounded saving justifies the coordination cost.
-- For the 18-club fallback seed, small research batches are acceptable, but one owner assembles the canonical seed and one targeted independent audit checks provenance and coverage.
-
-## Codex usage policy
-
-Agent usage varies with model, task complexity, context, reasoning, tools, retrieval, and caching. Budget qualitatively rather than treating prompt count as a reliable allowance measure. See [OpenAI Codex pricing and usage limits](https://learn.chatgpt.com/docs/pricing#what-are-the-usage-limits-for-my-plan).
-
-- Use `gpt-6-astra` / `high` only for a necessary phase-wide or cross-cutting architecture lead. Keep `gpt-5.6-sol` / `xhigh` for its independent specification review and the default independent/final correctness review; use lighter tiers for bounded implementation and mechanical evidence.
-- Prefer a balanced everyday capability tier for normal implementation and a lightweight tier for narrow deterministic work, read-only research, status gathering, and mechanical verification.
-- Use one task-agent self-review during implementation. Independently review frozen milestone SHAs and exceptional high-risk lanes; repeat only after a concrete finding.
-- Run focused tests per lane and broader affected suites at published milestone gates. Avoid redundant full-suite runs and honor the global heavy-operation lease even when branches are independent.
-- Persist decisions and evidence in tasks/ADRs so later waves do not repeatedly rediscover them.
-- Avoid speculative agents, duplicate investigations, and routine author-reviewer-fixer loops.
-
-## Git integration policy
-
-Use the preview-and-milestone policy refined by [ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md):
-
-- Integrate independently production-safe changes directly to `main` as small,
-  cohesive milestone commits when that route remains useful.
-- Use an integration branch and draft PR whenever an intermediate milestone
-  temporarily disables or regresses active production behavior. Cross-cutting
-  work that remains production-safe may still use either route by judgment.
-- A temporary production-safety quarantine requires explicit Owner approval
-  of the exact impact, fallback, rollback, recovery owner, and recovery
-  deadline. It is not an implicit consequence of implementation convenience.
-- Publish and gate cohesive milestones rather than every lane checkpoint. Keep
-  shorter lane commits local; publish a recovery-critical long lane when loss
-  of the local worktree would be material.
-- Do not require user clicks for routine draft-PR maintenance or a ready/merge
-  transition whose frozen exact base/head and required checks have already
-  passed. The orchestrator updates the branch if required and rebase-merges a
-  green PR.
-- Native GitHub auto-merge and new branch-protection setup are not launch prerequisites.
-- Before every push, record branch, remotes, status, and latest commit, then
-  push an explicit remote and branch. The active `$orchestrate` invocation is
-  the bounded authorization for non-force pushes and draft-PR lifecycle
-  operations against the startup-verified canonical repository; repository
-  policy and platform approval still apply.
-
-The repository currently builds/tests PRs and pushes to `main`; native auto-merge is disabled. The orchestrator must verify actual permissions and applicable checks when it first selects the PR route.
+Fact-finding and implementation agents may establish evidence and recommend,
+but they do not silently resolve these gates.
 
 ## Validation policy
 
-- Review against task completion criteria and observable behavior.
-- Concentrate independent review on storage identity, roster provenance/source switching, context selection, workflow inputs, prompt promotion, and activation.
-- Treat CI as confirmation, not the first correctness check.
-- Keep real-write evidence in P0-20 and P0-21 rather than scattering it across provider implementation tasks.
-- Preserve historical partitions. Any proposed remote deletion requires an explicit dry-run inventory and separate authorization.
-
-### Milestone CI reconciliation loop
-
-- After each published milestone and at every wave gate, use one CI
-  reconciliation thread while its context remains valid. It may inspect
-  GitHub state and logs, rerun one failed milestone run, and cancel a run whose
-  head has been superseded by a newer frozen milestone. It must not repeatedly
-  rerun failures, approve deployments, change settings, or widen release
-  authority.
-- Record the exact local and remote head SHA, workflow run ID and status/conclusion, and every relevant job ID, name, status/conclusion, and URL in the active task or wave evidence. Reconcile the run's head SHA with the pushed commit before treating a result as current.
-- Route a trivial in-scope failure, such as formatting or a deterministic test correction that does not change an accepted contract, immediately back to the writer that owns that change. After the fix is pushed, repeat the read-only reconciliation loop against the new head.
-- For a nontrivial, cross-task, flaky, infrastructure, or policy-sensitive failure, the reconciliation agent reports the evidence and the orchestrator creates or links a durable work item with the failing head/run/job evidence, owner, scope, and dependencies. Keep independent work moving when its gates do not depend on that failure; do not silently broaden the active task.
-- A wave gate remains closed until every required check for its exact head succeeds or a linked accepted decision explicitly changes the gate.
-
-## Resolved decisions
-
-| Area | Accepted direction |
-|---|---|
-| Git and isolation | ADR-0061 production-safe direct-main/PR integration, refined by ADR-0075's bounded continuity/final-review contract; mandatory integration branch for temporary production regression; reusable worktrees for simultaneous writers; bounded routine draft-PR lifecycle autonomous |
-| Capacity | No universal writer/worktree count; classify worktrees and admit against the 14 GiB effective post-reservation disk floor, current graph/ownership/review route, and separate sole-heavy-operation lease |
-| Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
-| Prediction topology | Independent primary `pes-squad`; relaxdays and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; recovery `main` temporarily uses target-context Schadensfresse copy from `pes-squad` in the eight-pair lane, while P1-10's target-primary route remains PR-only |
-| Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
-| Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write. ADR-0052 prepares a false-by-default workflow input enabled for pes/relaxdays/schadens before normal profile collection; arena preserves its verified enriched head; recurring automation stays P1-05 |
-| Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
-| Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
-| P0-23 candidate evidence | Complete under ADR-0049 and the Owner's execution-time amendments: eight original paired runs completed, Luna/`max` is incomplete after two transient capacity failures and an explicit p1 stop, and post-hoc Sol/`xhigh` is exploratory; this is evidence, not production selection |
-| Context | Bundesliga retains explicit live allowlists; schadensfresse DFB/CL uses ADR-0058's Accepted target-rules-only profiles with exact typed inputs and no Bundesliga context leakage, ADR-0059 binds publication to the structured v1 rules record, and ADR-0060 separates immutable generation provenance from the exact-key current rules attestation used for reuse |
-| Club Elo and rosters | ADR-0074 freezes the shared cycle/handoff/health seam; P1-05 may proceed independently after it, while P1-04 requires accepted source/date semantics. Existing cycles remain launch-safe seed/LKG consumers until separately activated. |
-| Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
-| Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
-| Activation | Every leaf caller remains manual-only; ADR-0062 temporarily restores the scheduled Schadensfresse context/copy pair, giving eight pairs/16 jobs at `7 2,9 * * *` until ADR-0068's reviewed replacement condition; historical natural observation `33143114280` closed P0-21 |
-
-## Prerequisite state
-
-Confirmed by the project owner on 2026-08-16:
-
-- `ehonda-dev-buli-2627` and `ehonda-ai-arena` are configured, with a `gpt-5.6-luna`/`none` participant registered in each.
-- The arena sibling `.env` and its model-specific GitHub Actions Kicktipp secrets are updated.
-- Existing local and GitHub Actions Firebase, OpenAI, Langfuse, and other shared credentials remain valid from prior WM26 runs.
-- The base local `.env` remains the development credential source.
-
-P0-17 recorded posting-target credential resolution and the implementation now loads a present `.env.<posting-community>` for ordinary local arena validation without replacing the shared base environment. Agents inspect names/presence without printing secret values.
-
-The connected GitHub token could not enumerate Actions secret names. On
-2026-08-27 the Owner confirmed every canonical ADR-0052 Kicktipp pair
-provisioned; that confirmation remains the planning source of truth and does
-not itself replace authentication, readiness, or POST evidence. P0-21 later
-recorded that runtime evidence.
-
-## Post-P0 deliberately late gates
-
-These are not ambiguities agents may decide on their own:
-
-| Decision | Timing | Work that may proceed first |
-|---|---|---|
-| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Configuration is live and its first natural scheduled verification is green |
-| Club Elo CSV daily-name/date semantics and dcaribou revision-to-authoritative capture/effective-date binding | P1-04 source-contract gate; P1-05 proceeds independently after the common seam | Implement only future candidate/rejection paths until exact source semantics are proven; continue dated seed/LKG |
-| Exact production schedules, spacing, rollback trigger, and activation | ADR-0062 temporarily restores ADR-0054/0055's eight-pair copy lane while preserving ADR-0053's operating contract | Observe the recovered natural lane; final P1-10 primary activation remains separately reviewed and owner-controlled |
-| `schadensfresse` primary routing | A reviewed successor must replace/terminate temporary copy mode under ADR-0068; P1-08 is superseded | Implement typed identities and Accepted rules-only DFB/CL profiles on the future PR; do not treat recovery copy as primary activation |
-
-ADR-0052 settled final model selection from the completed experiments and
-whole-season estimates. New-season outcomes did not exist at selection time,
-and older-season evaluation may be training-contaminated; later exploratory
-evidence does not silently alter the accepted production default.
-
-## P1 start condition
-
-P0 is complete, including P0-21's natural scheduled observation. Restart P1
-under ADR-0061 with a read-only whole-phase preview and `$grill-me` readiness
-pass before any new writer starts. Freeze only fully grilled tasks or cohesive
-milestones in the resulting tracked P1 execution plan; leave the remaining
-frontier explicitly `needs-interview` and allow the runnable subgraph to proceed
-overnight.
-
-Apply ADR-0062's temporary recovery while preserving ADR-0053's outer-lane and
-manual-only contracts; do not infer bonus or mixed-competition schedule
-authority. The frozen [P1 recovery execution packet](p1-execution-packet.md)
-and [P1-10 production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md)
-require an atomic P1-10 PR and ADR-0068's reviewed successor condition to
-replace or terminate copy mode. P1-10 continues to own every `schadensfresse`
-Bundesliga/DFB/CL match and bonus route, fully absorbs P1-08, and retains later
-owner-controlled prompt/replacement/cost/force/cutoff/activation gates. P1-04
-and P1-05 own the accepted context-cycle refresh implementation under
-[ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
-and [the execution packet](p1-04-05-execution-packet.md). P1-05 is independent
-after the common seam; this remains not an active runtime change.
+- Review observable behavior against the active task and accepted ADRs.
+- Concentrate independent review on storage/typed identity, source provenance,
+  context selection, persistence/freshness, workflow ordering, prompt
+  promotion, and production-continuity boundaries.
+- Use `dotnet run --project tests/<Project>` for TUnit projects. Treat full
+  solution/test or multi-job families as the sole heavy-operation family.
+- Treat CI as confirmation, not the first correctness check. Record exact run
+  and job evidence in the active task or purpose-specific evidence artifact,
+  never in the recovery capsule or a generic orchestration journal.

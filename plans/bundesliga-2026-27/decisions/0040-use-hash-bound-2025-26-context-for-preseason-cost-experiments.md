@@ -47,7 +47,7 @@ For the Luna P0-06 row, the official cutoff is `2026-02-16` and the sampling cut
 
 ## Affected tasks
 
-- [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md)
+- [P0-06](../archive/p0/tasks/p0-06-model-ledger-and-cost-baseline.md)
 - [P1-07](../tasks/p1-07-cost-calibration.md)
 
 ## Supersedes

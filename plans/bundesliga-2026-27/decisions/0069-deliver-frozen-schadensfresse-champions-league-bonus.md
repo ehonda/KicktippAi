@@ -26,7 +26,7 @@ Implement only `schadensfresse-champions-league-bonus-context-free-v1` for IDs `
 
 ## Affected tasks
 
-- [P1-15](../tasks/p1-15-schadensfresse-champions-league-bonus.md)
+- [P1-15](../archive/p1/tasks/p1-15-schadensfresse-champions-league-bonus.md)
 - [P1-10](../tasks/p1-10-schadensfresse-primary-community.md)
 
 ## Supersedes

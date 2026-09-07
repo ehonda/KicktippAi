@@ -35,7 +35,7 @@ Until P1-06, the current outcomes-only `prepare-*` command families remain fail-
 
 ## Affected tasks
 
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
 - [P1-06](../tasks/p1-06-observability-datasets.md)
 
 ## Supersedes

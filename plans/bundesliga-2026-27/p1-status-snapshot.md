@@ -28,19 +28,19 @@ and [P1-05 roster-refresh handoff](handoffs/p1-05-roster-refresh-in-flight-2026-
 | Item | Snapshot state | Implementation readiness |
 |---|---|---|
 | P1-01 / P1-02 | Promoted into completed P0-15 / P0-16 work | Complete; no P1 implementation remains |
-| [P1-03](tasks/p1-03-generic-onboarding-skill.md) | Generic competition onboarding tooling | Complete |
+| [P1-03](archive/p1/tasks/p1-03-generic-onboarding-skill.md) | Generic competition onboarding tooling | Complete |
 | [P1-04](tasks/p1-04-club-elo-refresh.md) | Official HTML selected; exact evidence captured; successor specification review remains blocked on two bounded corrections; no ADR-0075 or runtime exists | In flight; correct and independently re-review the specification before a tracked re-freeze or writer |
 | [P1-05](tasks/p1-05-roster-refresh.md) | Source-neutral common foundation is local-only at `852d179`; focused tests are green, but fresh cumulative review and integration are pending; roster source implementation has not started | In flight independently of P1-04; review and integrate the common seam first |
 | [P1-06](tasks/p1-06-observability-datasets.md) | Not started; owner frontier and exact stored-prediction evidence remain | Not ready |
 | [P1-07](tasks/p1-07-cost-calibration.md) | Not started; depends on P1-04 and P1-05 and remains ungrilled | Not ready |
-| [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Fully absorbed by P1-10 | Superseded; do not implement |
-| [P1-09](tasks/p1-09-current-open-matchday-context.md) | Current open-matchday reconciliation delivered | Complete |
+| [P1-08](archive/p1/tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Fully absorbed by P1-10 | Superseded; do not implement |
+| [P1-09](archive/p1/tasks/p1-09-current-open-matchday-context.md) | Current open-matchday reconciliation delivered | Complete |
 | [P1-10](tasks/p1-10-schadensfresse-primary-community.md) | Target-primary conversion remains isolated on an atomic draft-PR route | In progress but deliberately last; blocked on P1-13 completion |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Not started; fresh migration inventory and owner interview remain | Not ready |
-| [P1-12](tasks/p1-12-standings-reprediction-exemption.md) | Standings-only exemption delivered and validated | Complete |
+| [P1-12](archive/p1/tasks/p1-12-standings-reprediction-exemption.md) | Standings-only exemption delivered and validated | Complete |
 | P1-13 / R4a | Global typed authority is preserved in [draft PR #97](https://github.com/ehonda/KicktippAi/pull/97); R3 is accepted and R4a is partially implemented locally | Technically resumable at R4a, but intentionally deferred with P1-10 until last |
-| [P1-14](tasks/p1-14-history-source-continuity.md) | Source repair, bounded proxy continuity, and maintenance reporting delivered | Complete |
-| [P1-15](tasks/p1-15-schadensfresse-champions-league-bonus.md) | All three frozen answers verified in Firestore and Kicktipp | Complete |
+| [P1-14](archive/p1/tasks/p1-14-history-source-continuity.md) | Source repair, bounded proxy continuity, and maintenance reporting delivered | Complete |
+| [P1-15](archive/p1/tasks/p1-15-schadensfresse-champions-league-bonus.md) | All three frozen answers verified in Firestore and Kicktipp | Complete |
 | [P1-16](tasks/p1-16-automatic-history-date-updates.md) | Deferred, low urgency, and explicitly needs interview | Not ready |
 
 ## Resume order for P1-04 and P1-05

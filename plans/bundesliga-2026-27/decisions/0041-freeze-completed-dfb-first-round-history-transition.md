@@ -114,8 +114,8 @@ transform and unchanged.
 
 ## Affected tasks
 
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-22](../tasks/p0-22-history-played-dates.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-22](../archive/p0/tasks/p0-22-history-played-dates.md)
 
 ## Supersedes
 

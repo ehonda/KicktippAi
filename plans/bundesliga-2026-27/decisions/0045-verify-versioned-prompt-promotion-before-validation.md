@@ -75,9 +75,9 @@ label and does not authorize a model, prediction, workflow, or schedule call.
 
 ## Affected tasks
 
-- [P0-05](../tasks/p0-05-prompt-route.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-05](../archive/p0/tasks/p0-05-prompt-route.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 

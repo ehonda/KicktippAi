@@ -29,7 +29,7 @@ Unresolved `1.BL`, unknown competitions, malformed rows or prior documents, dupl
 
 ## Affected tasks
 
-- [P1-14](../tasks/p1-14-history-source-continuity.md)
+- [P1-14](../archive/p1/tasks/p1-14-history-source-continuity.md)
 
 ## Supersedes
 

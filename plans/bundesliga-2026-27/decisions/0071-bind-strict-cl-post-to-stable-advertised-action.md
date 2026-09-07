@@ -51,7 +51,7 @@ an unknown outcome requiring read-only recovery.
 
 ## Affected tasks
 
-- [P1-15](../tasks/p1-15-schadensfresse-champions-league-bonus.md)
+- [P1-15](../archive/p1/tasks/p1-15-schadensfresse-champions-league-bonus.md)
 
 ## Supersedes
 

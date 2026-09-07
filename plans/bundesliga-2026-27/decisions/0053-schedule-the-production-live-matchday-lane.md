@@ -139,7 +139,7 @@ present on the default branch.
 
 ## Affected tasks
 
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 

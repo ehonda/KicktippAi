@@ -38,7 +38,7 @@ The existing 2025/26 OpenLigaDB DFB-Pokal final contract remains separate and un
 
 ## Affected tasks
 
-- [P0-22](../tasks/p0-22-history-played-dates.md)
+- [P0-22](../archive/p0/tasks/p0-22-history-played-dates.md)
 
 ## Supersedes
 

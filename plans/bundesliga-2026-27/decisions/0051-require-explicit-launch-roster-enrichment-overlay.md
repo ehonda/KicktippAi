@@ -98,8 +98,8 @@ current-season roster adoption.
 
 ## Affected tasks
 
-- [P0-25](../tasks/p0-25-roster-enrichment-and-team-total.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-25](../archive/p0/tasks/p0-25-roster-enrichment-and-team-total.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 - [P1-05](../tasks/p1-05-roster-refresh.md)
 
 ## Corrects

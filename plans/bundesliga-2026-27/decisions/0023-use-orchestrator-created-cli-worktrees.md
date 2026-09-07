@@ -49,7 +49,7 @@ When no dependency-safe second write slice exists, use one writer plus one read-
 ## Affected tasks
 
 - [Bundesliga 2026/27 execution strategy](../execution-strategy.md).
-- [Codex subagent orchestration investigation](../subagent-orchestration-investigation.md).
+- [Codex subagent orchestration investigation](../archive/orchestration/subagent-orchestration-investigation.md).
 
 This changes orchestration around dependency-safe P0/P1 tasks; it does not change any individual task contract or status.
 

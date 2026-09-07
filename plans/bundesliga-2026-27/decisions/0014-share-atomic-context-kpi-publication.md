@@ -67,12 +67,12 @@ Collectors supply the Core definition to the shared repository. Roster validatio
 
 ## Affected tasks
 
-- [P0-09](../tasks/p0-09-roster-collector.md)
-- [P0-11](../tasks/p0-11-club-elo-collector.md)
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
-- [P0-13](../tasks/p0-13-bonus-context-baseline.md)
-- [P0-15](../tasks/p0-15-context-document-hygiene.md)
-- [P0-16](../tasks/p0-16-question-aware-bonus-context.md)
+- [P0-09](../archive/p0/tasks/p0-09-roster-collector.md)
+- [P0-11](../archive/p0/tasks/p0-11-club-elo-collector.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-13](../archive/p0/tasks/p0-13-bonus-context-baseline.md)
+- [P0-15](../archive/p0/tasks/p0-15-context-document-hygiene.md)
+- [P0-16](../archive/p0/tasks/p0-16-question-aware-bonus-context.md)
 
 ## Supersedes
 

@@ -27,7 +27,7 @@ The checked-in manual procedure remains the sole route to refresh source evidenc
 
 ## Affected tasks
 
-- [P1-14](../tasks/p1-14-history-source-continuity.md)
+- [P1-14](../archive/p1/tasks/p1-14-history-source-continuity.md)
 - [P1-16](../tasks/p1-16-automatic-history-date-updates.md)
 
 ## Supersedes

@@ -31,11 +31,11 @@ The project owner has configured the development community and arena with their 
 
 ## Affected tasks
 
-- [P0-14](../tasks/p0-14-profile-driven-collection.md)
-- [P0-17](../tasks/p0-17-community-scope.md)
-- [P0-19](../tasks/p0-19-community-workflow-triad.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-14](../archive/p0/tasks/p0-14-profile-driven-collection.md)
+- [P0-17](../archive/p0/tasks/p0-17-community-scope.md)
+- [P0-19](../archive/p0/tasks/p0-19-community-workflow-triad.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 
