@@ -21,8 +21,8 @@ GENERIC_HOME_PATTERNS = (
         r"(?i)(?<![A-Za-z0-9])(?:"
         r"[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s\"'<>]+|"
         r"/(?:home|Users)/[^/\s\"'<>]+|"
-        r"/root/(?:\.[^/\s\"'<>]+|private(?=[/\s\"'<>]|$)|"
-        r"[^/\s\"'<>]+\.[A-Za-z0-9]{1,8}(?:/|$))|"
+        r"/root/(?:\.[A-Za-z0-9._-]+|private(?=[/\s\"'<>]|$)|"
+        r"[A-Za-z0-9_-]+\.[A-Za-z0-9]{1,8}(?=[/\s\"'<>]|$))|"
         r"/var/root(?=[/\s\"'<>]|$))"
     ),
 )
@@ -60,7 +60,10 @@ def read_text_if_publishable(path: pathlib.Path) -> str | None:
 
 def verify_text_privacy(paths: Iterable[pathlib.Path]) -> None:
     home = str(pathlib.Path.home())
-    home_variants = {home.casefold(), home.replace("\\", "/").casefold()}
+    normalized_home = home.replace("\\", "/").rstrip("/")
+    home_variants = set()
+    if normalized_home.casefold() != "/root":
+        home_variants = {home.casefold(), home.replace("\\", "/").casefold()}
     for path in iter_text_files(paths):
         content = read_text_if_publishable(path)
         if content is None:

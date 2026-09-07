@@ -11,6 +11,7 @@ import shutil
 import unittest
 import uuid
 from collections.abc import Iterator
+from unittest import mock
 
 import focus_registry
 import privacy_checks
@@ -484,6 +485,20 @@ class ReportManifestTests(unittest.TestCase):
                     path.write_text(f"<text>{value}</text>", encoding="utf-8")
                     with self.assertRaisesRegex(focus_registry.RegistryError, "private user-home"):
                         privacy_checks.verify_text_privacy([path.parent])
+
+    def test_root_runtime_distinguishes_agent_ids_from_private_home_paths(self) -> None:
+        with temporary_directory() as directory:
+            path = pathlib.Path(directory) / "analysis.json"
+            with mock.patch("privacy_checks.pathlib.Path.home", return_value=pathlib.Path("/root")):
+                for value in ("/root", "/root/task", "/root/task/subtask"):
+                    with self.subTest(agent_path=value):
+                        path.write_text(json.dumps({"agent_path": value}), encoding="utf-8")
+                        privacy_checks.verify_text_privacy([path])
+                for value in ("/root/private", "/root/.codex/session.jsonl", "/root/key.pem"):
+                    with self.subTest(private_path=value):
+                        path.write_text(json.dumps({"path": value}), encoding="utf-8")
+                        with self.assertRaisesRegex(focus_registry.RegistryError, "private user-home"):
+                            privacy_checks.verify_text_privacy([path])
 
 
 class ExtractorTests(unittest.TestCase):
