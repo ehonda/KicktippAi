@@ -93,8 +93,9 @@ raw-byte SHA-256 values:
 - **Instruction packet:** root `AGENTS.md` and transitive includes, applicable
   nested `AGENTS.md`, `$orchestrate`, and other skill instructions/references
   explicitly governing the frozen graph.
-- **Hook packet:** `.codex/hooks.json` plus the exact kickoff/recovery scripts
-  and checked-in policy inputs whose execution supplies trust, recovery, or
+- **Hook packet:** `.codex/hooks.json` plus the exact kickoff/recovery and
+  packet-construction scripts, worktree and memory admission controls, and
+  checked-in policy inputs whose execution supplies trust, recovery, or
   resource-admission evidence.
 - **Active-contract packet:** compact `preview.md` plus only the active task,
   execution packet, design documents, ADRs, and handoff evidence explicitly
@@ -262,6 +263,8 @@ primary checkout merely to evade admission.
   repository-local, machine-scoped circuit breaker shared by all linked
   worktrees through the primary-checkout locator at
   `.tmp/orchestration/resource-policy-state.json`. The resource helper must
+  cross-check that locator against the worktree's actual Git common directory
+  and fail closed when it is missing, stale, or mismatched. It must
   consult that state for every heavy admission and atomically restore the
   effective floor to 1.10 GiB for resumed and later runs in every worktree of
   this primary checkout.

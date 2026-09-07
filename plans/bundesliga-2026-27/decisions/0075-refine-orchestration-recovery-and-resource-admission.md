@@ -58,7 +58,8 @@ recoverable local work without external side effects. A memory-related OOM,
 abnormal termination, or severe paging failure trips a repository-local,
 machine-scoped state file shared through the primary-checkout locator that
 restores 1.10 GiB across linked worktrees until an owner-reviewed analysis
-clears the preserved trigger. Purpose-specific outcome evidence stays out
+clears the preserved trigger. The locator must match the linked worktree's Git
+common-directory identity or admission fails closed. Purpose-specific outcome evidence stays out
 of the recovery capsule.
 
 Historical material is opt-in. The live Bundesliga index and execution

@@ -105,6 +105,9 @@ elseif ($Packet -eq 'hook') {
         '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1',
         '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1',
         '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1',
+        '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1',
+        '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1',
+        'New-AgentWorktree.ps1',
         '.agents/skills/orchestrate/resources/resource-policy.json')) {
         $candidates.Add($candidate)
     }

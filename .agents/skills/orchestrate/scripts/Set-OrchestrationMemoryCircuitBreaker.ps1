@@ -18,19 +18,49 @@ else {
     $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 }
 
-$stateRepositoryRoot = $RepositoryRoot
-if (-not (Test-Path -LiteralPath (Join-Path $RepositoryRoot '.git') -PathType Container)) {
-    $locatorPath = Join-Path $RepositoryRoot '.codex-local/original-repository-path'
+function Resolve-OrchestrationPrimaryCheckout {
+    param([Parameter(Mandatory)][string] $CheckoutRoot)
+
+    $commonDirectoryOutput = @(
+        & git -C $CheckoutRoot rev-parse --path-format=absolute --git-common-dir 2>$null)
+    $gitExitCode = $LASTEXITCODE
+    $commonDirectory = [string] ($commonDirectoryOutput | Select-Object -First 1)
+    if ($gitExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($commonDirectory)) {
+        throw 'Git common-directory identity is unavailable.'
+    }
+    $commonDirectory = [System.IO.Path]::GetFullPath($commonDirectory.Trim())
+
+    if (Test-Path -LiteralPath (Join-Path $CheckoutRoot '.git') -PathType Container) {
+        $primaryGitDirectory = [System.IO.Path]::GetFullPath((Join-Path $CheckoutRoot '.git'))
+        if (-not $commonDirectory.Equals($primaryGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw 'The checkout Git directory does not match its Git common-directory identity.'
+        }
+        return $CheckoutRoot
+    }
+
+    $locatorPath = Join-Path $CheckoutRoot '.codex-local/original-repository-path'
     if (-not (Test-Path -LiteralPath $locatorPath -PathType Leaf)) {
-        throw 'Cannot resolve the shared memory circuit-breaker path: original-checkout locator is missing.'
+        throw 'The original-checkout locator is missing.'
     }
-    $stateRepositoryRoot = [System.IO.Path]::GetFullPath(
+    $primaryRoot = [System.IO.Path]::GetFullPath(
         ([System.IO.File]::ReadAllText($locatorPath).Trim()))
+    $primaryGitDirectory = [System.IO.Path]::GetFullPath((Join-Path $primaryRoot '.git'))
     if (
-        -not (Test-Path -LiteralPath (Join-Path $stateRepositoryRoot '.git') -PathType Container) -or
-        -not (Test-Path -LiteralPath (Join-Path $stateRepositoryRoot 'KicktippAi.slnx') -PathType Leaf)) {
-        throw 'Cannot resolve the shared memory circuit-breaker path: original-checkout locator is invalid.'
+        -not (Test-Path -LiteralPath $primaryGitDirectory -PathType Container) -or
+        -not (Test-Path -LiteralPath (Join-Path $primaryRoot 'KicktippAi.slnx') -PathType Leaf)) {
+        throw 'The original-checkout locator target is invalid.'
     }
+    if (-not $commonDirectory.Equals($primaryGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw 'The original-checkout locator does not match this worktree Git common directory.'
+    }
+    return $primaryRoot
+}
+
+try {
+    $stateRepositoryRoot = Resolve-OrchestrationPrimaryCheckout -CheckoutRoot $RepositoryRoot
+}
+catch {
+    throw "Cannot resolve the shared memory circuit-breaker path: $($_.Exception.Message)"
 }
 
 $statePath = Join-Path $stateRepositoryRoot '.tmp/orchestration/resource-policy-state.json'

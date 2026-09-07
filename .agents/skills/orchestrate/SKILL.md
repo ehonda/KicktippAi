@@ -67,7 +67,8 @@ Create the capsule and preview from their templates in `resources/`, set
 active-contract marker blocks. Create each packet with
 `scripts/New-OrchestrationRecoveryManifest.ps1`; it automatically discovers
 applicable nested instructions, expands transitive instruction includes, and
-adds the exact recovery helpers and their admission-policy input. Sealing
+adds the exact packet/recovery, worktree-admission, and memory-breaker controls
+plus their admission-policy input. Sealing
 rejects missing preview-declared contracts or applicable nested instructions.
 Then seal with
 `scripts/Invoke-OrchestrationCapsuleHook.ps1 -Mode Seal -RunId <run-id>` before
@@ -236,7 +237,9 @@ memory-related OOM, abnormal termination, or severe paging failure, run
 `scripts/Set-OrchestrationMemoryCircuitBreaker.ps1 -Action Trip ...`; every
 later admission across the primary checkout and its linked worktrees then uses
 1.10 GiB until owner-reviewed analysis explicitly clears the preserved
-trigger. Change the capsule only when admission, warning
+trigger. A linked-worktree locator is valid only when it matches that
+worktree's Git common-directory identity; otherwise admission fails closed.
+Change the capsule only when admission, warning
 band, override, reservation, or lease ownership changes; no-change samples
 remain silent.
 

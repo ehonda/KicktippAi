@@ -169,13 +169,43 @@ Assert-True ($json.HeavyOperationAdmission.EffectiveHardFloorGiB -eq 1.0) 'JSON 
 Assert-True ($json.HeavyOperationAdmission.WarningThresholdGiB -eq 1.5) 'JSON output must expose the warning threshold'
 
 $testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "orchestration-resource-$([Guid]::NewGuid().ToString('N'))"
+$linkedRoot = "$testRoot-linked"
+$staleRoot = "$testRoot-stale"
 try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $testRoot '.git') | Out-Null
     Set-Content -LiteralPath (Join-Path $testRoot 'KicktippAi.slnx') -Value '' -Encoding utf8
-    $linkedRoot = Join-Path $testRoot 'linked-worktree'
+    & git -C $testRoot init --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to initialize the primary test repository.' }
+    & git -C $testRoot add -- 'KicktippAi.slnx'
+    & git -C $testRoot -c 'user.name=Orchestration Test' -c 'user.email=orchestration-test@example.invalid' commit --quiet -m 'seed'
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to create the primary test commit.' }
+    & git -C $testRoot worktree add --detach --quiet $linkedRoot HEAD
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to create the linked test worktree.' }
     New-Item -ItemType Directory -Path (Join-Path $linkedRoot '.codex-local') -Force | Out-Null
-    Set-Content -LiteralPath (Join-Path $linkedRoot '.git') -Value 'gitdir: synthetic' -Encoding utf8
+    Set-Content -LiteralPath (Join-Path $linkedRoot '.codex-local/original-repository-path') -Value $testRoot -Encoding utf8
+
+    New-Item -ItemType Directory -Path $staleRoot | Out-Null
+    Set-Content -LiteralPath (Join-Path $staleRoot 'KicktippAi.slnx') -Value '' -Encoding utf8
+    & git -C $staleRoot init --quiet
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to initialize the stale-locator test repository.' }
+    Set-Content -LiteralPath (Join-Path $linkedRoot '.codex-local/original-repository-path') -Value $staleRoot -Encoding utf8
+    $staleLocatorState = & $helper -Admission Heavy -RepositoryRoot $linkedRoot -Sample @{
+        FreeDiskGiB = 30
+        TotalDiskGiB = 200
+        AvailableMemoryGiB = 2.0
+        LogicalProcessors = 4
+        LinkedTaskWorktrees = 1
+    }
+    Assert-True (-not $staleLocatorState.HeavyOperationAdmission.Allowed) 'a stale locator targeting another valid clone must fail closed'
+    Assert-True (-not $staleLocatorState.HeavyOperationAdmission.CircuitBreakerStateValid) 'a stale locator must invalidate circuit-breaker state resolution'
+    $staleTripRejected = $false
+    try {
+        & $circuitBreakerHelper -Action Trip -RepositoryRoot $linkedRoot -RunId stale-test -Operation build -Reason 'must not write another clone' | Out-Null
+    }
+    catch {
+        $staleTripRejected = $_.Exception.Message -match 'does not match this worktree Git common directory'
+    }
+    Assert-True $staleTripRejected 'a stale locator must not write circuit-breaker state into another clone'
     Set-Content -LiteralPath (Join-Path $linkedRoot '.codex-local/original-repository-path') -Value $testRoot -Encoding utf8
 
     $clearWithoutTripRejected = $false
@@ -196,7 +226,11 @@ try {
         LinkedTaskWorktrees = 0
     }
     Assert-True (-not $trippedState.HeavyOperationAdmission.Allowed) 'a trip from a linked worktree must affect primary-checkout admission'
-    Assert-True ($trippedState.HeavyOperationAdmission.CircuitBreakerStatePath -like "$testRoot*") 'linked worktrees must share the primary-checkout circuit-breaker path'
+    $expectedSharedStatePath = [System.IO.Path]::GetFullPath(
+        (Join-Path $testRoot '.tmp/orchestration/resource-policy-state.json'))
+    Assert-True (
+        [string] $trippedState.HeavyOperationAdmission.CircuitBreakerStatePath -eq $expectedSharedStatePath
+    ) 'linked worktrees must share the exact primary-checkout circuit-breaker path'
 
     & $circuitBreakerHelper -Action Clear -RepositoryRoot $linkedRoot -Reason 'owner-reviewed calibration' -ReviewedBy owner | Out-Null
     $clearedState = & $helper -Admission Heavy -RepositoryRoot $testRoot -Sample @{
@@ -219,6 +253,15 @@ try {
     Assert-True (-not $malformedClear.HeavyOperationAdmission.Allowed) 'a malformed or unaudited cleared state must fail closed'
 }
 finally {
+    if (Test-Path -LiteralPath $testRoot) {
+        & git -C $testRoot worktree remove --force $linkedRoot 2>$null
+    }
+    if (Test-Path -LiteralPath $linkedRoot) {
+        Remove-Item -LiteralPath $linkedRoot -Recurse -Force
+    }
+    if (Test-Path -LiteralPath $staleRoot) {
+        Remove-Item -LiteralPath $staleRoot -Recurse -Force
+    }
     if (Test-Path -LiteralPath $testRoot) {
         Remove-Item -LiteralPath $testRoot -Recurse -Force
     }

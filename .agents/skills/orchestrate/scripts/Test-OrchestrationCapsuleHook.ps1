@@ -125,6 +125,9 @@ try {
     Copy-Item -LiteralPath $hook -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1')
     Copy-Item -LiteralPath $recoverySnapshotHelper -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Get-OrchestrationResourceSnapshot.ps1') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1')
+    Copy-Item -LiteralPath $manifestHelper -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Set-OrchestrationMemoryCircuitBreaker.ps1') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../../../../New-AgentWorktree.ps1') -Destination (Join-Path $testRoot 'New-AgentWorktree.ps1')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../resources/resource-policy.json') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/resources/resource-policy.json')
     & git -C $testRoot init --quiet
     & git -C $testRoot remote add origin 'https://github.com/ehonda/KicktippAi.git'
@@ -195,6 +198,9 @@ nested/contract.md
     $hookManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'hook-manifest.json') -Raw | ConvertFrom-Json
     Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1') 'hook manifests must include the hot recovery helper'
     Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1') 'hook manifests must include the recovery resource dependency'
+    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1') 'hook manifests must include the packet-construction control'
+    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1') 'hook manifests must include the memory circuit-breaker control'
+    Assert-True (@($hookManifest.entries.path) -ccontains 'New-AgentWorktree.ps1') 'hook manifests must include the worktree-admission control'
     Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/resources/resource-policy.json') 'hook manifests must include the recovery resource policy dependency'
     $activeManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'active-contract-manifest.json') -Raw | ConvertFrom-Json
     Assert-True (@($activeManifest.entries.path) -ccontains 'nested/contract.md') 'active manifests must include preview-declared contracts'
@@ -227,13 +233,23 @@ nested/contract.md
     Assert-True ($recoverySnapshot.recovery.mode -eq 'hot') 'the compact recovery helper must preserve packet validation'
     Assert-True ($recoverySnapshot.worktrees.outstanding_growth_reservation_gib -eq 1.25) 'the compact recovery helper must reconcile capsule worktree reservations'
 
-    $resourcePolicyPath = Join-Path $testRoot '.agents/skills/orchestrate/resources/resource-policy.json'
-    $resourcePolicyBytes = [System.IO.File]::ReadAllBytes($resourcePolicyPath)
-    Add-Content -LiteralPath $resourcePolicyPath -Value ' ' -NoNewline
-    $policyDriftOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($policyDriftOutput.hookSpecificOutput.additionalContext -match 'COLD \$orchestrate RECOVERY') 'resource-policy drift must force cold recovery'
-    Assert-True ($policyDriftOutput.hookSpecificOutput.additionalContext -match 'packet-digest-mismatch') 'resource-policy drift must identify the changed packet'
-    [System.IO.File]::WriteAllBytes($resourcePolicyPath, $resourcePolicyBytes)
+    foreach ($runtimeControlPath in @(
+        '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1',
+        '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1',
+        'New-AgentWorktree.ps1',
+        '.agents/skills/orchestrate/resources/resource-policy.json')) {
+        $runtimeControlAbsolutePath = Join-Path $testRoot $runtimeControlPath
+        $runtimeControlBytes = [System.IO.File]::ReadAllBytes($runtimeControlAbsolutePath)
+        try {
+            Add-Content -LiteralPath $runtimeControlAbsolutePath -Value ' ' -NoNewline
+            $runtimeControlDriftOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
+            Assert-True ($runtimeControlDriftOutput.hookSpecificOutput.additionalContext -match 'COLD \$orchestrate RECOVERY') "$runtimeControlPath drift must force cold recovery"
+            Assert-True ($runtimeControlDriftOutput.hookSpecificOutput.additionalContext -match 'packet-digest-mismatch') "$runtimeControlPath drift must identify the changed packet"
+        }
+        finally {
+            [System.IO.File]::WriteAllBytes($runtimeControlAbsolutePath, $runtimeControlBytes)
+        }
+    }
 
     $validPreCompactOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'PreCompact')
     Assert-True ([string]::IsNullOrWhiteSpace($validPreCompactOutput)) 'valid pre-compaction checks must stay silent'
