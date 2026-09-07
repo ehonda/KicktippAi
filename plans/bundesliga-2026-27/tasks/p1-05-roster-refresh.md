@@ -1,46 +1,48 @@
 # P1-05 — Refresh quality-gated DuckDB roster membership and enrichment
 
-- Status: Common seam frozen; implementation not started
-- Priority: Ready independently after the common seam
-- Depends on: [P0-21](../archive/p0/tasks/p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
-- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
-- Design: [P1-04/P1-05 context refresh](../designs/p1-04-05-context-refresh.md)
-- Packet: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)
+- Status: Source-independent dormant lane
+- Depends on: C1 review/integration then C2; not HTML
+- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), and [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md)
 
 ## Outcome
 
-Roster membership and enrichment are observed only in existing context cycles.
-Valid current-season membership may publish per club when its strict gates pass;
-rejected candidates retain fallback/last-known-good data without obscuring
-membership, enrichment, field-effective, or artifact source dates.
+One observed artifact per cycle is selected only through the exact pre-artifact
+matrix, per-club safety gates, and the source-publication fence. The current
+artifact remains rejection-only evidence: it cannot displace seed/LKG. Retained
+membership, enrichment provenance and dates remain truthful; a synthetic future
+artifact with trusted dates proves mechanics, not current-source acceptance.
 
-## Current evidence — safe rejection, not completion
+## Work and verification
 
-The exact 2026-09-06 artifact is `210,776,064` bytes, SHA-256
-`ba1eff7337b8ca78cb533df0b6eba0d6fc58218e0767460f6770e0b37f5a2113`,
-revision `e44f186d6f06dd8452aaf54c7921ba66c961f637`. It has zero eligible
-`last_season=2026` L1 clubs/players for all 18 manifest IDs and no authoritative
-revision-bound capture/effective date. It must reject with
-`NO_ELIGIBLE_2026_MEMBERSHIP` and `UNKNOWN_SOURCE_DATE`, retaining seed/LKG;
-synthetic future artifacts prove the automatic takeover path.
+- [ ] C2 implements ADR-0078's evaluation precedence, required/null fields,
+  nullable receipt revision rule, revision-state protection and optional guard.
+- [ ] R1 implements bounded acquisition/selection/diff/carry/v3 only after C2.
+- [ ] Cover metadata unavailable/malformed/revision, identity failure, schema
+  rejection, existing real rejection, synthetic takeover, guard/CAS precedence,
+  crash replay, legacy null guard, no source-disabled resolution/writes/API
+  calls, and exact-head CI under one heavy family.
+- [ ] Bound changed/pending acquisition to one metadata check/cycle, a temporary
+  stream, five minutes/300 MiB, one in-budget transient retry, hash, embedded
+  revision verification and remote-drift check; no alternate provider.
+- [ ] Preserve deterministic per-club additions/departures/team/coach/source/
+  enrichment-only diff, stable-ID carry, new-player `N/A`, sourced decreases,
+  candidate-only conflict rejection, final-set fatal contradiction, complete-18
+  and atomic-publication gates. Add source attribution outside prompt content.
+- [ ] R1's source/test surface is bounded to `BundesligaRosterRefresh.cs`,
+  `BundesligaRosterModels.cs`, `BundesligaRosterPolicy.cs`,
+  `BundesligaRosterPublication.cs`, `BundesligaRosterPublicationContract.cs`,
+  `BundesligaRosterCsv.cs`, `BundesligaRosterSeed.cs`,
+  `BundesligaRosterArtifactAcquirer.cs`, `BundesligaRosterSource.cs`,
+  `CollectContextRostersCommand.cs`, `roster-refresh-policy-v1.json`, the
+  roster source document, and the literal R1 tests listed in the execution
+  packet; it does not edit shared descriptor/receipt/health/fence paths.
 
-## Work items
+No alternate provider, source activation, persistence, schedule, model, post,
+credential, or copy behavior is implied.
 
-- [ ] Independently accept the minimal per-cycle health/deduplication and artifact-handoff recovery seam before workflow edits.
-- [ ] Add one metadata check per existing context cycle and bounded changed/pending-revision acquisition: temporary stream, hash, revision verification, remote-drift check, five-minute/300-MiB limit, and one in-budget transient retry.
-- [ ] Require explicit 2026/27 membership, existing quality gates, and revision-bound authoritative capture/effective dates. Treat the paused upstream as `UNKNOWN_SOURCE_DATE` until that binding is proven; do not add an alternate provider.
-- [ ] Build a deterministic per-club diff that classifies additions, departures, team changes, coach changes, source changes, and enrichment-only changes; preserve affected-club fallback plus the global complete-18, identity, reconstruction, and atomic-publication gates with no force bypass.
-- [ ] Select enrichment independently by stable ID: carry prior same-ID fields with provenance/age, use `N/A` for new unknowns, accept genuine sourced decreases, reject candidate-only conflicts, and fail final-set contradictions.
-- [ ] Add per-due-cycle warning/summary and reusable-issue reporting without a standalone roster schedule or one issue per community job.
-- [ ] Add development-first changed/unchanged/drifting/oversize/timed-out artifact, revision/date rejection, loans, renamed players, duplicate membership, unmatched IDs, coach regression, membership takeover/fallback/departure, enrichment carry/`N/A`/conflict, reconstruction, reuse, dry-run, serial, and copy-compatibility tests.
-- [ ] Add future source attribution linked from the repository-root README; do not place source attribution in prompt documents.
+## Owner gates and completion
 
-## Validation
-
-- Exercise synthetic valid future membership takeover, addition, departure, rejected partial update, and carried/`N/A` enrichment through development dry-run/publish fixtures.
-- Confirm rejected candidates retain the appropriate prior data, while valid membership can publish with rejected enrichment; first production activation remains separately reviewed.
-
-## Complete when
-
-- Trustworthy enrichment automation is active and the automatic future valid-membership takeover path is fully proven.
-- An invalid club cannot displace fallback/LKG; paused upstream may retain live membership and leave its source issue open.
+Development persistence, production acquisition/writes/activation, GitHub
+artifact/issues, rollback delegation, restoration and completion evidence remain
+owner decisions. Complete only after trustworthy enrichment automation and a
+separately authorized future valid-membership takeover proof.

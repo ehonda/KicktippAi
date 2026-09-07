@@ -1,43 +1,39 @@
 # P1-04 — Refresh Club Elo during context collection
 
-- Status: Common seam frozen; accepting source and implementation not started
-- Priority: Deferred accepting-source lane
-- Depends on: [P0-21](../archive/p0/tasks/p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), accepted source/date contract
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
-- Design: [P1-04/P1-05 context refresh](../designs/p1-04-05-context-refresh.md)
-- Packet: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)
+- Status: Accepted official-HTML contract; dormant implementation
+- Depends on: C1 review/integration, C2, C3, then E1
+- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md)
 
 ## Outcome
 
-Club strength observations run only inside existing Bundesliga context-collection
-cycles and publish only a valid, strictly newer, fully mapped snapshot without
-weakening dated-seed or last-known-good protection.
+Official `https://clubelo.com/GER` HTML is the sole future P1-04 candidate,
+inside the existing context cycle. Descriptor dispatch permits exactly one
+payload (`club-elo/source.html`) and preserves historical CSV evidence without
+requiring any future CSV source work. Valid observations require the frozen
+HTML transport/header/DOM/lexer/fragment/date/retry/mapping/integer contract;
+rejected, not-newer, or displayedDate/ratedAt candidates older than ADR-0013's
+seven-calendar-day network-candidate limit retain seed/LKG.
 
-## Current evidence — not completion
+## Work and verification
 
-The current Club Elo Germany page is healthy and advertises `2026-09-04`, but
-it is not an accepted direct-CSV date contract. Bounded current/historical HTTP
-CSV requests returned empty `502` responses and HTTPS timed out. ADR-0013 and
-ADR-0073 forbid HTTP downgrade or deriving a rating date from filename,
-`From`/`To`, HTTP metadata, or observation time. The truthful candidate result
-is transport rejection/`UNKNOWN_SOURCE_DATE`, retaining the dated seed/LKG.
+- [ ] C3 applies ADR-0077's nine shared descriptor/health/Firebase/handoff
+  amendments only after C2.
+- [ ] E1 implements only the literal HTML source, direct AngleSharp dependency,
+  mapping and fixtures frozen by ADR-0077; no fixture/dependency is inferred.
+- [ ] Prove descriptor-selected payload isolation, strict Firestore integer
+  reconstruction, displayed-date health, hostile fixtures, retries, mapping,
+  LKG/no-change, disabled-source zero calls, and publication-v2 reconstruction.
+- [ ] Complete fresh incremental/final reviews and exact-head CI.
 
-## Work items
+The retained HTML body is historical specification evidence, not a live
+acceptance. Synthetic fixtures prove mechanics only; a real accepting-evidence
+recipe is unsupported pending separate specification. Flags remain false.
 
-- [ ] Freeze direct CSV bytes, coherent provider-date semantics, and explicit daily-name-to-manifest mapping; unknown/contradictory date evidence must be `UNKNOWN_SOURCE_DATE` and retain LKG.
-- [ ] Add the bounded CSV candidate provider to existing `collect-context profile` acquisition, with one per-cycle immutable bundle reused across community jobs; do not add an Elo-only command or schedule.
-- [ ] Enforce raw-byte hashing, frozen header, all-18/positive/deterministic data, strictly newer proven date, and the accepted two-attempt/25-second retry envelope.
-- [ ] Preserve per-community selection and atomic heads; distinguish source observation from source date and do not reset staleness on unchanged data.
-- [ ] Add source-health/issue deduplication and concise summary/warning diagnostics only after the implementation seam is independently reviewed.
-- [ ] Add development-first valid, unchanged, partial, rejected, outage, retry-boundary, same-cycle reuse, dry-run, and serial-descendant tests.
-- [ ] Add future source attribution linked from the repository-root README; do not place source attribution in prompt documents.
+## Owner gates and completion
 
-## Validation
-
-- Prove exact source bytes/date/name mapping, valid/no-change/rejected/outage fixtures, and LKG retention in development.
-- Obtain one real accepted CSV refresh and one later no-change context cycle before completion; first production activation remains separately reviewed.
-
-## Complete when
-
-- A real accepted CSV refresh and a no-change cycle are observed after approved activation.
-- Partial, stale, or semantically rejected data cannot publish a new version or erase LKG.
+Live acquisition, development persistence, unattended HTML reuse, GitHub
+artifact/issue work, production writes/activation, rollback delegation,
+restoration and completion evidence require distinct owner approval. Completion
+requires separately authorized real accepted and later distinct no-change
+evidence with all receipts, independent heads, reconciled health/issue state,
+copy compatibility, and no model/post change.

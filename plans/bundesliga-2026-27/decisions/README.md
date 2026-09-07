@@ -82,3 +82,5 @@ remain authoritative.
 | [0074](0074-freeze-context-source-cycle-handoff-and-provenance.md) | Context source-cycle handoff and provenance | Accepted |
 | [0075](0075-refine-orchestration-recovery-and-resource-admission.md) | Orchestration recovery and resource admission | Accepted; hook-readiness gate refined by ADR-0076 |
 | [0076](0076-pause-orchestration-hook-readiness-gate.md) | Pause the orchestration hook-readiness gate | Accepted |
+| [0077](0077-refresh-club-elo-from-official-html.md) | Official-HTML Club Elo refresh contract | Accepted |
+| [0078](0078-refine-context-source-pre-artifact-and-publication-fence.md) | Context-source pre-artifact and publication fence | Accepted |
