@@ -94,7 +94,8 @@ raw-byte SHA-256 values:
   nested `AGENTS.md`, `$orchestrate`, and other skill instructions/references
   explicitly governing the frozen graph.
 - **Hook packet:** `.codex/hooks.json` plus the exact kickoff/recovery scripts
-  whose execution supplies trust or recovery evidence.
+  and checked-in policy inputs whose execution supplies trust, recovery, or
+  resource-admission evidence.
 - **Active-contract packet:** compact `preview.md` plus only the active task,
   execution packet, design documents, ADRs, and handoff evidence explicitly
   named by the frozen graph.

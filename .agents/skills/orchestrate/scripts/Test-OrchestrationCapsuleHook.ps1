@@ -117,6 +117,7 @@ try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $testRoot '.codex') -Force | Out-Null
     New-Item -ItemType Directory -Path (Join-Path $testRoot '.agents/skills/orchestrate/scripts') -Force | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $testRoot '.agents/skills/orchestrate/resources') -Force | Out-Null
     Set-Content -LiteralPath (Join-Path $testRoot 'AGENTS.md') -Value "# Test instructions`n`n@AUTO-REVIEW.md" -Encoding utf8
     Set-Content -LiteralPath (Join-Path $testRoot 'AUTO-REVIEW.md') -Value '# Included review policy' -Encoding utf8
     Set-Content -LiteralPath (Join-Path $testRoot '.agents/skills/orchestrate/SKILL.md') -Value '# Test skill' -Encoding utf8
@@ -124,6 +125,7 @@ try {
     Copy-Item -LiteralPath $hook -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1')
     Copy-Item -LiteralPath $recoverySnapshotHelper -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1')
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Get-OrchestrationResourceSnapshot.ps1') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1')
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../resources/resource-policy.json') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/resources/resource-policy.json')
     & git -C $testRoot init --quiet
     & git -C $testRoot remote add origin 'https://github.com/ehonda/KicktippAi.git'
 
@@ -193,6 +195,7 @@ nested/contract.md
     $hookManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'hook-manifest.json') -Raw | ConvertFrom-Json
     Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1') 'hook manifests must include the hot recovery helper'
     Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1') 'hook manifests must include the recovery resource dependency'
+    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/resources/resource-policy.json') 'hook manifests must include the recovery resource policy dependency'
     $activeManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'active-contract-manifest.json') -Raw | ConvertFrom-Json
     Assert-True (@($activeManifest.entries.path) -ccontains 'nested/contract.md') 'active manifests must include preview-declared contracts'
 
@@ -223,6 +226,15 @@ nested/contract.md
     $recoverySnapshot = & $recoverySnapshotHelper -RunId $runId -RepositoryRoot $testRoot -AsJson | ConvertFrom-Json
     Assert-True ($recoverySnapshot.recovery.mode -eq 'hot') 'the compact recovery helper must preserve packet validation'
     Assert-True ($recoverySnapshot.worktrees.outstanding_growth_reservation_gib -eq 1.25) 'the compact recovery helper must reconcile capsule worktree reservations'
+
+    $resourcePolicyPath = Join-Path $testRoot '.agents/skills/orchestrate/resources/resource-policy.json'
+    $resourcePolicyBytes = [System.IO.File]::ReadAllBytes($resourcePolicyPath)
+    Add-Content -LiteralPath $resourcePolicyPath -Value ' ' -NoNewline
+    $policyDriftOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
+    Assert-True ($policyDriftOutput.hookSpecificOutput.additionalContext -match 'COLD \$orchestrate RECOVERY') 'resource-policy drift must force cold recovery'
+    Assert-True ($policyDriftOutput.hookSpecificOutput.additionalContext -match 'packet-digest-mismatch') 'resource-policy drift must identify the changed packet'
+    [System.IO.File]::WriteAllBytes($resourcePolicyPath, $resourcePolicyBytes)
+
     $validPreCompactOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'PreCompact')
     Assert-True ([string]::IsNullOrWhiteSpace($validPreCompactOutput)) 'valid pre-compaction checks must stay silent'
 

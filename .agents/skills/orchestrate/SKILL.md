@@ -67,7 +67,7 @@ Create the capsule and preview from their templates in `resources/`, set
 active-contract marker blocks. Create each packet with
 `scripts/New-OrchestrationRecoveryManifest.ps1`; it automatically discovers
 applicable nested instructions, expands transitive instruction includes, and
-adds the exact recovery helpers. Sealing
+adds the exact recovery helpers and their admission-policy input. Sealing
 rejects missing preview-declared contracts or applicable nested instructions.
 Then seal with
 `scripts/Invoke-OrchestrationCapsuleHook.ps1 -Mode Seal -RunId <run-id>` before

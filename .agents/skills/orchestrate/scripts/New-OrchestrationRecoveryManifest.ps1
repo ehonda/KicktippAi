@@ -104,7 +104,8 @@ elseif ($Packet -eq 'hook') {
         '.codex/hooks.json',
         '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1',
         '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1',
-        '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1')) {
+        '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1',
+        '.agents/skills/orchestrate/resources/resource-policy.json')) {
         $candidates.Add($candidate)
     }
 }
