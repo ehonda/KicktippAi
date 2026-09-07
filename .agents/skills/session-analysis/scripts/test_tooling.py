@@ -422,6 +422,24 @@ class ReportManifestTests(unittest.TestCase):
                     with self.assertRaisesRegex(focus_registry.RegistryError, "Content-Security-Policy"):
                         report_manifest.verify_self_contained_html(path)
 
+    def test_self_contained_html_rejects_text_or_duplicate_attributes_before_csp(self) -> None:
+        payloads = (
+            "<html><head>text<meta http-equiv='Content-Security-Policy' "
+            f"content=\"{report_manifest.OFFLINE_CSP}\"><script>void 0</script></head>"
+            "<body></body></html>",
+            "<html><head><meta http-equiv='ignored' "
+            "http-equiv='Content-Security-Policy' "
+            f"content=\"{report_manifest.OFFLINE_CSP}\"><script>void 0</script></head>"
+            "<body></body></html>",
+        )
+        with temporary_directory() as directory:
+            path = pathlib.Path(directory) / "index.html"
+            for payload in payloads:
+                with self.subTest(payload=payload):
+                    path.write_text("<!doctype html>" + payload, encoding="utf-8")
+                    with self.assertRaises(focus_registry.RegistryError):
+                        report_manifest.verify_self_contained_html(path)
+
     def test_self_contained_html_rejects_network_bypass_shapes(self) -> None:
         csp = (
             "<!doctype html><html><head><meta http-equiv='Content-Security-Policy' "
@@ -458,6 +476,7 @@ class ReportManifestTests(unittest.TestCase):
                 "/home/another-user/private/session.jsonl",
                 "/root/private",
                 "/root/.codex/sessions/private.jsonl",
+                "/var/root",
                 "/var/root/.codex/sessions/private.jsonl",
             )
             for value in values:

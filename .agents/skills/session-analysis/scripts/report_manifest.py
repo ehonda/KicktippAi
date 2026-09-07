@@ -79,9 +79,19 @@ class OfflineHtmlParser(HTMLParser):
             index = len(self.open_elements) - 1 - self.open_elements[::-1].index(tag)
             del self.open_elements[index:]
 
+    def handle_data(self, data: str) -> None:
+        if not self.csp_values and data.strip():
+            self.csp_placement_violations.append("non-whitespace text before CSP")
+
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
-        values = {name.lower(): value or "" for name, value in attrs}
+        values: dict[str, str] = {}
+        for raw_name, raw_value in attrs:
+            name = raw_name.lower()
+            if name in values:
+                self.violations.append(f"duplicate {tag}[{name}] attribute")
+                continue
+            values[name] = raw_value or ""
         if tag == "head":
             if self.head_seen or self.head_closed or self.body_seen:
                 self.csp_placement_violations.append("reopened or misplaced head")

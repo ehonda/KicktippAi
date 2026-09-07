@@ -83,6 +83,41 @@ function Get-NormalizedTextSha256 {
     }
 }
 
+function Resolve-PhysicalPath {
+    param([string]$Path)
+
+    $fullPath = [IO.Path]::GetFullPath($Path)
+    $pathRoot = [IO.Path]::GetPathRoot($fullPath)
+    $current = $pathRoot
+    $relative = [IO.Path]::GetRelativePath($pathRoot, $fullPath)
+    foreach ($component in @($relative -split "[\\/]" | Where-Object { $_ }))
+    {
+        $next = Join-Path $current $component
+        if (Test-Path -LiteralPath $next)
+        {
+            $item = Get-Item -LiteralPath $next -Force
+            if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
+            {
+                $target = $item.ResolveLinkTarget($true)
+                if ($null -eq $target)
+                {
+                    throw "Unable to resolve symbolic-link component: $next"
+                }
+                $current = $target.FullName
+            }
+            else
+            {
+                $current = $item.FullName
+            }
+        }
+        else
+        {
+            $current = $next
+        }
+    }
+    return [IO.Path]::GetFullPath($current)
+}
+
 function Resolve-ContainedPath {
     param(
         [string]$Root,
@@ -95,37 +130,9 @@ function Resolve-ContainedPath {
     {
         throw "$Field must be a safe normalized relative path"
     }
-    $resolvedRoot = if (Test-Path -LiteralPath $Root)
-    {
-        $rootItem = Get-Item -LiteralPath $Root -Force
-        $rootTarget = if (($rootItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
-        {
-            $rootItem.ResolveLinkTarget($true)
-        }
-        else
-        {
-            $null
-        }
-        $(if ($null -ne $rootTarget) { $rootTarget.FullName } else { (Resolve-Path -LiteralPath $Root).Path }).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
-    }
-    else
-    {
-        [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
-    }
+    $resolvedRoot = (Resolve-PhysicalPath -Path $Root).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
     $candidate = [IO.Path]::GetFullPath((Join-Path $resolvedRoot ($RelativePath -replace "/", [IO.Path]::DirectorySeparatorChar)))
-    if (Test-Path -LiteralPath $candidate)
-    {
-        $candidateItem = Get-Item -LiteralPath $candidate -Force
-        $candidateTarget = if (($candidateItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)
-        {
-            $candidateItem.ResolveLinkTarget($true)
-        }
-        else
-        {
-            $null
-        }
-        $candidate = if ($null -ne $candidateTarget) { $candidateTarget.FullName } else { (Resolve-Path -LiteralPath $candidate).Path }
-    }
+    $candidate = Resolve-PhysicalPath -Path $candidate
     $prefix = $resolvedRoot + [IO.Path]::DirectorySeparatorChar
     if (-not $candidate.StartsWith($prefix, $script:PathComparison))
     {
@@ -177,7 +184,7 @@ function Assert-PublishableTextPrivacy {
     param([string[]]$Paths)
 
     $patterns = @(
-        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s]+|/(?:home|Users)/[^/\s]+|/(?:root|var/root)/(?:\.[^/\s]+|private(?=[/\s"''<>]|$)|[^/\s]+\.[A-Za-z0-9]{1,8}(?:/|$)))',
+        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+[^\\/\s]+|/(?:home|Users)/[^/\s]+|/root/(?:\.[^/\s]+|private(?=[/\s"''<>]|$)|[^/\s]+\.[A-Za-z0-9]{1,8}(?:/|$))|/var/root(?=[/\s"''<>]|$))',
         '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',
         '\b(?:sk-(?:proj-)?|ghp_|github_pat_|glpat-)[A-Za-z0-9_-]{16,}',
         '\bAKIA[0-9A-Z]{16}\b',

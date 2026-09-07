@@ -166,7 +166,7 @@ try
     }
 
     $originalSummary = $manifest.summary
-    $manifest.summary = "Leaked /root/.codex/private"
+    $manifest.summary = "Leaked /var/root"
     $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
     $privacyRejected = $false
     try
@@ -201,11 +201,12 @@ try
     {
         $caseVariantRoot = Join-Path $testRoot "Session-Analysis"
         $caseVariantTarget = Join-Path $caseVariantRoot "case-link"
+        $caseVariantReport = Join-Path $caseVariantTarget "nested"
         $caseLink = Join-Path $sessionDir "case-link"
-        New-Item -ItemType Directory -Path $caseVariantTarget -Force | Out-Null
-        Copy-Item -LiteralPath (Join-Path $newReportDir "index.html") -Destination (Join-Path $caseVariantTarget "index.html")
+        New-Item -ItemType Directory -Path $caseVariantReport -Force | Out-Null
+        Copy-Item -LiteralPath (Join-Path $newReportDir "index.html") -Destination (Join-Path $caseVariantReport "index.html")
         New-Item -ItemType SymbolicLink -Path $caseLink -Target $caseVariantTarget | Out-Null
-        $manifest.site_path = "session-analysis/case-link"
+        $manifest.site_path = "session-analysis/case-link/nested"
         $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
         $caseEscapeRejected = $false
         try
