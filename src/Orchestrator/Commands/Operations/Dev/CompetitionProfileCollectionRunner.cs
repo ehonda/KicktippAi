@@ -1,4 +1,5 @@
 using System.Text;
+using Orchestrator.Commands.Operations.CollectContext;
 using Spectre.Console;
 
 namespace Orchestrator.Commands.Operations.Dev;
@@ -12,7 +13,8 @@ internal sealed record CompetitionProfileCollectionRequest(
     string RecentHistoryDateMap,
     bool DryRun,
     bool Verbose,
-    string? MarkdownSummaryOutput = null);
+    string? MarkdownSummaryOutput = null,
+    CompetitionContextSourceCycleInvocation? ContextSourceCycle = null);
 
 internal static class CompetitionProfileCollectionRunner
 {
@@ -31,7 +33,19 @@ internal static class CompetitionProfileCollectionRunner
             request.RecentHistoryDateMap,
             request.DryRun,
             request.Verbose,
-            request.MarkdownSummaryOutput);
+            request.MarkdownSummaryOutput,
+            request.ContextSourceCycle);
+
+        // The executor performs the flag check before resolving any coordinator,
+        // provider, repository, or handoff service. The lease owns exact local
+        // cleanup and remains ambient for source-specific collectors.
+        ContextSourceCyclePreparation? preparedSources = null;
+        if (request.Profile.ContextSourceFeatures.AnyEnabled)
+        {
+            preparedSources = await collectorExecutor.PrepareContextSourcesAsync(executionContext, cancellationToken);
+        }
+        await using var sourcePreparation = preparedSources;
+        using var sourcePreparationActivation = preparedSources?.Activate();
 
         PrintProfile(console, request.Profile, request.Community, request.CommunityContext);
         console.MarkupLine(
@@ -49,6 +63,18 @@ internal static class CompetitionProfileCollectionRunner
                 console.MarkupLine(
                     $"[green]Collector {step.Collector}:[/] [yellow]{disposition}[/] " +
                     $"(completed inside immediately preceding {previousCollector})");
+                continue;
+            }
+
+            if (TryGetSource(step.Collector, out var source)
+                && preparedSources?.TryGetPersistedReceipt(source, out var persistedReceipt) == true)
+            {
+                await preparedSources.ReconcilePersistedReceiptAsync(persistedReceipt!, cancellationToken);
+                const string disposition = "PersistedReceiptReplayed";
+                dispositions.Add((step.Collector, disposition));
+                console.MarkupLine(
+                    $"[green]Collector {step.Collector}:[/] [yellow]{disposition}[/] " +
+                    $"(cycle {Markup.Escape(persistedReceipt!.Request.Identity.CycleId)}, lane {Markup.Escape(preparedSources.CurrentLaneId)})");
                 continue;
             }
 
@@ -119,6 +145,7 @@ internal static class CompetitionProfileCollectionRunner
             $"[blue]Context features:[/] [yellow]home-away={profile.ContextFeatures.HomeAwayHistory}, " +
             $"head-to-head={profile.ContextFeatures.HeadToHeadHistory}, " +
             $"knockout={profile.ContextFeatures.KnockoutRules}, transfers={profile.ContextFeatures.Transfers}[/]");
+        console.MarkupLine($"[blue]Context source refresh:[/] [yellow]club-elo={profile.ContextSourceFeatures.ClubEloEnabled}, rosters={profile.ContextSourceFeatures.RostersEnabled}[/]");
         PrintList(console, "Required match documents", profile.RequiredMatchDocumentTemplates);
         PrintList(console, "Required aggregate context documents", profile.RequiredAggregateContextDocuments);
         PrintList(console, "Required KPI documents", profile.RequiredKpiDocuments);
@@ -202,4 +229,20 @@ internal static class CompetitionProfileCollectionRunner
     private static string EscapeMarkdown(string value) => value.Replace("`", "\\`", StringComparison.Ordinal);
 
     private static string EscapeCode(string value) => value.Replace("`", "\\`", StringComparison.Ordinal);
+
+    private static bool TryGetSource(CompetitionCollector collector, out EHonda.KicktippAi.Core.BundesligaContextSource source)
+    {
+        switch (collector)
+        {
+            case CompetitionCollector.ClubElo:
+                source = EHonda.KicktippAi.Core.BundesligaContextSource.ClubElo;
+                return true;
+            case CompetitionCollector.Rosters:
+                source = EHonda.KicktippAi.Core.BundesligaContextSource.Rosters;
+                return true;
+            default:
+                source = default;
+                return false;
+        }
+    }
 }

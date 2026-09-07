@@ -41,6 +41,30 @@ public sealed record CompetitionContextFeatures(
     bool KnockoutRules,
     bool Transfers);
 
+/// <summary>Explicit source activation boundary. Both flags are false until separately owner-approved source work is integrated.</summary>
+public sealed record CompetitionContextSourceFeatures(bool ClubEloEnabled, bool RostersEnabled)
+{
+    public bool AnyEnabled => ClubEloEnabled || RostersEnabled;
+}
+
+/// <summary>The exact outer-cycle identity shared by every enabled profile invocation in one context lane.</summary>
+public sealed record CompetitionContextSourceCycleInvocation(
+    BundesligaContextSourceCycleIdentity Identity,
+    string CurrentLaneId,
+    string ProducerLaneId,
+    IReadOnlyList<string> ExpectedConsumers)
+{
+    public void Validate()
+    {
+        BundesligaContextSourceContract.ValidateConsumers(Identity.Scope, ProducerLaneId, ExpectedConsumers);
+        if (!ExpectedConsumers.Contains(CurrentLaneId, StringComparer.Ordinal))
+            throw new InvalidDataException("Current context-source lane is not in the frozen consumer list.");
+        if (Identity.Scope == BundesligaContextSourceScope.Development
+            && CurrentLaneId != BundesligaContextSourceContract.DevelopmentLane)
+            throw new InvalidDataException("Development context-source invocation must use the fixed development lane.");
+    }
+}
+
 public sealed record CompetitionCollectionProfile(
     string Competition,
     string DisplayName,
@@ -56,6 +80,7 @@ public sealed record CompetitionCollectionProfile(
     DateOnly SeasonEndsOn,
     CompetitionPromptRoute PromptRoute,
     CompetitionContextFeatures ContextFeatures,
+    CompetitionContextSourceFeatures ContextSourceFeatures,
     IReadOnlyList<string> ValidationCommands);
 
 public interface ICompetitionCollectionProfileResolver
@@ -112,6 +137,7 @@ public sealed class CompetitionCollectionProfileResolver : ICompetitionCollectio
             HeadToHeadHistory: true,
             KnockoutRules: false,
             Transfers: false),
+        new CompetitionContextSourceFeatures(ClubEloEnabled: false, RostersEnabled: false),
         [
             "dotnet run --project src/Orchestrator -- collect-context-dev --community ehonda-dev-buli-2627 --competition bundesliga-2026-27 --full-season --dry-run --verbose",
             "dotnet run --project src/Orchestrator -- bundesliga-history audit --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27"
@@ -158,6 +184,7 @@ public sealed class CompetitionCollectionProfileResolver : ICompetitionCollectio
             HeadToHeadHistory: false,
             KnockoutRules: true,
             Transfers: false),
+        new CompetitionContextSourceFeatures(ClubEloEnabled: false, RostersEnabled: false),
         [
             "dotnet run --project tests/Orchestrator.Tests -- --treenode-filter \"/*/*/CollectContextDevCommandTests/*\"",
             "dotnet run --project tests/Orchestrator.Tests -- --treenode-filter \"/*/*/Wm26RecentHistoryCommandTests/*\""
@@ -227,6 +254,7 @@ public sealed class CompetitionCollectionProfileResolver : ICompetitionCollectio
         DateOnly seasonEndsOn,
         CompetitionPromptRoute promptRoute,
         CompetitionContextFeatures contextFeatures,
+        CompetitionContextSourceFeatures contextSourceFeatures,
         string[] validationCommands)
     {
         EnsureUniqueNonBlank(competition, "development communities", supportedDevelopmentCommunities, requireNonempty: true);
@@ -290,6 +318,7 @@ public sealed class CompetitionCollectionProfileResolver : ICompetitionCollectio
             seasonEndsOn,
             promptRoute,
             contextFeatures,
+            contextSourceFeatures,
             Array.AsReadOnly(validationCommands));
     }
 

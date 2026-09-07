@@ -1,3 +1,4 @@
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Wm26RecentHistory;
@@ -13,10 +14,15 @@ public sealed record CompetitionCollectorExecutionContext(
     string RecentHistoryDateMap,
     bool DryRun,
     bool Verbose,
-    string? MarkdownSummaryOutput);
+    string? MarkdownSummaryOutput,
+    CompetitionContextSourceCycleInvocation? ContextSourceCycle = null);
 
 public interface ICompetitionProfileCollectorExecutor
 {
+    Task<ContextSourceCyclePreparation?> PrepareContextSourcesAsync(
+        CompetitionCollectorExecutionContext context,
+        CancellationToken cancellationToken = default) => Task.FromResult<ContextSourceCyclePreparation?>(null);
+
     Task<int> ExecuteAsync(
         CompetitionCollector collector,
         CompetitionCollectorExecutionContext context,
@@ -106,6 +112,45 @@ public sealed class CompetitionProfileCollectorExecutor : ICompetitionProfileCol
                 "BundesligaHistoryPlayedDates is included in the immediately preceding Kicktipp collector and must not be invoked separately."),
             _ => throw new ArgumentOutOfRangeException(nameof(collector), collector, "Unsupported profile collector.")
         };
+    }
+
+    public Task<ContextSourceCyclePreparation?> PrepareContextSourcesAsync(
+        CompetitionCollectorExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return ContextSourceCycleCoordinator.ExecuteIfEnabledAsync(
+            context.Profile.ContextSourceFeatures.ClubEloEnabled,
+            context.Profile.ContextSourceFeatures.RostersEnabled,
+            () => ActivatorUtilities.CreateInstance<ContextSourceCycleCoordinator>(_serviceProvider),
+            async (coordinator, enabled) =>
+            {
+                var invocation = context.ContextSourceCycle ?? CreateDevelopmentInvocation(context.Profile.Competition, context.CommunityContext);
+                invocation.Validate();
+                BundesligaContextSourceContract.ValidateConsumerAuthority(invocation.Identity.Scope, invocation.CurrentLaneId, context.CommunityContext);
+                var nowValue = DateTimeOffset.UtcNow;
+                var now = new DateTimeOffset(nowValue.UtcDateTime.Ticks - nowValue.UtcDateTime.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
+                var cycle = new BundesligaContextSourceOuterCycle(invocation.Identity, now, now, invocation.ProducerLaneId,
+                    invocation.ExpectedConsumers, enabled, BundesligaContextSourceCycleStatus.Claiming);
+                var artifactStore = invocation.Identity.Scope == BundesligaContextSourceScope.ProductionLive
+                    ? _serviceProvider.GetRequiredService<IContextSourceBundleArtifactStore>()
+                    : null;
+                return await coordinator.PrepareAsync(
+                    new ContextSourceCycleRequest(cycle, enabled, context.DryRun, invocation.CurrentLaneId),
+                    artifactStore,
+                    cancellationToken);
+            });
+    }
+
+    private static CompetitionContextSourceCycleInvocation CreateDevelopmentInvocation(string competition, string communityContext)
+    {
+        BundesligaContextSourceContract.ValidateConsumerAuthority(BundesligaContextSourceScope.Development, BundesligaContextSourceContract.DevelopmentLane, communityContext);
+        var uuid = Guid.CreateVersion7().ToString("D").ToLowerInvariant();
+        return new CompetitionContextSourceCycleInvocation(
+            BundesligaContextSourceCycleIdentity.Development(competition, uuid),
+            BundesligaContextSourceContract.DevelopmentLane,
+            BundesligaContextSourceContract.DevelopmentLane,
+            BundesligaContextSourceContract.DevelopmentConsumers);
     }
 
     private TCommand Create<TCommand>() where TCommand : notnull

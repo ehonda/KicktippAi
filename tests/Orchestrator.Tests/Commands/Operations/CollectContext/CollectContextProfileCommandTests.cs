@@ -110,6 +110,86 @@ public class CollectContextProfileCommandTests
     }
 
     [Test]
+    public async Task Production_source_cycle_options_forward_the_exact_shared_GHA_lane_contract()
+    {
+        CompetitionCollectorExecutionContext? prepared = null;
+        var executor = CreateExecutor([]);
+        executor.Setup(instance => instance.PrepareContextSourcesAsync(
+                It.IsAny<CompetitionCollectorExecutionContext>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<CompetitionCollectorExecutionContext, CancellationToken>((context, _) => prepared = context)
+            .ReturnsAsync((ContextSourceCyclePreparation?)null);
+        var (app, console) = CreateApp(executor);
+
+        var (exitCode, _) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-profile",
+            "--community-context", "pes-squad",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--enable-roster-source",
+            "--context-source-scope", "production-live",
+            "--context-source-cycle-id", "gha:123:456",
+            "--context-source-current-lane", "pes-squad-context",
+            "--context-source-producer-lane", "pes-squad-context",
+            "--context-source-consumers", string.Join(',', BundesligaContextSourceContract.ProductionConsumers),
+            "--dry-run");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(prepared).IsNotNull();
+        await Assert.That(prepared!.ContextSourceCycle!.Identity.CycleId).IsEqualTo("gha:123:456");
+        await Assert.That(prepared.ContextSourceCycle.Identity.Sequence).IsEqualTo(456);
+        await Assert.That(prepared.ContextSourceCycle.CurrentLaneId).IsEqualTo("pes-squad-context");
+        await Assert.That(prepared.ContextSourceCycle.ProducerLaneId).IsEqualTo("pes-squad-context");
+        await Assert.That(prepared.ContextSourceCycle.ExpectedConsumers.SequenceEqual(BundesligaContextSourceContract.ProductionConsumers, StringComparer.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    [Arguments("pes-squad", null)]
+    [Arguments("pes-squad", "development")]
+    [Arguments("ehonda-dev-buli-2627", "production-live")]
+    public async Task Source_enabled_profiles_fail_closed_without_exact_scope_and_community_lane_authority(string community, string? scope)
+    {
+        var executor = CreateExecutor([]); var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>(); var (app, console) = CreateApp(executor, credentialLoader);
+        var arguments = new List<string> { "collect-context-profile", "--community-context", community, "--competition", CompetitionIds.Bundesliga2026_27, "--enable-roster-source", "--dry-run" };
+        if (scope is not null) arguments.AddRange(["--context-source-scope", scope]);
+        if (scope == "production-live") arguments.AddRange(["--context-source-cycle-id", "gha:123:456", "--context-source-current-lane", "pes-squad-context", "--context-source-producer-lane", "pes-squad-context", "--context-source-consumers", string.Join(',', BundesligaContextSourceContract.ProductionConsumers)]);
+
+        var (exitCode, _) = await RunCommandAsync(app, console, arguments.ToArray());
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        credentialLoader.Verify(loader => loader.Load(It.IsAny<string>()), Times.Never);
+        executor.Verify(instance => instance.PrepareContextSourcesAsync(It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Exact_development_community_may_allocate_the_fixed_development_cycle()
+    {
+        CompetitionCollectorExecutionContext? prepared = null; var executor = CreateExecutor([]);
+        executor.Setup(instance => instance.PrepareContextSourcesAsync(It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>()))
+            .Callback<CompetitionCollectorExecutionContext, CancellationToken>((context, _) => prepared = context).ReturnsAsync((ContextSourceCyclePreparation?)null);
+        var (app, console) = CreateApp(executor);
+
+        var (exitCode, _) = await RunCommandAsync(app, console, "collect-context-profile", "--community-context", BundesligaContextSourceContract.DevelopmentCommunity, "--competition", CompetitionIds.Bundesliga2026_27, "--enable-roster-source", "--context-source-scope", "development", "--dry-run");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(prepared).IsNotNull();
+        await Assert.That(prepared!.ContextSourceCycle).IsNull();
+    }
+
+    [Test]
+    public async Task Disabled_sources_ignore_cycle_options_before_preparation_resolution()
+    {
+        var executor = CreateExecutor([]);
+        var (app, console) = CreateApp(executor);
+        var (exitCode, _) = await RunCommandAsync(app, console, "collect-context-profile",
+            "--community-context", "pes-squad", "--competition", CompetitionIds.Bundesliga2026_27,
+            "--context-source-scope", "not-a-scope", "--context-source-cycle-id", "not-a-cycle", "--dry-run");
+        await Assert.That(exitCode).IsEqualTo(0);
+        executor.Verify(instance => instance.PrepareContextSourcesAsync(It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Bundesliga_profile_runs_only_its_direct_collectors_and_writes_stable_summary()
     {
         var executed = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();

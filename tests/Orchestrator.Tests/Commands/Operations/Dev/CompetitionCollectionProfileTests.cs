@@ -410,6 +410,64 @@ public class CollectContextDevProfileOrchestrationTests
             .And.Contains("Running collector: Kicktipp");
     }
 
+    [Test]
+    public async Task Prepared_context_source_handoff_is_visible_to_collectors_after_real_async_prepare()
+    {
+        var profile = new CompetitionCollectionProfileResolver().ResolveForDevelopment("ehonda-dev-buli-2627") with
+        {
+            ContextSourceFeatures = new CompetitionContextSourceFeatures(false, true)
+        };
+        var identity = BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000099");
+        var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
+        var descriptor = $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"SourceDateRejected\"}}";
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), now, BundesligaContextSourceDisposition.Rejected, descriptor, null, ["UNKNOWN_SOURCE_DATE"]);
+        var files = new ContextSourceBundleFiles(new BundesligaContextSourceBundle(identity, now, now, BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentConsumers, [observation]), new Dictionary<string, byte[]>());
+        var preparation = new ContextSourceCyclePreparation(files, cleanup: false); var observed = new List<ContextSourceCyclePreparation?>();
+        var executor = new Mock<ICompetitionProfileCollectorExecutor>();
+        executor.Setup(value => value.PrepareContextSourcesAsync(It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>())).Returns(async () => { await Task.Delay(1); return preparation; });
+        executor.Setup(value => value.ExecuteAsync(It.IsAny<CompetitionCollector>(), It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>())).Returns(async () => { await Task.Yield(); observed.Add(ContextSourceCyclePreparation.Current); return 0; });
+
+        var exitCode = await CompetitionProfileCollectionRunner.ExecuteAsync(new TestConsole(), executor.Object, new CompetitionProfileCollectionRequest(profile, "ehonda-dev-buli-2627", "ehonda-dev-buli-2627", null, false, "unused.csv", false, false), CancellationToken.None);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(observed).Count().IsEqualTo(3);
+        await Assert.That(observed.All(value => ReferenceEquals(value, preparation))).IsTrue();
+        await Assert.That(ContextSourceCyclePreparation.Current).IsNull();
+    }
+
+    [Test]
+    public async Task Complete_cycle_persisted_receipt_skips_source_collector_publication_for_the_exact_lane()
+    {
+        var profile = new CompetitionCollectionProfileResolver().ResolveCompetition(BundesligaContextSourceContract.Competition) with
+        {
+            ContextSourceFeatures = new CompetitionContextSourceFeatures(false, true)
+        };
+        var identity = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 123, 456);
+        var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
+        var lane = "arena-terra-xhigh-context";
+        var descriptor = $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"SourceDateRejected\"}}";
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), now, BundesligaContextSourceDisposition.Rejected, descriptor, null, ["UNKNOWN_SOURCE_DATE"]);
+        var files = new ContextSourceBundleFiles(new BundesligaContextSourceBundle(identity, now, now, BundesligaContextSourceContract.ProductionConsumers[0], BundesligaContextSourceContract.ProductionConsumers, [observation]), new Dictionary<string, byte[]>());
+        var persistedCycle = new BundesligaContextSourceOuterCycle(identity, now, now, BundesligaContextSourceContract.ProductionConsumers[0], BundesligaContextSourceContract.ProductionConsumers, [BundesligaContextSource.Rosters], BundesligaContextSourceCycleStatus.Complete, files.Digest, $"bundesliga-context-source-bundle-{identity.StorageId}", null, now.AddMinutes(2));
+        var receiptRequest = new BundesligaContextSourceReceiptRequest(identity, BundesligaContextSource.Rosters, lane, "ehonda-ai-arena", observation.ObservationDigest, files.Digest, BundesligaContextSourceSelectionDisposition.CandidateRejected, new string('e', 64), BundesligaContextSourceSelectedOrigin.FallbackSeed, BundesligaContextSourcePublicationDisposition.NotAttempted, new BundesligaContextSourceDates(null, null, new DateOnly(2026, 8, 1), null), new string('a', 40), new BundesligaContextSourceCarriedFields(0, 0, 0, null), [BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown]);
+        var reconciliations = 0;
+        var preparation = new ContextSourceCyclePreparation(files, cleanup: false, lane, persistedCycle, new Dictionary<BundesligaContextSource, BundesligaContextSourceReceipt>
+        {
+            [BundesligaContextSource.Rosters] = new BundesligaContextSourceReceipt(receiptRequest, now.AddMinutes(2))
+        }, (receipt, _) => { reconciliations++; if (receipt.Request != receiptRequest) throw new InvalidDataException("wrong receipt"); return Task.CompletedTask; });
+        var calls = new List<CompetitionCollector>(); var executor = new Mock<ICompetitionProfileCollectorExecutor>();
+        executor.Setup(value => value.PrepareContextSourcesAsync(It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>())).ReturnsAsync(preparation);
+        executor.Setup(value => value.ExecuteAsync(It.IsAny<CompetitionCollector>(), It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>())).Callback<CompetitionCollector, CompetitionCollectorExecutionContext, CancellationToken>((collector, _, _) => calls.Add(collector)).ReturnsAsync(0);
+        var console = new TestConsole();
+
+        var exitCode = await CompetitionProfileCollectionRunner.ExecuteAsync(console, executor.Object, new CompetitionProfileCollectionRequest(profile, "ehonda-ai-arena", "ehonda-ai-arena", null, false, "unused.csv", false, false, ContextSourceCycle: new CompetitionContextSourceCycleInvocation(identity, lane, BundesligaContextSourceContract.ProductionConsumers[0], BundesligaContextSourceContract.ProductionConsumers)), CancellationToken.None);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(calls.SequenceEqual([CompetitionCollector.Kicktipp, CompetitionCollector.ClubElo])).IsTrue();
+        await Assert.That(reconciliations).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("Rosters: PersistedReceiptReplayed").And.Contains(lane);
+    }
+
     private static Mock<ICompetitionProfileCollectorExecutor> CreateExecutor(
         ICollection<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)> calls,
         CompetitionCollector? failedCollector = null,
