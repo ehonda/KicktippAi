@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "id": "p0-closeout-parity",
+  "title": "P0 closeout extractor parity",
+  "summary": "Reproduce the stable normalized extractor outputs against the frozen P0 closeout snapshot.",
+  "eyebrow": "Session-analysis fixture",
+  "published_at": "2026-08-29",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/p0-closeout-session-investigation",
+  "site_path": "session-analysis/p0-closeout",
+  "html_file": "index.html",
+  "focus_ids": [],
+  "analysis": {
+    "root_thread_id": "01a02485-f0b3-7241-a6c7-c6f58fe44509",
+    "root_log_name": "rollout-2026-08-21T15-32-33-01a02485-f0b3-7241-a6c7-c6f58fe44509.jsonl",
+    "event_cutoff_at": "2026-08-28T07:02:32.915000Z",
+    "generated_at": "2026-08-29T12:51:03.672292Z",
+    "timezone": "Europe/Berlin",
+    "privacy": {
+      "include_bounded_excerpts": true
+    },
+    "repository": {
+      "base_commit": "6d0fca306f83c72e26ab4bdbef92ca04154eb9e1",
+      "final_commit": "2c824c8c82bcc157d1db9ae94dce0b27ec87db87"
+    },
+    "pricing": {
+      "as_of": "2026-08-29",
+      "models": {
+        "gpt-5.6-sol": {
+          "input": 4.0,
+          "cached_input": 0.4,
+          "cache_write_input": 5.0,
+          "output": 20.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+        }
+      }
+    },
+    "classification": {
+      "agent_rules": [
+        { "pattern": "p0_0?1(?:_|$)", "group": "P0-01" },
+        { "pattern": "p0_0?2(?:_|$)", "group": "P0-02" },
+        { "pattern": "p0_0?3(?:_|$)", "group": "P0-03" },
+        { "pattern": "p0_0?4(?:_|$)", "group": "P0-04" },
+        { "pattern": "p0_0?5(?:_|$)", "group": "P0-05" },
+        { "pattern": "p0_0?6(?:_|$)", "group": "P0-06" },
+        { "pattern": "p0_0?7(?:_|$)", "group": "P0-07" },
+        { "pattern": "p0_0?8(?:_|$)", "group": "P0-08" },
+        { "pattern": "p0_0?9(?:_|$)", "group": "P0-09" },
+        { "pattern": "p0_?10(?:_|$)", "group": "P0-10" },
+        { "pattern": "p0_?11(?:_|$)", "group": "P0-11" },
+        { "pattern": "p0_?12(?:_|$)", "group": "P0-12" },
+        { "pattern": "p0_?13(?:_|$)", "group": "P0-13" },
+        { "pattern": "p0_?14(?:_|$)", "group": "P0-14" },
+        { "pattern": "p0_?15(?:_|$)", "group": "P0-15" },
+        { "pattern": "p0_?16(?:_|$)", "group": "P0-16" },
+        { "pattern": "p0_?17(?:_|$)", "group": "P0-17" },
+        { "pattern": "p0_?18(?:_|$)", "group": "P0-18" },
+        { "pattern": "p0_?19(?:_|$)", "group": "P0-19" },
+        { "pattern": "p0_?20(?:_|$)", "group": "P0-20" },
+        { "pattern": "p0_?21(?:_|$)", "group": "P0-21" },
+        { "pattern": "p0_?22(?:_|$)", "group": "P0-22" },
+        { "pattern": "p0_?23(?:_|$)", "group": "P0-23" },
+        { "pattern": "p0_?24(?:_|$)", "group": "P0-24" },
+        { "pattern": "p0_?25(?:_|$)", "group": "P0-25" },
+        { "pattern": "schadens", "group": "schadensfresse-closeout" },
+        { "pattern": "roster_enrichment", "group": "P0-25" },
+        { "pattern": "^/root/ci_78f4d3b", "group": "P0-23" },
+        { "pattern": "sol_max_(?:quality|exact)", "group": "P0-23" },
+        { "pattern": "closeout_owner_selection", "group": "P0-06" },
+        { "pattern": "live_arena_ladder", "group": "P0-21" },
+        { "pattern": "production|schedule|activation", "group": "P0-21" },
+        { "pattern": "cost|experiment|quality", "group": "P0-23" },
+        { "pattern": "status|code_seams|orchestration", "group": "orchestration" }
+      ],
+      "default_group": "cross-cutting",
+      "turn_code_regex": "\\b(?P<prefix>P0)[-_ ]?(?P<number>\\d{1,2})\\b"
+    },
+    "injected_message_prefixes": [
+      {
+        "prefix": "# AGENTS.md instructions for ",
+        "category": "injected-repository-context"
+      },
+      {
+        "prefix": "<environment_context>",
+        "category": "injected-environment-context"
+      },
+      {
+        "prefix": "<codex_internal_context source=\"goal\">",
+        "category": "automatic-goal-continuation"
+      }
+    ],
+    "user_message_kinds": {
+      "1": "kickoff",
+      "2": "authorization-or-external-unblock",
+      "3": "status-or-process-question",
+      "4": "authorization-or-external-unblock",
+      "5": "authorization-or-external-unblock",
+      "6": "authorization-or-external-unblock",
+      "7": "scope-correction-or-clarification",
+      "8": "scope-correction-or-clarification",
+      "9": "scope-correction-or-clarification",
+      "10": "authorization-or-external-unblock",
+      "11": "authorization-or-external-unblock",
+      "12": "status-or-process-question",
+      "13": "scope-correction-or-clarification",
+      "14": "scope-correction-or-clarification",
+      "15": "scope-correction-or-clarification",
+      "16": "scope-correction-or-clarification",
+      "17": "scope-correction-or-clarification",
+      "18": "scope-correction-or-clarification",
+      "19": "authorization-or-external-unblock",
+      "20": "authorization-or-external-unblock",
+      "21": "scope-correction-or-clarification",
+      "22": "scope-correction-or-clarification",
+      "23": "authorization-or-external-unblock",
+      "24": "authorization-or-external-unblock",
+      "25": "authorization-or-external-unblock",
+      "26": "status-or-process-question",
+      "27": "status-or-process-question",
+      "28": "authorization-or-external-unblock",
+      "29": "authorization-or-external-unblock",
+      "30": "scope-correction-or-clarification",
+      "31": "authorization-or-external-unblock",
+      "32": "authorization-or-external-unblock",
+      "33": "authorization-or-external-unblock",
+      "34": "authorization-or-external-unblock",
+      "35": "authorization-or-external-unblock",
+      "36": "authorization-or-external-unblock",
+      "37": "authorization-or-external-unblock",
+      "38": "authorization-or-external-unblock",
+      "39": "authorization-or-external-unblock",
+      "40": "authorization-or-external-unblock",
+      "41": "authorization-or-external-unblock",
+      "42": "scope-correction-or-clarification",
+      "43": "scope-correction-or-clarification",
+      "44": "scope-correction-or-clarification",
+      "45": "scope-correction-or-clarification"
+    },
+    "task_files": {
+      "globs": [
+        "plans/bundesliga-2026-27/tasks/p0-*.md"
+      ],
+      "code_regex": "(?P<prefix>p0)-(?P<number>\\d{1,2})"
+    }
+  }
+}

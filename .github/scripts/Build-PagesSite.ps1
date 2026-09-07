@@ -3,6 +3,7 @@ param(
     [string]$CoverageReportDir = "coverage-report",
     [string]$ExperimentAnalysisDir = "experiment-analysis",
     [string]$SessionAnalysisDir = "session-analysis",
+    [string]$SessionAnalysisManifestDir = "docs/codex/session-analysis/reports",
     [string]$OutputDir = "pages-site"
 )
 
@@ -61,6 +62,126 @@ function ConvertTo-TitleLabel {
 
     $textInfo = [System.Globalization.CultureInfo]::InvariantCulture.TextInfo
     return $textInfo.ToTitleCase($clean.ToLowerInvariant())
+}
+
+function Get-SessionAnalysisReports {
+    param(
+        [string]$ManifestDir,
+        [string]$SiteRoot
+    )
+
+    if (-not (Test-Path -LiteralPath $ManifestDir -PathType Container))
+    {
+        throw "Session-analysis manifest directory does not exist: $ManifestDir"
+    }
+
+    $manifestFiles = @(Get-ChildItem -LiteralPath $ManifestDir -File -Filter "*.report.json" | Sort-Object Name)
+    if ($manifestFiles.Count -eq 0)
+    {
+        throw "No session-analysis report manifests found in $ManifestDir"
+    }
+
+    $requiredFields = @(
+        "analysis", "eyebrow", "focus_ids", "html_file", "id", "published_at",
+        "schema_version", "session_kind", "site_path", "source_path", "summary", "title"
+    )
+    $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $sitePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $reports = foreach ($manifestFile in $manifestFiles)
+    {
+        try
+        {
+            $manifest = Get-Content -LiteralPath $manifestFile.FullName -Raw | ConvertFrom-Json
+        }
+        catch
+        {
+            throw "Invalid session-analysis manifest $($manifestFile.FullName): $($_.Exception.Message)"
+        }
+
+        $actualFields = @($manifest.PSObject.Properties.Name | Sort-Object)
+        if (($actualFields -join "`n") -ne ($requiredFields -join "`n"))
+        {
+            throw "Unexpected fields in session-analysis manifest $($manifestFile.Name)"
+        }
+        if ($manifest.schema_version -ne 1)
+        {
+            throw "Unsupported schema_version in $($manifestFile.Name)"
+        }
+        if ([string]$manifest.id -notmatch "^[a-z0-9]+(?:-[a-z0-9]+)*$")
+        {
+            throw "Invalid report ID in $($manifestFile.Name)"
+        }
+        if (-not $ids.Add([string]$manifest.id))
+        {
+            throw "Duplicate session-analysis report ID: $($manifest.id)"
+        }
+        foreach ($field in @("title", "summary", "eyebrow", "published_at", "session_kind", "source_path", "site_path", "html_file"))
+        {
+            if ([string]::IsNullOrWhiteSpace([string]$manifest.$field))
+            {
+                throw "Missing $field in $($manifestFile.Name)"
+            }
+        }
+        foreach ($field in @("source_path", "site_path", "html_file"))
+        {
+            if ([string]$manifest.$field -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
+            {
+                throw "Unsafe $field in $($manifestFile.Name)"
+            }
+        }
+        if ([string]$manifest.site_path -notmatch "^session-analysis/")
+        {
+            throw "site_path must be under session-analysis/ in $($manifestFile.Name)"
+        }
+        if (-not $sitePaths.Add([string]$manifest.site_path))
+        {
+            throw "Duplicate session-analysis site_path: $($manifest.site_path)"
+        }
+        try
+        {
+            $publishedAt = [DateTime]::ParseExact(
+                [string]$manifest.published_at,
+                "yyyy-MM-dd",
+                [Globalization.CultureInfo]::InvariantCulture
+            )
+        }
+        catch
+        {
+            throw "published_at must use YYYY-MM-DD in $($manifestFile.Name)"
+        }
+
+        $publishedHtml = Join-Path $SiteRoot ([string]$manifest.site_path -replace "/", [IO.Path]::DirectorySeparatorChar)
+        $publishedHtml = Join-Path $publishedHtml ([string]$manifest.html_file -replace "/", [IO.Path]::DirectorySeparatorChar)
+        if (-not (Test-Path -LiteralPath $publishedHtml -PathType Leaf))
+        {
+            throw "Published session-analysis HTML is missing for $($manifest.id): $publishedHtml"
+        }
+
+        [pscustomobject]@{
+            Id = [string]$manifest.id
+            Title = [string]$manifest.title
+            Summary = [string]$manifest.summary
+            Eyebrow = [string]$manifest.eyebrow
+            PublishedAt = $publishedAt
+            Href = "$($manifest.site_path)/$($manifest.html_file)"
+        }
+    }
+
+    return @($reports | Sort-Object @{ Expression = "PublishedAt"; Descending = $true }, Title)
+}
+
+function New-SessionAnalysisCards {
+    param([object[]]$Reports)
+
+    $cards = foreach ($report in $Reports)
+    {
+        $href = Escape-Html -Value $report.Href
+        $eyebrow = Escape-Html -Value $report.Eyebrow
+        $title = Escape-Html -Value $report.Title
+        $summary = Escape-Html -Value $report.Summary
+        "<a class='card' href='$href'><span class='eyebrow'>$eyebrow</span><strong>$title</strong><p>$summary</p></a>"
+    }
+    return $cards -join "`n      "
 }
 
 function Get-ExperimentReportTypeLabel {
@@ -436,11 +557,8 @@ New-ExperimentAnalysisIndex -ExperimentRoot $experimentTarget
 
 $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
-$hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-closeout/index.html")
-$hasP1SessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-interim/index.html")
-$hasP1FollowUpAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-follow-up/index.html")
-$hasUrgentProductionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "urgent-production-orchestration/index.html")
-$hasP1ContextRefreshAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-context-refresh/index.html")
+$sessionAnalysisReports = Get-SessionAnalysisReports -ManifestDir $SessionAnalysisManifestDir -SiteRoot $OutputDir
+$sessionAnalysisCards = New-SessionAnalysisCards -Reports $sessionAnalysisReports
 
 $coverageCard = if ($hasCoverage)
 {
@@ -458,51 +576,6 @@ $experimentCard = if ($hasExperimentAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Experiment analysis</span><strong>Published experiment reports</strong><p>No experiment reports have been published yet.</p></section>"
-}
-
-$sessionAnalysisCard = if ($hasSessionAnalysis)
-{
-    "<a class='card' href='session-analysis/p0-closeout/index.html'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>Explore orchestration, cost, interventions, task timing, and autonomous repair.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>No session investigation has been published yet.</p></section>"
-}
-
-$p1SessionAnalysisCard = if ($hasP1SessionAnalysis)
-{
-    "<a class='card' href='session-analysis/p1-orchestration-interim/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>Examine task complexity, machine/tool time, model allocation, review churn, branch gates, and protocol overhead.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>No P1 orchestration investigation has been published yet.</p></section>"
-}
-
-$p1FollowUpAnalysisCard = if ($hasP1FollowUpAnalysis)
-{
-    "<a class='card' href='session-analysis/p1-orchestration-follow-up/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>Compare parallelism, quota-efficiency proxies, machine admission, role behavior, milestone publication, and control-plane overhead.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>No P1 follow-up investigation has been published yet.</p></section>"
-}
-
-$urgentProductionAnalysisCard = if ($hasUrgentProductionAnalysis)
-{
-    "<a class='card' href='session-analysis/urgent-production-orchestration/index.html'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>Assess the PR #98 workflow changes and compare the gpt-6-astra orchestrator cost with gpt-5.6-sol.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>Urgent production orchestration</strong><p>No urgent-production orchestration investigation has been published yet.</p></section>"
-}
-
-$p1ContextRefreshAnalysisCard = if ($hasP1ContextRefreshAnalysis)
-{
-    "<a class='card' href='session-analysis/p1-context-refresh/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 context-refresh orchestration</strong><p>Analyze startup gates, task velocity, review serialization, recovery context, preview churn, model roles, and memory admission.</p></a>"
-}
-else
-{
-    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 context-refresh orchestration</strong><p>No P1 context-refresh investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -629,11 +702,7 @@ $rootIndex = @"
     <section class="grid">
       $coverageCard
       $experimentCard
-      $sessionAnalysisCard
-      $p1SessionAnalysisCard
-      $p1FollowUpAnalysisCard
-      $urgentProductionAnalysisCard
-      $p1ContextRefreshAnalysisCard
+      $sessionAnalysisCards
     </section>
   </main>
 </body>

@@ -95,6 +95,14 @@ Use three context tiers. **Root-read** is concise control-plane policy, current 
 
 Include the run ID, capsule path, and preview path in every task-agent assignment. Never use the former shared `.tmp/orchestration-state.md`, a shared `current` pointer, or another run's artifacts. Existing artifacts from other runs do not activate this workflow and must not be selected by recency. Do not add blocker categories or higher-frequency fields unless a later evaluation proves that native transcripts plus durability snapshots cannot answer a specific operational question.
 
+Session analysis is a separate, owner-invoked post-run workflow. An active
+`$orchestrate` run must not load or invoke `$session-analysis`, read or update
+`docs/codex/session-analysis/focuses.json`, or collect extra journal data merely
+for a later report. The owner records future questions in a dedicated session
+through `$record-session-analysis-focus`; the later analysis reconstructs
+operational evidence from the bounded transcript and authoritative repository
+surfaces.
+
 ### Scheduling And Specialist Lifecycle
 
 The repository config admits up to eight spawned-agent threads, excluding the

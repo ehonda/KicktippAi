@@ -1,0 +1,6 @@
+interface:
+  display_name: "Record Session Analysis Focus"
+  short_description: "Manage recurring session-analysis questions"
+  default_prompt: "Use $record-session-analysis-focus to add or update a focus question."
+policy:
+  allow_implicit_invocation: false

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "p1-orchestration-interim",
+  "title": "P1 orchestration interim",
+  "summary": "Examine task complexity, machine/tool time, model allocation, review churn, branch gates, and protocol overhead.",
+  "eyebrow": "Codex investigation",
+  "published_at": "2026-08-30",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/p1-orchestration-interim-investigation",
+  "site_path": "session-analysis/p1-orchestration-interim",
+  "html_file": "index.html",
+  "focus_ids": [],
+  "analysis": null
+}

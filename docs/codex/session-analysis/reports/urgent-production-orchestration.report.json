@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "urgent-production-orchestration",
+  "title": "Urgent production orchestration",
+  "summary": "Assess the PR #98 workflow changes and compare the gpt-6-astra orchestrator cost with gpt-5.6-sol.",
+  "eyebrow": "Codex investigation",
+  "published_at": "2026-09-05",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/urgent-production-orchestration-investigation",
+  "site_path": "session-analysis/urgent-production-orchestration",
+  "html_file": "index.html",
+  "focus_ids": [],
+  "analysis": null
+}

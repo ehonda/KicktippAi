@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "p0-closeout",
+  "title": "P0 closeout session",
+  "summary": "Explore orchestration, cost, interventions, task timing, and autonomous repair.",
+  "eyebrow": "Codex investigation",
+  "published_at": "2026-08-29",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/p0-closeout-session-investigation",
+  "site_path": "session-analysis/p0-closeout",
+  "html_file": "index.html",
+  "focus_ids": [],
+  "analysis": null
+}
