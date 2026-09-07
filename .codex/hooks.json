@@ -1,19 +1,6 @@
 {
   "description": "Recover active $orchestrate sessions across compaction without affecting ordinary Codex sessions.",
   "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)/.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1\"",
-            "commandWindows": "pwsh -NoProfile -File \"$(git rev-parse --show-toplevel)\\.agents\\skills\\orchestrate\\scripts\\Invoke-OrchestrationCapsuleHook.ps1\"",
-            "timeout": 30,
-            "additionalContextLimit": 0
-          }
-        ]
-      }
-    ],
     "PreCompact": [
       {
         "matcher": "^(manual|auto)$",

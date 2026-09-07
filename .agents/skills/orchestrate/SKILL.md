@@ -34,16 +34,6 @@ not proof of physical unload or proactive process and memory cleanup.
 - Keep the workflow active until the objective is complete or the user stops
   it. A phase or priority objective is valid; expand it during intake before
   admitting writers.
-- Treat operational hook readiness as an execution prerequisite. For an
-  explicit invocation, require the versioned `ORCHESTRATION HOOK TRUST
-  EVIDENCE` injected by the synchronous `UserPromptSubmit` hook. Verify its
-  repository, exact session, `.codex/hooks.json` digest, and recovery-script
-  digest against the current files. The marker proves execution of a trusted
-  current definition but does not activate orchestration. If it is absent or
-  mismatched, remain `awaiting-owner`, ask the owner to review/trust the
-  current definition through `/hooks`, and do not start writers or claim
-  automatic compaction recovery.
-
 ## Establish Run Identity And Preview State
 
 Resolve a root-run ID from `CODEX_THREAD_ID`, falling back to

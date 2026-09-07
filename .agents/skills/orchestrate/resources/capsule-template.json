@@ -26,13 +26,6 @@
     },
     "deferred_nodes": []
   },
-  "hook_trust": {
-    "schema_version": 1,
-    "repository": "https://github.com/ehonda/KicktippAi.git",
-    "session_id": "<exact-hook-session-id>",
-    "hook_definition_sha256": "<64-character-sha256>",
-    "script_sha256": "<64-character-sha256>"
-  },
   "git": {
     "remote": "origin",
     "push_url": "https://github.com/ehonda/KicktippAi.git",

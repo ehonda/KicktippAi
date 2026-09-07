@@ -46,8 +46,8 @@ platform safety requirements still apply.
 
 ## Cross-PR invariants
 
-- Keep fail-closed exact hook trust, session identity, capsule checksum,
-  recovery, Git-target verification, ownership, and heavy-lease safeguards.
+- Keep fail-closed session identity, capsule checksum, recovery, Git-target
+  verification, ownership, and heavy-lease safeguards.
 - A recovery hash verifies byte-level equality without loading the hashed files
   into model context. It is drift detection, not proof of correctness or
   authorship.
@@ -93,9 +93,9 @@ raw-byte SHA-256 values:
 - **Instruction packet:** root `AGENTS.md` and transitive includes, applicable
   nested `AGENTS.md`, `$orchestrate`, and other skill instructions/references
   explicitly governing the frozen graph.
-- **Hook packet:** `.codex/hooks.json` plus the exact kickoff/recovery and
+- **Hook packet:** `.codex/hooks.json` plus the exact recovery and
   packet-construction scripts, worktree and memory admission controls, and
-  checked-in policy inputs whose execution supplies trust, recovery, or
+  checked-in policy inputs whose execution supplies recovery or
   resource-admission evidence.
 - **Active-contract packet:** compact `preview.md` plus only the active task,
   execution packet, design documents, ADRs, and handoff evidence explicitly
@@ -108,7 +108,7 @@ unrelated commits and insufficient for dirty contract drift.
 ### Hot and cold recovery
 
 Hot recovery is allowed only when session identity, capsule checksum/schema,
-packet manifests/digests, exact hook evidence, and ownership reconcile.
+packet manifests/digests, and ownership reconcile.
 
 Cold reconstruction is required for:
 
@@ -135,24 +135,14 @@ Do not parse transcripts or broadly reread unchanged policies, phase history,
 task history, ADR chains, or unrelated evidence during hot recovery. Preserve
 the existing full reconstruction as the cold path.
 
-### Positive hook trust
+### Hook readiness
 
-Add a synchronous `UserPromptSubmit` hook. Because Codex ignores matchers for
-this event, its script must remain silent for ordinary prompts and detect an
-explicit `$orchestrate` invocation itself. Emitting evidence must never activate
-orchestration.
-
-For an explicit invocation, emit a versioned positive marker binding:
-
-- canonical repository identity;
-- current session ID;
-- raw `.codex/hooks.json` digest;
-- relevant kickoff/recovery script digest; and
-- marker schema version.
-
-Successful execution is positive evidence that hooks were enabled and the
-exact current definition was trusted. Absence is ambiguous and remains a
-fail-closed owner gate. A hook or script digest change invalidates the marker.
+Do not gate orchestration startup on prompt-time hook evidence. The
+`UserPromptSubmit` hook and capsule `hook_trust` field are absent, and a missing
+prompt-time marker is not an owner gate. `PreCompact` and compact
+`SessionStart` continue to provide recovery; the hook packet continues to bind
+their configuration and implementation for recovery drift detection. Legacy
+capsules may retain an ignored `hook_trust` field.
 
 ### Compact preview contract
 
@@ -287,9 +277,10 @@ the wholesale README/execution-strategy rewrite.
 
 ### PR 1 validation and review
 
-- Validate capsule/manifest/hot-cold paths, trust-marker silence/emission and
-  mismatch behavior, preview size rules, resource admission/reservations, and
-  the 1.00 GiB memory boundary with deterministic tests.
+- Validate capsule/manifest/hot-cold paths, absence of the prompt-time trust
+  hook and capsule requirement, preview size rules, resource
+  admission/reservations, and the 1.00 GiB memory boundary with deterministic
+  tests.
 - Validate the modified `$orchestrate` skill with the repository-prescribed
   skill validator and forward-test behavior where useful.
 - Run applicable PowerShell tests and repository build/test gates outside the
@@ -308,9 +299,6 @@ One-off directives for the next Bundesliga P1 orchestration run:
 - Before resuming implementation, use a fresh `gpt-6-astra/high` architecture lead to reconcile the shared common-runtime graph and contracts in response to the repeated review/fix churn. Keep this as an architecture role, and use a different `gpt-5.6-sol/xhigh` specification reviewer.
 - For this first run after removing the universal writer cap, allow at most four concurrent writer subagents. This is a run-local entry throttle for later evaluation, not a new workflow-wide limit or occupancy target.
 ```
-
-It must also tell the owner to review and trust the changed `.codex/hooks.json`
-definition through `/hooks` before the next `$orchestrate` writers may start.
 
 ## PR 2 — full Bundesliga archive migration
 
@@ -440,5 +428,4 @@ remain active and update `last_covered_by`.
 The objective is complete only when all three scoped PRs have passed their
 dedicated review/fix and final-review cycles, required checks are green, each PR
 has been merged, local `main` is synchronized after the final merge, retained P1
-worktrees are preserved, and the final handoff reports exact PRs/commits plus the
-required `/hooks` trust step for the next orchestration run.
+worktrees are preserved, and the final handoff reports exact PRs and commits.

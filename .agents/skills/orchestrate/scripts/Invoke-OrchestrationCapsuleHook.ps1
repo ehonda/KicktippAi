@@ -12,7 +12,6 @@ $maximumCapsuleBytes = 8192
 $maximumPreviewBytes = 12288
 $previewWarningBytes = 8192
 $activationMarker = 'kicktippai.orchestrate/v2'
-$trustMarkerSchema = 1
 $canonicalPushUrl = 'https://github.com/ehonda/KicktippAi.git'
 $allowedStatuses = @('preview', 'awaiting-owner', 'ready', 'active', 'complete', 'stopped')
 $allowedBlockers = @('none', 'dependency', 'interview', 'owner', 'resource', 'agent-slot', 'review', 'external')
@@ -109,7 +108,7 @@ function Test-CapsuleStructure {
     $requiredProperties = @(
         'schema_version', 'session_id', 'run_id', 'updated_at_utc', 'status',
         'objective', 'wave', 'stop_condition', 'durable_decisions', 'owner_gates',
-        'blockers', 'freeze', 'hook_trust', 'git', 'ownership_reservations',
+        'blockers', 'freeze', 'git', 'ownership_reservations',
         'resource_state', 'active_heavy_lease', 'retained_agents', 'next_root_action',
         'delegated_next_actions')
     $propertyNames = @($capsule.PSObject.Properties.Name)
@@ -150,7 +149,7 @@ function Test-CapsuleStructure {
         }
     }
 
-    foreach ($objectField in @('freeze', 'hook_trust', 'git', 'resource_state')) {
+    foreach ($objectField in @('freeze', 'git', 'resource_state')) {
         if ($null -eq $capsule.$objectField -or $capsule.$objectField -isnot [pscustomobject]) {
             return New-ValidationResult $false 'invalid-field-type' "capsule.json field '$objectField' must be an object." $null
         }
@@ -160,9 +159,6 @@ function Test-CapsuleStructure {
         freeze = @(
             'preview_path', 'instruction_manifest', 'hook_manifest',
             'active_contract_manifest', 'deferred_nodes')
-        hook_trust = @(
-            'schema_version', 'repository', 'session_id',
-            'hook_definition_sha256', 'script_sha256')
         git = @(
             'remote', 'push_url', 'integration_branch', 'allowed_branch_prefix',
             'initial_sha', 'latest_integrated_sha', 'latest_pushed_sha',
@@ -205,15 +201,6 @@ function Test-CapsuleStructure {
         if ([string] $reference.path -cne $expectedPath -or [string] $reference.sha256 -notmatch '^[A-Fa-f0-9]{64}$') {
             return New-ValidationResult $false 'invalid-manifest-reference' "freeze.$field is not an exact run-scoped manifest reference." $null
         }
-    }
-
-    if (
-        [int] $capsule.hook_trust.schema_version -ne $trustMarkerSchema -or
-        [string] $capsule.hook_trust.repository -cne $canonicalPushUrl -or
-        [string] $capsule.hook_trust.session_id -cne $ExpectedRunId -or
-        [string] $capsule.hook_trust.hook_definition_sha256 -notmatch '^[A-Fa-f0-9]{64}$' -or
-        [string] $capsule.hook_trust.script_sha256 -notmatch '^[A-Fa-f0-9]{64}$') {
-        return New-ValidationResult $false 'invalid-hook-trust' 'hook_trust does not contain exact current-definition evidence for this run.' $null
     }
 
     if (
@@ -570,20 +557,11 @@ function Test-RecoveryPackets {
         }
     }
 
-    $hooksPath = Join-Path $RepositoryRoot '.codex/hooks.json'
-    $scriptDigest = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    $hooksDigest = (Get-FileHash -LiteralPath $hooksPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    if (
-        $hooksDigest -ne ([string] $Capsule.hook_trust.hook_definition_sha256).ToLowerInvariant() -or
-        $scriptDigest -ne ([string] $Capsule.hook_trust.script_sha256).ToLowerInvariant()) {
-        return New-ValidationResult $false 'hook-trust-mismatch' 'Current hook definition or recovery script does not match the positive trust evidence.' $Capsule
-    }
-
     $message = if ((Get-Item -LiteralPath $Paths.Preview).Length -gt $previewWarningBytes) {
         "Recovery packets are valid; preview.md exceeds the $previewWarningBytes-byte target."
     }
     else {
-        'Recovery packets and hook trust are valid.'
+        'Recovery packets are valid.'
     }
     return New-ValidationResult $true 'hot' $message $Capsule
 }
@@ -693,34 +671,7 @@ if ([string]::IsNullOrWhiteSpace($sessionId)) {
 }
 $eventName = [string] $hookInput.hook_event_name
 
-if ($eventName -eq 'UserPromptSubmit') {
-    $prompt = [string] $hookInput.prompt
-    if ($prompt -notmatch '(?<![A-Za-z0-9_-])\$orchestrate(?![A-Za-z0-9_-])') {
-        exit 0
-    }
-
-    $hooksPath = Join-Path $RepositoryRoot '.codex/hooks.json'
-    if (-not (Test-Path -LiteralPath $hooksPath -PathType Leaf)) {
-        exit 0
-    }
-    $observedPushUrl = (& git -C $RepositoryRoot remote get-url --push origin 2>$null | Select-Object -First 1)
-    if ($LASTEXITCODE -ne 0 -or [string] $observedPushUrl -cne $canonicalPushUrl) {
-        exit 0
-    }
-    $evidence = [ordered] @{
-        schema_version = $trustMarkerSchema
-        repository = [string] $observedPushUrl
-        session_id = $sessionId
-        hook_definition_sha256 = (Get-FileHash -LiteralPath $hooksPath -Algorithm SHA256).Hash.ToLowerInvariant()
-        script_sha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash.ToLowerInvariant()
-    }
-    $evidenceJson = $evidence | ConvertTo-Json -Compress
-    [pscustomobject] @{
-        hookSpecificOutput = [pscustomobject] @{
-            hookEventName = 'UserPromptSubmit'
-            additionalContext = "ORCHESTRATION HOOK TRUST EVIDENCE (does not activate orchestration): $evidenceJson"
-        }
-    } | ConvertTo-Json -Depth 5 -Compress
+if ($eventName -notin @('PreCompact', 'SessionStart')) {
     exit 0
 }
 
@@ -775,7 +726,7 @@ The explicit orchestration workflow may still be active. Before substantive work
 else {
     $compactCapsule = $validation.Capsule | ConvertTo-Json -Depth 12 -Compress
     $context = @"
-HOT `$orchestrate RECOVERY for exact session '$sessionId'. The capsule checksum/schema, recovery packets, exact hook evidence, and preview ceiling are validated. Do not reread unchanged policies, phase/task history, ADR chains, or unrelated evidence. Run .agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1 once for compact local Git/worktree/resource/lease reconciliation, inspect live agents once, and query remote CI only if the immediate next action depends on it. If ownership does not reconcile, switch to the cold path. Read an unchanged active contract only when the validated preview is insufficient for the immediate control-plane decision. Use only the exact run directory; never select another run by recency.
+HOT `$orchestrate RECOVERY for exact session '$sessionId'. The capsule checksum/schema, recovery packet digests, and preview ceiling are validated. Do not reread unchanged policies, phase/task history, ADR chains, or unrelated evidence. Run .agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1 once for compact local Git/worktree/resource/lease reconciliation, inspect live agents once, and query remote CI only if the immediate next action depends on it. If ownership does not reconcile, switch to the cold path. Read an unchanged active contract only when the validated preview is insufficient for the immediate control-plane decision. Use only the exact run directory; never select another run by recency.
 VALIDATED ORCHESTRATION CAPSULE:
 $compactCapsule
 "@

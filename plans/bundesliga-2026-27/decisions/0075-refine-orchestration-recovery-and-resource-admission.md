@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-09-07
+- Refined by: [ADR-0076](0076-pause-orchestration-hook-readiness-gate.md)
 
 ## Context
 
