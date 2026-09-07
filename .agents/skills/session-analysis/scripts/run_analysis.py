@@ -19,7 +19,7 @@ from zoneinfo import ZoneInfo
 
 from focus_registry import RegistryError, require
 from privacy_checks import verify_text_privacy
-from report_manifest import normalized_text_sha256, read_manifest
+from report_manifest import normalized_text_sha256, read_manifest, resolve_within
 
 
 def load_engine() -> Any:
@@ -265,11 +265,7 @@ def verify_snapshot_lock(
     module: Any, sessions_dir: pathlib.Path, repo: pathlib.Path,
     analysis: dict[str, Any], create: bool,
 ) -> pathlib.Path:
-    lock_path = (repo / analysis["snapshot_lock"]).resolve()
-    try:
-        lock_path.relative_to(repo)
-    except ValueError as error:
-        raise RegistryError("snapshot lock must be inside the repository") from error
+    lock_path = resolve_within(repo, analysis["snapshot_lock"], "analysis.snapshot_lock")
     actual = build_snapshot_lock(module, sessions_dir, analysis)
     if not lock_path.exists():
         require(create, f"snapshot lock is missing: {analysis['snapshot_lock']}")
@@ -332,16 +328,30 @@ def main() -> None:
     except ValueError as error:
         raise RegistryError("report manifest must be inside the repository") from error
     verify_commits(repo, analysis)
-    output_dir = args.output_dir or (repo / manifest["analysis_file"]).parent
+    source_path = resolve_within(repo, manifest["source_path"], "manifest.source_path")
+    expected_analysis_path = resolve_within(
+        repo, manifest["analysis_file"], "manifest.analysis_file"
+    )
+    try:
+        expected_analysis_path.relative_to(source_path)
+    except ValueError as error:
+        raise RegistryError("manifest.analysis_file resolves outside source_path") from error
+    output_dir = args.output_dir or expected_analysis_path.parent
     output_dir = output_dir.resolve()
     module = load_engine()
     configure_engine(module, analysis)
     sessions_dir = args.sessions_dir.resolve()
+    expected_snapshot_lock = resolve_within(
+        repo, analysis["snapshot_lock"], "analysis.snapshot_lock"
+    )
+    try:
+        expected_snapshot_lock.relative_to(source_path)
+    except ValueError as error:
+        raise RegistryError("analysis.snapshot_lock resolves outside source_path") from error
     snapshot_lock = verify_snapshot_lock(
         module, sessions_dir, repo, analysis, args.create_snapshot_lock
     )
     if not args.parity_output:
-        expected_analysis_path = (repo / manifest["analysis_file"]).resolve()
         require(
             output_dir / "analysis.json" == expected_analysis_path,
             "output directory must match the manifest analysis_file parent",
@@ -357,6 +367,7 @@ def main() -> None:
         module.main()
     finally:
         sys.argv = original_argv
+    verify_snapshot_lock(module, sessions_dir, repo, analysis, create=False)
     if not args.parity_output:
         annotate_output(
             output_dir, manifest_path, manifest_pointer, manifest, repo, snapshot_lock

@@ -81,14 +81,135 @@ function Get-NormalizedTextSha256 {
     }
 }
 
+function Resolve-ContainedPath {
+    param(
+        [string]$Root,
+        [string]$RelativePath,
+        [string]$Field
+    )
+
+    if ($RelativePath -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+        @($RelativePath -split "/" | Where-Object { $_ -in @("", ".", "..") }).Count -ne 0)
+    {
+        throw "$Field must be a safe normalized relative path"
+    }
+    $resolvedRoot = if (Test-Path -LiteralPath $Root)
+    {
+        (Resolve-Path -LiteralPath $Root).Path.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    }
+    else
+    {
+        [IO.Path]::GetFullPath($Root).TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
+    }
+    $candidate = [IO.Path]::GetFullPath((Join-Path $resolvedRoot ($RelativePath -replace "/", [IO.Path]::DirectorySeparatorChar)))
+    if (Test-Path -LiteralPath $candidate)
+    {
+        $candidate = (Resolve-Path -LiteralPath $candidate).Path
+    }
+    $prefix = $resolvedRoot + [IO.Path]::DirectorySeparatorChar
+    if (-not $candidate.StartsWith($prefix, [StringComparison]::OrdinalIgnoreCase))
+    {
+        throw "$Field resolves outside its allowed root"
+    }
+    return $candidate
+}
+
+function Get-PublishableText {
+    param([string]$Path)
+
+    $bytes = [IO.File]::ReadAllBytes($Path)
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xff -and $bytes[1] -eq 0xfe)
+    {
+        return [Text.Encoding]::Unicode.GetString($bytes)
+    }
+    if ($bytes.Length -ge 2 -and $bytes[0] -eq 0xfe -and $bytes[1] -eq 0xff)
+    {
+        return [Text.Encoding]::BigEndianUnicode.GetString($bytes)
+    }
+    try
+    {
+        return ([Text.UTF8Encoding]::new($false, $true)).GetString($bytes)
+    }
+    catch [Text.DecoderFallbackException]
+    {
+        if ($bytes -contains 0)
+        {
+            return $null
+        }
+        $sampleLength = [Math]::Min(8192, $bytes.Length)
+        $controls = 0
+        for ($index = 0; $index -lt $sampleLength; $index++)
+        {
+            if ($bytes[$index] -lt 32 -and $bytes[$index] -notin @(9, 10, 13))
+            {
+                $controls++
+            }
+        }
+        if ($sampleLength -gt 0 -and ($controls / $sampleLength) -gt 0.05)
+        {
+            return $null
+        }
+        return [Text.Encoding]::GetEncoding(1252).GetString($bytes)
+    }
+}
+
+function Assert-PublishableTextPrivacy {
+    param([string[]]$Paths)
+
+    $patterns = @(
+        '(?i)(?:[A-Z]:[\\/]+(?:Users|Documents and Settings)[\\/]+|/(?:home|Users)/)[^\\/\s]+',
+        '-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----',
+        '\b(?:sk-(?:proj-)?|ghp_|github_pat_|glpat-)[A-Za-z0-9_-]{16,}',
+        '\bAKIA[0-9A-Z]{16}\b',
+        '(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{20,}'
+    )
+    $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($path in $Paths)
+    {
+        $files = if (Test-Path -LiteralPath $path -PathType Container)
+        {
+            @(Get-ChildItem -LiteralPath $path -File -Recurse)
+        }
+        elseif (Test-Path -LiteralPath $path -PathType Leaf)
+        {
+            @((Get-Item -LiteralPath $path))
+        }
+        else
+        {
+            @()
+        }
+        foreach ($file in $files)
+        {
+            if (-not $seen.Add($file.FullName))
+            {
+                continue
+            }
+            $content = Get-PublishableText -Path $file.FullName
+            if ($null -eq $content)
+            {
+                continue
+            }
+            foreach ($pattern in $patterns)
+            {
+                if ($content -match $pattern)
+                {
+                    throw "Private path or possible credential remains in publishable output: $($file.FullName)"
+                }
+            }
+        }
+    }
+}
+
 function Test-SessionAnalysisArtifact {
     param(
         [object]$Manifest,
         [string]$ManifestPath,
-        [string]$RepoRoot
+        [string]$RepoRoot,
+        [string]$SourcePath
     )
 
-    $analysisPath = Join-Path $RepoRoot ([string]$Manifest.analysis_file -replace "/", [IO.Path]::DirectorySeparatorChar)
+    $analysisRelative = ([string]$Manifest.analysis_file).Substring(([string]$Manifest.source_path).Length + 1)
+    $analysisPath = Resolve-ContainedPath -Root $SourcePath -RelativePath $analysisRelative -Field "analysis_file"
     if (-not (Test-Path -LiteralPath $analysisPath -PathType Leaf))
     {
         throw "Normalized session-analysis artifact is missing for $($Manifest.id): $analysisPath"
@@ -126,7 +247,12 @@ function Test-SessionAnalysisArtifact {
     {
         throw "Normalized session-analysis snapshot contract drifted for $($Manifest.id)"
     }
-    $lockPath = Join-Path $RepoRoot ([string]$expected.snapshot_lock -replace "/", [IO.Path]::DirectorySeparatorChar)
+    if (-not ([string]$expected.snapshot_lock).StartsWith(([string]$Manifest.source_path) + "/", [StringComparison]::Ordinal))
+    {
+        throw "snapshot_lock must be under source_path for $($Manifest.id)"
+    }
+    $lockRelative = ([string]$expected.snapshot_lock).Substring(([string]$Manifest.source_path).Length + 1)
+    $lockPath = Resolve-ContainedPath -Root $SourcePath -RelativePath $lockRelative -Field "snapshot_lock"
     if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf))
     {
         throw "Session-analysis snapshot lock is missing for $($Manifest.id): $lockPath"
@@ -142,7 +268,7 @@ function Test-SessionAnalysisArtifact {
 function Get-SessionAnalysisReports {
     param(
         [string]$ManifestDir,
-        [string]$SiteRoot,
+        [string]$SessionSourceRoot,
         [string]$RepoRoot
     )
 
@@ -216,6 +342,7 @@ function Get-SessionAnalysisReports {
                 throw "Future report requires analysis and analysis_file in $($manifestFile.Name)"
             }
             if ([string]$manifest.analysis_file -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+                @(([string]$manifest.analysis_file) -split "/" | Where-Object { $_ -in @("", ".", "..") }).Count -ne 0 -or
                 -not ([string]$manifest.analysis_file).StartsWith(([string]$manifest.source_path) + "/"))
             {
                 throw "Unsafe analysis_file in $($manifestFile.Name)"
@@ -230,7 +357,8 @@ function Get-SessionAnalysisReports {
         }
         foreach ($field in @("source_path", "site_path", "html_file"))
         {
-            if ([string]$manifest.$field -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$")
+            if ([string]$manifest.$field -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+                @(([string]$manifest.$field) -split "/" | Where-Object { $_ -in @("", ".", "..") }).Count -ne 0)
             {
                 throw "Unsafe $field in $($manifestFile.Name)"
             }
@@ -256,20 +384,23 @@ function Get-SessionAnalysisReports {
             throw "published_at must use YYYY-MM-DD in $($manifestFile.Name)"
         }
 
-        $publishedHtml = Join-Path $SiteRoot ([string]$manifest.site_path -replace "/", [IO.Path]::DirectorySeparatorChar)
-        $publishedHtml = Join-Path $publishedHtml ([string]$manifest.html_file -replace "/", [IO.Path]::DirectorySeparatorChar)
+        $relativeSitePath = ([string]$manifest.site_path).Substring("session-analysis/".Length)
+        $reportDirectory = Resolve-ContainedPath -Root $SessionSourceRoot -RelativePath $relativeSitePath -Field "site_path"
+        $publishedHtml = Resolve-ContainedPath -Root $reportDirectory -RelativePath ([string]$manifest.html_file) -Field "html_file"
         if (-not (Test-Path -LiteralPath $publishedHtml -PathType Leaf))
         {
             throw "Published session-analysis HTML is missing for $($manifest.id): $publishedHtml"
         }
-        $sourcePath = Join-Path $RepoRoot ([string]$manifest.source_path -replace "/", [IO.Path]::DirectorySeparatorChar)
+        $sourcePath = Resolve-ContainedPath -Root $RepoRoot -RelativePath ([string]$manifest.source_path) -Field "source_path"
         if (-not (Test-Path -LiteralPath $sourcePath -PathType Container))
         {
             throw "Session-analysis source path is missing for $($manifest.id): $sourcePath"
         }
+        Assert-PublishableTextPrivacy -Paths @($manifestFile.FullName, $reportDirectory)
         if (-not $expectedLegacy)
         {
-            Test-SessionAnalysisArtifact -Manifest $manifest -ManifestPath $manifestFile.FullName -RepoRoot $RepoRoot
+            Test-SessionAnalysisArtifact -Manifest $manifest -ManifestPath $manifestFile.FullName -RepoRoot $RepoRoot -SourcePath $sourcePath
+            Assert-PublishableTextPrivacy -Paths @($sourcePath)
         }
 
         [pscustomobject]@{
@@ -279,6 +410,9 @@ function Get-SessionAnalysisReports {
             Eyebrow = [string]$manifest.eyebrow
             PublishedAt = $publishedAt
             Href = "$($manifest.site_path)/$($manifest.html_file)"
+            SitePath = [string]$manifest.site_path
+            HtmlFile = [string]$manifest.html_file
+            SourceHtml = $publishedHtml
         }
     }
 
@@ -667,13 +801,20 @@ $sessionAnalysisTarget = Join-Path $OutputDir "session-analysis"
 
 Copy-DirectoryContents -SourceDir $CoverageReportDir -DestinationDir $coverageTarget
 Copy-DirectoryContents -SourceDir $ExperimentAnalysisDir -DestinationDir $experimentTarget
-Copy-DirectoryContents -SourceDir $SessionAnalysisDir -DestinationDir $sessionAnalysisTarget
 New-ExperimentAnalysisIndex -ExperimentRoot $experimentTarget
 
 $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
 $resolvedRepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
-$sessionAnalysisReports = Get-SessionAnalysisReports -ManifestDir $SessionAnalysisManifestDir -SiteRoot $OutputDir -RepoRoot $resolvedRepositoryRoot
+$resolvedSessionAnalysisSource = [IO.Path]::GetFullPath($SessionAnalysisDir)
+$sessionAnalysisReports = Get-SessionAnalysisReports -ManifestDir $SessionAnalysisManifestDir -SessionSourceRoot $resolvedSessionAnalysisSource -RepoRoot $resolvedRepositoryRoot
+foreach ($report in $sessionAnalysisReports)
+{
+    $destinationDirectory = Resolve-ContainedPath -Root $OutputDir -RelativePath $report.SitePath -Field "published site_path"
+    $destinationHtml = Resolve-ContainedPath -Root $destinationDirectory -RelativePath $report.HtmlFile -Field "published html_file"
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($destinationHtml)) -Force | Out-Null
+    Copy-Item -LiteralPath $report.SourceHtml -Destination $destinationHtml -Force
+}
 $sessionAnalysisCards = New-SessionAnalysisCards -Reports $sessionAnalysisReports
 
 $coverageCard = if ($hasCoverage)
@@ -826,4 +967,5 @@ $rootIndex = @"
 "@
 
 Set-Content -Path (Join-Path $OutputDir "index.html") -Value $rootIndex -Encoding utf8
+Assert-PublishableTextPrivacy -Paths @($sessionAnalysisTarget, (Join-Path $OutputDir "index.html"))
 Write-Host "Pages site written to $OutputDir"

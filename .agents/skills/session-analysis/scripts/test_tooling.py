@@ -13,6 +13,7 @@ import uuid
 from collections.abc import Iterator
 
 import focus_registry
+import privacy_checks
 import report_manifest
 import run_analysis
 import create_report_shell
@@ -197,6 +198,12 @@ class FocusRegistryTests(unittest.TestCase):
 
 
 class ReportManifestTests(unittest.TestCase):
+    def test_relative_paths_reject_traversal_components(self) -> None:
+        for value in ("../outside", "source/./file.json", "source/../outside.json"):
+            with self.subTest(value=value):
+                with self.assertRaises(focus_registry.RegistryError):
+                    report_manifest.require_relative_path(value, "test.path")
+
     def test_normalized_text_digest_ignores_line_endings(self) -> None:
         with temporary_directory() as directory:
             path = pathlib.Path(directory) / "contract.json"
@@ -387,6 +394,18 @@ class ReportManifestTests(unittest.TestCase):
             with self.assertRaisesRegex(focus_registry.RegistryError, "duplicate CSP directive"):
                 report_manifest.verify_self_contained_html(path)
 
+    def test_self_contained_html_rejects_executable_content_before_csp(self) -> None:
+        with temporary_directory() as directory:
+            path = pathlib.Path(directory) / "index.html"
+            path.write_text(
+                "<!doctype html><html><head><script>new Image().src='https://example.com/x'</script>"
+                "<meta http-equiv='Content-Security-Policy' "
+                f"content=\"{report_manifest.OFFLINE_CSP}\"></head><body>offline</body></html>",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(focus_registry.RegistryError, "must precede"):
+                report_manifest.verify_self_contained_html(path)
+
     def test_self_contained_html_rejects_network_bypass_shapes(self) -> None:
         csp = (
             "<!doctype html><html><head><meta http-equiv='Content-Security-Policy' "
@@ -414,6 +433,13 @@ class ReportManifestTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(focus_registry.RegistryError, "possible credential"):
                 run_analysis.verify_output_privacy(path.parent)
+
+    def test_output_privacy_scans_unlisted_text_formats_and_generic_homes(self) -> None:
+        with temporary_directory() as directory:
+            path = pathlib.Path(directory) / "diagram.svg"
+            path.write_text("<text>/home/another-user/private/session.jsonl</text>", encoding="utf-8")
+            with self.assertRaisesRegex(focus_registry.RegistryError, "private user-home"):
+                privacy_checks.verify_text_privacy([path.parent])
 
 
 class ExtractorTests(unittest.TestCase):

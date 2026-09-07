@@ -34,6 +34,8 @@ $sessionDir = Join-Path $testRoot "session-analysis"
 $outputDir = Join-Path $testRoot "site"
 $missingArtifactOutputDir = Join-Path $testRoot "missing-artifact-site"
 $duplicateOutputDir = Join-Path $testRoot "duplicate-site"
+$traversalOutputDir = Join-Path $testRoot "traversal-site"
+$privacyOutputDir = Join-Path $testRoot "privacy-site"
 
 try
 {
@@ -50,6 +52,9 @@ try
 
     $newReportDir = Join-Path $sessionDir "manifest-discovery-test"
     New-Item -ItemType Directory -Path $newReportDir -Force | Out-Null
+    $unmanifestedDir = Join-Path $sessionDir "not-in-manifest"
+    New-Item -ItemType Directory -Path $unmanifestedDir -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $unmanifestedDir "index.html") -Encoding utf8 -Value "unmanifested"
     $csp = "default-src 'none'; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:"
     Set-Content -LiteralPath (Join-Path $newReportDir "index.html") -Encoding utf8 -Value "<!doctype html><html><head><meta http-equiv=`"Content-Security-Policy`" content=`"$csp`"></head><body>discovered</body></html>"
 
@@ -122,6 +127,74 @@ try
     if ($actualCards -ne $expectedCards)
     {
         throw "Expected $expectedCards session-analysis cards, found $actualCards"
+    }
+    if (Test-Path -LiteralPath (Join-Path $outputDir "session-analysis\not-in-manifest"))
+    {
+        throw "An unmanifested session-analysis directory was published"
+    }
+
+    $originalSitePath = $manifest.site_path
+    $manifest.site_path = "session-analysis/../escape"
+    $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    $traversalRejected = $false
+    try
+    {
+        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+            -SessionAnalysisDir $sessionDir `
+            -SessionAnalysisManifestDir $manifestDir `
+            -RepositoryRoot $testRepo `
+            -OutputDir $traversalOutputDir
+    }
+    catch
+    {
+        if ($_.Exception.Message -notmatch "Unsafe site_path|safe normalized relative path")
+        {
+            throw
+        }
+        $traversalRejected = $true
+    }
+    finally
+    {
+        $manifest.site_path = $originalSitePath
+        $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    }
+    if (-not $traversalRejected)
+    {
+        throw "A traversal-bearing site_path was accepted"
+    }
+
+    $originalSummary = $manifest.summary
+    $manifest.summary = "Leaked C:\Users\reviewer\private"
+    $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    $privacyRejected = $false
+    try
+    {
+        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+            -SessionAnalysisDir $sessionDir `
+            -SessionAnalysisManifestDir $manifestDir `
+            -RepositoryRoot $testRepo `
+            -OutputDir $privacyOutputDir
+    }
+    catch
+    {
+        if ($_.Exception.Message -notmatch "Private path or possible credential")
+        {
+            throw
+        }
+        $privacyRejected = $true
+    }
+    finally
+    {
+        $manifest.summary = $originalSummary
+        $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    }
+    if (-not $privacyRejected)
+    {
+        throw "A manifest containing a private home path was accepted"
     }
 
     $analysisPath = Join-Path $sourceDir "analysis.json"

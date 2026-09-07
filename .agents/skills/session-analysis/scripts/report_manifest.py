@@ -56,12 +56,32 @@ class OfflineHtmlParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.csp_values: list[str] = []
         self.violations: list[str] = []
+        self.csp_placement_violations: list[str] = []
+        self.in_head = False
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() == "head":
+            self.in_head = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         tag = tag.lower()
         values = {name.lower(): value or "" for name, value in attrs}
-        if tag == "meta" and values.get("http-equiv", "").lower() == "content-security-policy":
+        if tag == "head":
+            self.in_head = True
+        is_csp = (
+            tag == "meta" and
+            values.get("http-equiv", "").lower() == "content-security-policy"
+        )
+        protected_tags = {
+            "audio", "body", "embed", "iframe", "img", "link", "object", "script",
+            "source", "style", "video",
+        }
+        if is_csp:
+            if not self.in_head or self.csp_values:
+                self.csp_placement_violations.append("ineffective CSP placement")
             self.csp_values.append(values.get("content", ""))
+        elif tag in protected_tags and not self.csp_values:
+            self.csp_placement_violations.append(f"<{tag}> before CSP")
         if tag == "meta" and values.get("http-equiv", "").lower() == "refresh":
             self.violations.append("meta refresh")
         if tag in {"embed", "iframe", "object"}:
@@ -115,6 +135,21 @@ def require_relative_path(value: Any, field: str) -> None:
         isinstance(value, str) and RELATIVE_PATH.fullmatch(value) is not None,
         f"{field} must be a normalized repository-relative path without '..'",
     )
+    require(
+        all(component not in {"", ".", ".."} for component in value.split("/")),
+        f"{field} must not contain empty, '.' or '..' components",
+    )
+
+
+def resolve_within(root: pathlib.Path, relative: str, field: str) -> pathlib.Path:
+    require_relative_path(relative, field)
+    resolved_root = root.resolve()
+    target = (resolved_root / relative).resolve()
+    try:
+        target.relative_to(resolved_root)
+    except ValueError as error:
+        raise RegistryError(f"{field} resolves outside its allowed root") from error
+    return target
 
 
 def normalized_text_sha256(path: pathlib.Path) -> str:
@@ -329,7 +364,12 @@ def verify_analysis_artifact(
 ) -> None:
     if manifest["legacy"]:
         return
-    analysis_path = repo / manifest["analysis_file"]
+    source_path = resolve_within(repo, manifest["source_path"], "manifest.source_path")
+    analysis_path = resolve_within(repo, manifest["analysis_file"], "manifest.analysis_file")
+    try:
+        analysis_path.relative_to(source_path)
+    except ValueError as error:
+        raise RegistryError("manifest.analysis_file resolves outside source_path") from error
     analysis = load_json(analysis_path)
     source = analysis.get("source")
     require(isinstance(source, dict), f"{analysis_path}: source object is required")
@@ -353,7 +393,11 @@ def verify_analysis_artifact(
         source.get("bounded_excerpts_included") == expected["privacy"]["include_bounded_excerpts"],
         f"{analysis_path}: privacy mode drifted",
     )
-    lock_path = repo / expected["snapshot_lock"]
+    lock_path = resolve_within(repo, expected["snapshot_lock"], "manifest.analysis.snapshot_lock")
+    try:
+        lock_path.relative_to(source_path)
+    except ValueError as error:
+        raise RegistryError("manifest.analysis.snapshot_lock resolves outside source_path") from error
     require(lock_path.is_file(), f"{manifest_path}: snapshot lock is missing")
     lock = load_json(lock_path)
     require(
@@ -424,13 +468,16 @@ def verify_manifest_set(
         for focus_id in manifest["focus_ids"]:
             require(focus_id in focuses, f"{path}: unknown focus ID {focus_id}")
             coverage.setdefault(focus_id, []).append((path, manifest))
-        require((repo / manifest["source_path"]).is_dir(), f"{path}: source_path does not exist")
+        source_path = resolve_within(repo, manifest["source_path"], f"{path}.source_path")
+        require(source_path.is_dir(), f"{path}: source_path does not exist")
         verify_analysis_artifact(path, manifest, repo)
         if verify_html:
-            html_path = repo / manifest["site_path"] / manifest["html_file"]
+            report_dir = resolve_within(repo, manifest["site_path"], f"{path}.site_path")
+            html_path = resolve_within(report_dir, manifest["html_file"], f"{path}.html_file")
             verify_self_contained_html(html_path, require_offline_csp=not manifest["legacy"])
+            verify_text_privacy([path, report_dir])
             if not manifest["legacy"]:
-                verify_text_privacy([repo / manifest["source_path"], html_path])
+                verify_text_privacy([source_path])
 
     for focus in focuses.values():
         for field in ("last_covered_by", "retired_by"):
@@ -483,6 +530,10 @@ def verify_self_contained_html(path: pathlib.Path, require_offline_csp: bool = T
     parser.feed(html)
     require(not parser.violations, f"external runtime asset in {path}: {parser.violations[:1]}")
     if require_offline_csp:
+        require(
+            not parser.csp_placement_violations,
+            f"Content-Security-Policy must precede executable or resource content in {path}",
+        )
         require(len(parser.csp_values) == 1, f"one offline Content-Security-Policy is required in {path}")
         directives = parse_csp(parser.csp_values[0])
         for directive, expected in REQUIRED_CSP.items():

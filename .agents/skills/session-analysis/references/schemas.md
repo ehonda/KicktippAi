@@ -50,6 +50,12 @@ digest, focus IDs, root/cutoff, Git range, privacy mode, and snapshot-lock path
 and digest. Discovery fails if any binding drifts.
 
 Future report HTML carries the offline CSP emitted by the report-shell helper.
+The CSP must appear in `head` before script, style, body, or resource-capable
+elements. Manifest paths reject `.` and `..` components and are resolved under
+their repository, source, report, and publication roots before use. Pages copies
+only the manifest-declared self-contained HTML file and privacy-checks the
+manifest, complete report directory, future source directory, and generated
+session-analysis publication surface.
 The validator rejects unknown fields, unsafe paths, network-capable HTML assets,
 and high-confidence private-path or credential leakage. Run it rather than
 copying an example by hand.

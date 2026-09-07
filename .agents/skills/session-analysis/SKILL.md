@@ -61,7 +61,9 @@ state denominator, cutoff, overlap, and pricing limitations near the claim.
    question-driven structure the report needs. The helper refuses to overwrite
    an existing report. Keep its offline Content-Security-Policy. Runtime CSS,
    JavaScript, fonts, and data must be embedded; ordinary source hyperlinks may
-   remain external.
+   remain external. Keep every manifest path repository-relative and free of
+   `.` or `..` components. Validation scans the manifest, complete report
+   directory, and future source directory for private paths and likely secrets.
 5. Put in `focus_ids` only focuses actually addressed by the reviewed report.
    If this changes the manifest after extraction, rerun the locked extraction
    so the normalized artifact carries the final manifest digest and focus IDs.
@@ -72,7 +74,8 @@ state denominator, cutoff, overlap, and pricing limitations near the claim.
    one-offs and advances only `last_covered_by` for standing focuses. Validate
    the complete manifest set again afterward.
 
-The Pages builder discovers reports only through valid manifests. Publication,
+The Pages builder discovers and copies only the self-contained HTML files named
+by valid manifests; unmanifested report directories are never deployed. Publication,
 commit, push, or merge follows the repository's normal authorization and exact-
 target checks; invoking this skill alone does not expand external authority.
 

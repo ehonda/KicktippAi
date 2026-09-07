@@ -10,7 +10,9 @@ or a universal report schema.
 - `reports/*.report.json` is the manifest set used for focus coverage and GitHub
   Pages discovery. The fixed five historical reports use `legacy: true` with
   null analysis fields and remain frozen. New reports must bind a normalized
-  artifact and transcript snapshot lock before discovery.
+  artifact and transcript snapshot lock before discovery. The Pages builder
+  copies only manifest-declared report files; unmanifested directories are not
+  deployed.
 - Report-specific metrics, enrichment, findings, data shapes, and
   visualizations live with each purpose-named report under `docs/codex/`.
 
