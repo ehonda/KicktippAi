@@ -35,6 +35,8 @@ $outputDir = Join-Path $testRoot "site"
 $missingArtifactOutputDir = Join-Path $testRoot "missing-artifact-site"
 $traversalOutputDir = Join-Path $testRoot "traversal-site"
 $privacyOutputDir = Join-Path $testRoot "privacy-site"
+$analysisNameOutputDir = Join-Path $testRoot "analysis-name-site"
+$htmlAliasOutputDir = Join-Path $testRoot "html-alias-site"
 $filenameOutputDir = Join-Path $testRoot "filename-site"
 $caseCollisionOutputDir = Join-Path $testRoot "case-collision-site"
 
@@ -196,6 +198,70 @@ try
     if (-not $privacyRejected)
     {
         throw "A manifest containing a private home path was accepted"
+    }
+
+    $originalAnalysisFile = $manifest.analysis_file
+    $manifest.analysis_file = "docs/codex/manifest-discovery-test/data/normalized.json"
+    $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    $analysisNameRejected = $false
+    try
+    {
+        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+            -SessionAnalysisDir $sessionDir `
+            -SessionAnalysisManifestDir $manifestDir `
+            -RepositoryRoot $testRepo `
+            -OutputDir $analysisNameOutputDir
+    }
+    catch
+    {
+        if ($_.Exception.Message -notmatch "analysis_file must end in analysis.json")
+        {
+            throw
+        }
+        $analysisNameRejected = $true
+    }
+    finally
+    {
+        $manifest.analysis_file = $originalAnalysisFile
+        $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    }
+    if (-not $analysisNameRejected)
+    {
+        throw "A future report whose normalized artifact is not named analysis.json was accepted"
+    }
+
+    $originalHtmlFile = $manifest.html_file
+    $manifest.html_file = "nested/index.html"
+    $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    $htmlAliasRejected = $false
+    try
+    {
+        & (Join-Path $PSScriptRoot "Build-PagesSite.ps1") `
+            -CoverageReportDir (Join-Path $testRoot "missing-coverage") `
+            -ExperimentAnalysisDir (Join-Path $testRoot "missing-experiments") `
+            -SessionAnalysisDir $sessionDir `
+            -SessionAnalysisManifestDir $manifestDir `
+            -RepositoryRoot $testRepo `
+            -OutputDir $htmlAliasOutputDir
+    }
+    catch
+    {
+        if ($_.Exception.Message -notmatch "html_file must be a basename")
+        {
+            throw
+        }
+        $htmlAliasRejected = $true
+    }
+    finally
+    {
+        $manifest.html_file = $originalHtmlFile
+        $manifest | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $manifestPath -Encoding utf8
+    }
+    if (-not $htmlAliasRejected)
+    {
+        throw "A report with a nested html_file destination was accepted"
     }
 
     $wrongManifestPath = Join-Path $manifestDir "wrong-name.report.json"

@@ -344,6 +344,7 @@ def validate_manifest(manifest: dict[str, Any], label: str = "manifest") -> None
     require(manifest["site_path"].startswith("session-analysis/"), f"{label}.site_path must be under session-analysis/")
     require_relative_path(manifest["html_file"], f"{label}.html_file")
     require(manifest["html_file"].endswith(".html"), f"{label}.html_file must be HTML")
+    require("/" not in manifest["html_file"], f"{label}.html_file must be a basename")
     focus_ids = manifest["focus_ids"]
     require(
         isinstance(focus_ids, list) and
@@ -365,7 +366,10 @@ def validate_manifest(manifest: dict[str, Any], label: str = "manifest") -> None
     else:
         require(manifest["analysis"] is not None, f"{label}: future reports require analysis")
         require_relative_path(manifest["analysis_file"], f"{label}.analysis_file")
-        require(manifest["analysis_file"].endswith(".json"), f"{label}.analysis_file must be JSON")
+        require(
+            pathlib.PurePosixPath(manifest["analysis_file"]).name == "analysis.json",
+            f"{label}.analysis_file must end in analysis.json",
+        )
         require(
             manifest["analysis_file"].startswith(manifest["source_path"] + "/"),
             f"{label}.analysis_file must be under source_path",

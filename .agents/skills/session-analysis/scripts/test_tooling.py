@@ -262,6 +262,14 @@ class ReportManifestTests(unittest.TestCase):
         manifest["legacy"] = False
         with self.assertRaisesRegex(focus_registry.RegistryError, "future reports require analysis"):
             report_manifest.validate_manifest(manifest)
+        manifest["analysis"] = analysis_config(manifest["source_path"])
+        manifest["analysis_file"] = manifest["source_path"] + "/normalized.json"
+        with self.assertRaisesRegex(focus_registry.RegistryError, "must end in analysis.json"):
+            report_manifest.validate_manifest(manifest)
+        manifest["analysis_file"] = manifest["source_path"] + "/analysis.json"
+        manifest["html_file"] = "nested/index.html"
+        with self.assertRaisesRegex(focus_registry.RegistryError, "must be a basename"):
+            report_manifest.validate_manifest(manifest)
 
     def test_report_shell_is_self_contained_and_escapes_metadata(self) -> None:
         manifest = {

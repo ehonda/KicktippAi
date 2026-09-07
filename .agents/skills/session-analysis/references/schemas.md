@@ -37,7 +37,10 @@ Every discoverable report has one
 
 The manifest filename is exactly `<id>.report.json`. Publication `site_path`
 values are unique under a case-insensitive comparison so the same report set
-behaves identically on Windows and case-sensitive CI hosts.
+behaves identically on Windows and case-sensitive CI hosts. `html_file` is one
+self-contained basename, preventing two distinct manifests from aliasing the
+same destination. The normalized artifact path ends in `analysis.json`, matching
+the shared extractor's fixed output contract.
 
 An extraction configuration fixes the root thread/log, UTC cutoff, generation
 timestamp, timezone, an explicit privacy choice for bounded excerpts, a

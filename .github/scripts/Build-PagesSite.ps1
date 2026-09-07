@@ -378,6 +378,10 @@ function Get-SessionAnalysisReports {
             {
                 throw "Unsafe analysis_file in $($manifestFile.Name)"
             }
+            if (-not ([string]$manifest.analysis_file).EndsWith("/analysis.json", [StringComparison]::Ordinal))
+            {
+                throw "analysis_file must end in analysis.json in $($manifestFile.Name)"
+            }
         }
         foreach ($field in @("title", "summary", "eyebrow", "published_at", "session_kind", "source_path", "site_path", "html_file"))
         {
@@ -393,6 +397,10 @@ function Get-SessionAnalysisReports {
             {
                 throw "Unsafe $field in $($manifestFile.Name)"
             }
+        }
+        if (([string]$manifest.html_file).Contains("/"))
+        {
+            throw "html_file must be a basename in $($manifestFile.Name)"
         }
         if ([string]$manifest.site_path -notmatch "^session-analysis/")
         {
