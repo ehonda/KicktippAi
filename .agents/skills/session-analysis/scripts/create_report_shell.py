@@ -8,7 +8,7 @@ import html
 import pathlib
 
 from focus_registry import RegistryError, require
-from report_manifest import read_manifest, verify_self_contained_html
+from report_manifest import OFFLINE_CSP, read_manifest, verify_self_contained_html
 
 
 def render_report_shell(manifest: dict) -> str:
@@ -21,6 +21,7 @@ def render_report_shell(manifest: dict) -> str:
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="{OFFLINE_CSP}">
   <title>{title}</title>
   <style>
     :root {{ color-scheme: light; --bg: #f4efe6; --panel: #fffaf2; --text: #211c18; --muted: #6d6258; --accent: #a94f30; }}

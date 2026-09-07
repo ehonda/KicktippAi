@@ -33,6 +33,7 @@ SESSION_FINAL_COMMIT = "2c824c8"
 EVENT_CUTOFF_UTC: datetime | None = None
 ANALYSIS_GENERATED_AT_UTC: str | None = None
 INCLUDE_BOUNDED_EXCERPTS = False
+SESSION_LOG_ROOT = pathlib.Path.home() / ".codex" / "sessions"
 
 # Filled from official OpenAI model pages and intentionally date-stamped in
 # the generated output. Rates are USD per one million tokens.
@@ -539,6 +540,15 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
         outcome = "completed" if turn_id in completions else "aborted" if aborted else "incomplete"
         context = contexts.get(turn_id, {})
         last_message = completion.get("last_agent_message") or ""
+        raw_error = completion.get("error") or (aborted or {}).get("reason")
+        error_text = sanitize_text(str(raw_error)) if raw_error else None
+        error_category = None
+        if error_text:
+            error_category = (
+                "usage-limit" if "usage_limit_exceeded" in error_text
+                else "aborted" if outcome == "aborted"
+                else "task-error"
+            )
         turns.append({
             "thread_id": meta["thread_id"],
             "agent_path": meta["agent_path"],
@@ -554,8 +564,11 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
             "outcome": outcome,
             "model": context.get("model", "unknown"),
             "reasoning_effort": context.get("effort", "unknown"),
-            "error": sanitize_text(str(completion.get("error") or (aborted or {}).get("reason")))
-            if completion.get("error") or (aborted or {}).get("reason") else None,
+            "error": error_text[:300].rstrip()
+            if error_text and INCLUDE_BOUNDED_EXCERPTS else None,
+            "error_category": error_category,
+            "error_sha256": hashlib.sha256(str(raw_error).encode("utf-8")).hexdigest()
+            if raw_error else None,
             "result_sha256": hashlib.sha256(last_message.encode("utf-8")).hexdigest() if last_message else None,
             "result_excerpt": sanitize_text(last_message)[:300].rstrip()
             if last_message and INCLUDE_BOUNDED_EXCERPTS else None,
@@ -592,7 +605,7 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
         "nickname": meta["nickname"],
         "role": meta["role"],
         "task_group": task_group(meta["agent_path"]),
-        "log_file": str(path.relative_to(pathlib.Path.home() / ".codex" / "sessions")),
+        "log_file": str(path.relative_to(SESSION_LOG_ROOT)),
         "log_bytes": included_log_bytes,
         "log_lines": line_count,
         "spawned_at": iso_utc(spawn_time or first_timestamp),
@@ -943,6 +956,7 @@ def write_csv(path: pathlib.Path, rows: list[dict[str, Any]], fields: list[str])
 
 
 def main() -> None:
+    global SESSION_LOG_ROOT
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--sessions-dir",
@@ -961,6 +975,7 @@ def main() -> None:
     )
     parser.add_argument("--quiet", action="store_true")
     args = parser.parse_args()
+    SESSION_LOG_ROOT = args.sessions_dir.resolve()
     root_candidates = list(args.sessions_dir.rglob(ROOT_LOG_NAME))
     if len(root_candidates) != 1:
         raise SystemExit(f"Expected exactly one root log, found {len(root_candidates)}")

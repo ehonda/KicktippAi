@@ -4,6 +4,7 @@ param(
     [string]$ExperimentAnalysisDir = "experiment-analysis",
     [string]$SessionAnalysisDir = "session-analysis",
     [string]$SessionAnalysisManifestDir = "docs/codex/session-analysis/reports",
+    [string]$RepositoryRoot = ".",
     [string]$OutputDir = "pages-site"
 )
 
@@ -64,10 +65,85 @@ function ConvertTo-TitleLabel {
     return $textInfo.ToTitleCase($clean.ToLowerInvariant())
 }
 
+function Get-NormalizedTextSha256 {
+    param([string]$Path)
+
+    $content = [IO.File]::ReadAllText($Path).Replace("`r`n", "`n").Replace("`r", "`n")
+    $bytes = [Text.Encoding]::UTF8.GetBytes($content)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try
+    {
+        return [Convert]::ToHexString($sha.ComputeHash($bytes)).ToLowerInvariant()
+    }
+    finally
+    {
+        $sha.Dispose()
+    }
+}
+
+function Test-SessionAnalysisArtifact {
+    param(
+        [object]$Manifest,
+        [string]$ManifestPath,
+        [string]$RepoRoot
+    )
+
+    $analysisPath = Join-Path $RepoRoot ([string]$Manifest.analysis_file -replace "/", [IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $analysisPath -PathType Leaf))
+    {
+        throw "Normalized session-analysis artifact is missing for $($Manifest.id): $analysisPath"
+    }
+    $analysis = Get-Content -LiteralPath $analysisPath -Raw | ConvertFrom-Json
+    if ($null -eq $analysis.source)
+    {
+        throw "Normalized session-analysis artifact has no source object: $analysisPath"
+    }
+    $source = $analysis.source
+    if ($source.complete_message_bodies_included -ne $false)
+    {
+        throw "Normalized session-analysis artifact does not exclude complete messages for $($Manifest.id)"
+    }
+    $relativeManifest = [IO.Path]::GetRelativePath($RepoRoot, $ManifestPath).Replace("\", "/")
+    $manifestHash = Get-NormalizedTextSha256 -Path $ManifestPath
+    if ([string]$source.report_manifest -cne $relativeManifest -or
+        [string]$source.report_manifest_sha256 -cne $manifestHash)
+    {
+        throw "Normalized session-analysis manifest binding drifted for $($Manifest.id)"
+    }
+    if ((@($source.focus_ids) | ConvertTo-Json -Compress) -cne (@($Manifest.focus_ids) | ConvertTo-Json -Compress))
+    {
+        throw "Normalized session-analysis focus IDs drifted for $($Manifest.id)"
+    }
+    $expected = $Manifest.analysis
+    $rootLog = ([string]$source.root_log).Replace("\", "/").Split("/")[-1]
+    if ([string]$analysis.generated_at -cne [string]$expected.generated_at -or
+        [string]$source.root_thread_id -cne [string]$expected.root_thread_id -or
+        $rootLog -cne [string]$expected.root_log_name -or
+        [string]$source.event_cutoff_at -cne [string]$expected.event_cutoff_at -or
+        [string]$source.repository.base_commit -cne [string]$expected.repository.base_commit -or
+        [string]$source.repository.final_commit -cne [string]$expected.repository.final_commit -or
+        [bool]$source.bounded_excerpts_included -ne [bool]$expected.privacy.include_bounded_excerpts)
+    {
+        throw "Normalized session-analysis snapshot contract drifted for $($Manifest.id)"
+    }
+    $lockPath = Join-Path $RepoRoot ([string]$expected.snapshot_lock -replace "/", [IO.Path]::DirectorySeparatorChar)
+    if (-not (Test-Path -LiteralPath $lockPath -PathType Leaf))
+    {
+        throw "Session-analysis snapshot lock is missing for $($Manifest.id): $lockPath"
+    }
+    $lockHash = Get-NormalizedTextSha256 -Path $lockPath
+    if ([string]$source.snapshot_lock -cne [string]$expected.snapshot_lock -or
+        [string]$source.snapshot_lock_sha256 -cne $lockHash)
+    {
+        throw "Normalized session-analysis snapshot-lock binding drifted for $($Manifest.id)"
+    }
+}
+
 function Get-SessionAnalysisReports {
     param(
         [string]$ManifestDir,
-        [string]$SiteRoot
+        [string]$SiteRoot,
+        [string]$RepoRoot
     )
 
     if (-not (Test-Path -LiteralPath $ManifestDir -PathType Container))
@@ -82,9 +158,15 @@ function Get-SessionAnalysisReports {
     }
 
     $requiredFields = @(
-        "analysis", "eyebrow", "focus_ids", "html_file", "id", "published_at",
-        "schema_version", "session_kind", "site_path", "source_path", "summary", "title"
+        "analysis", "analysis_file", "eyebrow", "focus_ids", "html_file", "id",
+        "legacy", "published_at", "schema_version", "session_kind", "site_path",
+        "source_path", "summary", "title"
     )
+    $legacyIds = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    @(
+        "p0-closeout", "p1-context-refresh", "p1-orchestration-follow-up",
+        "p1-orchestration-interim", "urgent-production-orchestration"
+    ) | ForEach-Object { [void]$legacyIds.Add($_) }
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $sitePaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $reports = foreach ($manifestFile in $manifestFiles)
@@ -114,6 +196,30 @@ function Get-SessionAnalysisReports {
         if (-not $ids.Add([string]$manifest.id))
         {
             throw "Duplicate session-analysis report ID: $($manifest.id)"
+        }
+        $expectedLegacy = $legacyIds.Contains([string]$manifest.id)
+        if ($manifest.legacy -isnot [bool] -or [bool]$manifest.legacy -ne $expectedLegacy)
+        {
+            throw "legacy must match the fixed report allowlist in $($manifestFile.Name)"
+        }
+        if ($expectedLegacy)
+        {
+            if ($null -ne $manifest.analysis -or $null -ne $manifest.analysis_file -or @($manifest.focus_ids).Count -ne 0)
+            {
+                throw "Legacy report fields are invalid in $($manifestFile.Name)"
+            }
+        }
+        else
+        {
+            if ($null -eq $manifest.analysis -or [string]::IsNullOrWhiteSpace([string]$manifest.analysis_file))
+            {
+                throw "Future report requires analysis and analysis_file in $($manifestFile.Name)"
+            }
+            if ([string]$manifest.analysis_file -notmatch "^[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*$" -or
+                -not ([string]$manifest.analysis_file).StartsWith(([string]$manifest.source_path) + "/"))
+            {
+                throw "Unsafe analysis_file in $($manifestFile.Name)"
+            }
         }
         foreach ($field in @("title", "summary", "eyebrow", "published_at", "session_kind", "source_path", "site_path", "html_file"))
         {
@@ -155,6 +261,15 @@ function Get-SessionAnalysisReports {
         if (-not (Test-Path -LiteralPath $publishedHtml -PathType Leaf))
         {
             throw "Published session-analysis HTML is missing for $($manifest.id): $publishedHtml"
+        }
+        $sourcePath = Join-Path $RepoRoot ([string]$manifest.source_path -replace "/", [IO.Path]::DirectorySeparatorChar)
+        if (-not (Test-Path -LiteralPath $sourcePath -PathType Container))
+        {
+            throw "Session-analysis source path is missing for $($manifest.id): $sourcePath"
+        }
+        if (-not $expectedLegacy)
+        {
+            Test-SessionAnalysisArtifact -Manifest $manifest -ManifestPath $manifestFile.FullName -RepoRoot $RepoRoot
         }
 
         [pscustomobject]@{
@@ -557,7 +672,8 @@ New-ExperimentAnalysisIndex -ExperimentRoot $experimentTarget
 
 $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
-$sessionAnalysisReports = Get-SessionAnalysisReports -ManifestDir $SessionAnalysisManifestDir -SiteRoot $OutputDir
+$resolvedRepositoryRoot = [IO.Path]::GetFullPath($RepositoryRoot)
+$sessionAnalysisReports = Get-SessionAnalysisReports -ManifestDir $SessionAnalysisManifestDir -SiteRoot $OutputDir -RepoRoot $resolvedRepositoryRoot
 $sessionAnalysisCards = New-SessionAnalysisCards -Reports $sessionAnalysisReports
 
 $coverageCard = if ($hasCoverage)

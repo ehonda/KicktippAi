@@ -10,5 +10,7 @@
   "site_path": "session-analysis/p0-closeout",
   "html_file": "index.html",
   "focus_ids": [],
+  "legacy": true,
+  "analysis_file": null,
   "analysis": null
 }

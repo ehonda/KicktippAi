@@ -8,23 +8,18 @@ import fnmatch
 import hashlib
 import importlib.util
 import json
+import os
 import pathlib
 import re
 import subprocess
 import sys
+import uuid
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from focus_registry import RegistryError, require
-from report_manifest import read_manifest
-
-
-SECRET_PATTERNS = (
-    re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    re.compile(r"\b(?:sk-(?:proj-)?|ghp_|github_pat_|glpat-)[A-Za-z0-9_-]{16,}"),
-    re.compile(r"\bAKIA[0-9A-Z]{16}\b"),
-    re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]{20,}", flags=re.IGNORECASE),
-)
+from privacy_checks import verify_text_privacy
+from report_manifest import normalized_text_sha256, read_manifest
 
 
 def load_engine() -> Any:
@@ -211,9 +206,82 @@ def verify_commits(repo: pathlib.Path, analysis: dict[str, Any]) -> None:
     require(ancestor.returncode == 0, "base_commit must be an ancestor of final_commit")
 
 
+def build_snapshot_lock(
+    module: Any, sessions_dir: pathlib.Path, analysis: dict[str, Any]
+) -> dict[str, Any]:
+    root_candidates = list(sessions_dir.rglob(analysis["root_log_name"]))
+    require(len(root_candidates) == 1, f"expected one root log, found {len(root_candidates)}")
+    family, guardians = module.discover_family(sessions_dir, root_candidates[0])
+    entries: list[dict[str, Any]] = []
+    for meta in family + guardians:
+        path = meta["path"].resolve()
+        try:
+            relative = path.relative_to(sessions_dir).as_posix()
+        except ValueError as error:
+            raise RegistryError(f"session log is outside the supplied sessions root: {path}") from error
+        digest = hashlib.sha256()
+        included_bytes = 0
+        included_records = 0
+        with path.open("rb") as handle:
+            for raw_line in handle:
+                record = json.loads(raw_line.decode("utf-8"))
+                record_time = module.parse_time(record.get("timestamp"))
+                if record_time is None or record_time > module.EVENT_CUTOFF_UTC:
+                    continue
+                digest.update(raw_line)
+                included_bytes += len(raw_line)
+                included_records += 1
+        entries.append({
+            "thread_id": meta["thread_id"],
+            "log_file": relative,
+            "included_bytes": included_bytes,
+            "included_records": included_records,
+            "sha256": digest.hexdigest(),
+        })
+    entries.sort(key=lambda entry: (entry["log_file"], entry["thread_id"]))
+    return {
+        "schema_version": 1,
+        "root_thread_id": analysis["root_thread_id"],
+        "event_cutoff_at": analysis["event_cutoff_at"],
+        "threads": entries,
+    }
+
+
+def write_json_atomic(path: pathlib.Path, value: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.{os.getpid()}.{uuid.uuid4().hex}.tmp")
+    try:
+        with temporary.open("x", encoding="utf-8", newline="\n") as handle:
+            handle.write(json.dumps(value, indent=2, ensure_ascii=False) + "\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary.exists():
+            temporary.unlink()
+
+
+def verify_snapshot_lock(
+    module: Any, sessions_dir: pathlib.Path, repo: pathlib.Path,
+    analysis: dict[str, Any], create: bool,
+) -> pathlib.Path:
+    lock_path = (repo / analysis["snapshot_lock"]).resolve()
+    try:
+        lock_path.relative_to(repo)
+    except ValueError as error:
+        raise RegistryError("snapshot lock must be inside the repository") from error
+    actual = build_snapshot_lock(module, sessions_dir, analysis)
+    if not lock_path.exists():
+        require(create, f"snapshot lock is missing: {analysis['snapshot_lock']}")
+        write_json_atomic(lock_path, actual)
+    expected = json.loads(lock_path.read_text(encoding="utf-8"))
+    require(expected == actual, f"transcript family or cutoff-bounded bytes drifted from {analysis['snapshot_lock']}")
+    return lock_path
+
+
 def annotate_output(
     output_dir: pathlib.Path, manifest_path: pathlib.Path, manifest_pointer: str,
-    manifest: dict[str, Any],
+    manifest: dict[str, Any], repo: pathlib.Path, snapshot_lock: pathlib.Path,
 ) -> None:
     analysis_path = output_dir / "analysis.json"
     analysis = json.loads(analysis_path.read_text(encoding="utf-8"))
@@ -221,34 +289,23 @@ def annotate_output(
         analysis["source"].get("complete_message_bodies_included") is False,
         "extractor must not include complete message bodies",
     )
-    manifest_bytes = manifest_path.read_bytes()
     analysis["source"]["report_manifest"] = manifest_pointer
-    analysis["source"]["report_manifest_sha256"] = hashlib.sha256(manifest_bytes).hexdigest()
+    analysis["source"]["report_manifest_sha256"] = normalized_text_sha256(manifest_path)
     analysis["source"]["focus_ids"] = manifest["focus_ids"]
     analysis["source"]["bounded_excerpts_included"] = (
         manifest["analysis"]["privacy"]["include_bounded_excerpts"]
     )
+    analysis["source"]["event_cutoff_at"] = manifest["analysis"]["event_cutoff_at"]
+    analysis["source"]["repository"] = manifest["analysis"]["repository"]
+    analysis["source"]["snapshot_lock"] = snapshot_lock.relative_to(repo).as_posix()
+    analysis["source"]["snapshot_lock_sha256"] = normalized_text_sha256(snapshot_lock)
     analysis_path.write_text(
         json.dumps(analysis, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
     )
 
 
 def verify_output_privacy(output_dir: pathlib.Path) -> None:
-    home = str(pathlib.Path.home())
-    home_variants = {home.casefold(), home.replace("\\", "/").casefold()}
-    for path in output_dir.iterdir():
-        if not path.is_file():
-            continue
-        content = path.read_text(encoding="utf-8", errors="replace")
-        folded_content = content.casefold()
-        require(
-            not any(value and value in folded_content for value in home_variants),
-            f"private user-home path remains in extracted output: {path.name}",
-        )
-        require(
-            not any(pattern.search(content) for pattern in SECRET_PATTERNS),
-            f"possible credential remains in extracted output: {path.name}",
-        )
+    verify_text_privacy([output_dir])
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -258,6 +315,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo", type=pathlib.Path, default=pathlib.Path("."))
     parser.add_argument("--output-dir", type=pathlib.Path)
     parser.add_argument("--quiet", action="store_true")
+    parser.add_argument("--create-snapshot-lock", action="store_true")
     parser.add_argument("--parity-output", action="store_true", help=argparse.SUPPRESS)
     return parser
 
@@ -274,14 +332,24 @@ def main() -> None:
     except ValueError as error:
         raise RegistryError("report manifest must be inside the repository") from error
     verify_commits(repo, analysis)
-    output_dir = args.output_dir or repo / manifest["source_path"] / "data"
+    output_dir = args.output_dir or (repo / manifest["analysis_file"]).parent
     output_dir = output_dir.resolve()
     module = load_engine()
     configure_engine(module, analysis)
+    sessions_dir = args.sessions_dir.resolve()
+    snapshot_lock = verify_snapshot_lock(
+        module, sessions_dir, repo, analysis, args.create_snapshot_lock
+    )
+    if not args.parity_output:
+        expected_analysis_path = (repo / manifest["analysis_file"]).resolve()
+        require(
+            output_dir / "analysis.json" == expected_analysis_path,
+            "output directory must match the manifest analysis_file parent",
+        )
     original_argv = sys.argv
     sys.argv = [
         str(pathlib.Path(module.__file__)),
-        "--sessions-dir", str(args.sessions_dir.resolve()),
+        "--sessions-dir", str(sessions_dir),
         "--output-dir", str(output_dir),
         "--repo", str(repo),
     ] + (["--quiet"] if args.quiet else [])
@@ -289,9 +357,11 @@ def main() -> None:
         module.main()
     finally:
         sys.argv = original_argv
-    verify_output_privacy(output_dir)
     if not args.parity_output:
-        annotate_output(output_dir, manifest_path, manifest_pointer, manifest)
+        annotate_output(
+            output_dir, manifest_path, manifest_pointer, manifest, repo, snapshot_lock
+        )
+    verify_output_privacy(output_dir)
     print(f"Session analysis extracted to {output_dir}")
 
 

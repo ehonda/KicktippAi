@@ -22,7 +22,9 @@ rejects likely duplicate or overlapping active focuses; use `--allow-overlap`
 only after confirming that the new focus is intentionally distinct.
 
 Supported operations are `list`, `validate`, `add`, `update`, `supersede`, and
-`retire`. `retire` requires the exact covering report pointer. Prefer
+`retire`. `retire` requires the canonical accepted report manifest to list the
+focus; the helper derives and validates the pointer rather than accepting raw
+report metadata. Prefer
 `supersede` when a better standing question replaces an older one. Never hand-
 edit report-resolution pointers or append a coverage-history array.
 
@@ -31,6 +33,7 @@ Run from the repository root with repository-local Python tooling:
 ```powershell
 $env:PYTHONDONTWRITEBYTECODE = '1'
 uv --cache-dir .uv-cache run python -B .agents/skills/record-session-analysis-focus/scripts/manage_focuses.py --registry docs/codex/session-analysis/focuses.json list --status active
+uv --cache-dir .uv-cache run python -B .agents/skills/record-session-analysis-focus/scripts/manage_focuses.py --registry docs/codex/session-analysis/focuses.json retire --id <focus-id> --manifest docs/codex/session-analysis/reports/<report-id>.report.json
 ```
 
 This skill changes a repository file only. Commit or publication still follows

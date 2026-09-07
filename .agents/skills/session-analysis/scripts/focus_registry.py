@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import pathlib
@@ -12,6 +13,11 @@ import unicodedata
 import uuid
 from datetime import date
 from typing import Any, Iterable
+
+
+if __name__ == "__main__":
+    import sys
+    sys.modules.setdefault("focus_registry", sys.modules[__name__])
 
 
 SCHEMA_VERSION = 1
@@ -135,6 +141,12 @@ def validate_focus(focus: Any, index: int) -> None:
     )
     validate_report_pointer(resolution["last_covered_by"], f"{label}.resolution.last_covered_by")
     validate_report_pointer(resolution["retired_by"], f"{label}.resolution.retired_by")
+    for pointer_name in ("last_covered_by", "retired_by"):
+        pointer = resolution[pointer_name]
+        require(
+            pointer is None or pointer["covered_at"] >= focus["created_at"],
+            f"{label}.resolution.{pointer_name} predates focus creation",
+        )
     superseded_by = resolution["superseded_by"]
     require(
         superseded_by is None or
@@ -152,6 +164,10 @@ def validate_focus(focus: Any, index: int) -> None:
             )
     elif focus["status"] == "retired":
         require(resolution["retired_by"] is not None, f"{label}: retired focus needs a report pointer")
+        require(
+            resolution["last_covered_by"] == resolution["retired_by"],
+            f"{label}: retired focus pointers must match",
+        )
         require(resolution["superseded_by"] is None, f"{label}: retired focus cannot be superseded")
     else:
         require(resolution["superseded_by"] is not None, f"{label}: superseded focus needs a successor")
@@ -226,7 +242,7 @@ def find_overlaps(
     normalized = {normalize_text(question) for question in questions}
     matches: list[tuple[str, float]] = []
     for focus in registry["focuses"]:
-        if focus["id"] == excluded_id:
+        if focus["id"] == excluded_id or focus["status"] != "active":
             continue
         existing = {normalize_text(question) for question in focus["questions"]}
         score = 1.0 if normalized & existing else overlap_score(questions, focus["questions"])
@@ -331,11 +347,15 @@ def supersede_focus(registry: dict[str, Any], args: argparse.Namespace) -> str:
 def retire_focus(registry: dict[str, Any], args: argparse.Namespace) -> str:
     focus = focus_by_id(registry, args.id)
     require(focus["status"] == "active", "only active focuses can be retired")
+    require(args.covered_at >= focus["created_at"], "coverage predates focus creation")
+    previous = focus["resolution"]["last_covered_by"]
+    if previous is not None:
+        require(args.covered_at >= previous["covered_at"], "coverage is older than the current pointer")
     pointer = make_report_pointer(args.report_id, args.manifest, args.covered_at)
     focus["status"] = "retired"
     focus["resolution"]["last_covered_by"] = pointer
     focus["resolution"]["retired_by"] = pointer
-    registry["updated_at"] = args.covered_at
+    registry["updated_at"] = max(registry["updated_at"], args.covered_at)
     return focus["id"]
 
 
@@ -359,13 +379,40 @@ def cover_from_manifest(
     for focus_id in focus_ids:
         focus = focus_by_id(registry, focus_id)
         require(focus["status"] == "active", f"covered focus is not active: {focus_id}")
+        require(covered_at >= focus["created_at"], f"coverage predates focus creation: {focus_id}")
+        previous = focus["resolution"]["last_covered_by"]
+        if previous is not None:
+            require(
+                covered_at >= previous["covered_at"],
+                f"coverage is older than the current pointer: {focus_id}",
+            )
         focus["resolution"]["last_covered_by"] = pointer
         if focus["cadence"] == "once":
             focus["status"] = "retired"
             focus["resolution"]["retired_by"] = pointer
         changed.append(focus_id)
-    registry["updated_at"] = covered_at
+    registry["updated_at"] = max(registry["updated_at"], covered_at)
     return changed
+
+
+def read_canonical_manifest(
+    repo: pathlib.Path, manifest_argument: pathlib.Path,
+) -> tuple[pathlib.Path, pathlib.Path, dict[str, Any]]:
+    from report_manifest import read_manifest
+
+    manifest_path = (repo / manifest_argument).resolve()
+    try:
+        relative = manifest_path.relative_to(repo)
+    except ValueError as error:
+        raise RegistryError("report manifest must be inside the repository") from error
+    required_parent = pathlib.Path("docs/codex/session-analysis/reports")
+    require(relative.parent == required_parent, "report manifest is outside the canonical directory")
+    manifest = read_manifest(manifest_path)
+    require(
+        relative.name == f"{manifest['id']}.report.json",
+        "report manifest filename must match its stable ID",
+    )
+    return manifest_path, relative, manifest
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -374,6 +421,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--registry", type=pathlib.Path,
         default=pathlib.Path("docs/codex/session-analysis/focuses.json"),
     )
+    parser.add_argument("--repo", type=pathlib.Path, default=pathlib.Path("."))
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("validate")
@@ -407,9 +455,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     retire_parser = subparsers.add_parser("retire")
     retire_parser.add_argument("--id", required=True)
-    retire_parser.add_argument("--report-id", required=True)
-    retire_parser.add_argument("--manifest", required=True)
-    retire_parser.add_argument("--covered-at", required=True)
+    retire_parser.add_argument("--manifest", type=pathlib.Path, required=True)
 
     cover_parser = subparsers.add_parser("cover")
     cover_parser.add_argument("--manifest", type=pathlib.Path, required=True)
@@ -429,17 +475,39 @@ def main(argv: list[str] | None = None) -> None:
         ]
         print(json.dumps(rows, indent=2, ensure_ascii=False))
         return
-    if args.command == "add":
+    if args.command in {"cover", "retire"}:
+        from report_manifest import verify_manifest_set
+
+        repo = args.repo.resolve()
+        manifest_path, manifest_relative, manifest = read_canonical_manifest(repo, args.manifest)
+        manifest_dir = manifest_path.parent
+        verify_manifest_set(
+            manifest_dir, args.registry, repo, verify_html=True,
+            allow_unconsumed_focuses=True, registry_override=registry,
+        )
+        prospective = copy.deepcopy(registry)
+        if args.command == "cover":
+            changed = cover_from_manifest(prospective, manifest, manifest_relative)
+        else:
+            require(args.id in manifest["focus_ids"], "retired focus is absent from report manifest")
+            retire_args = argparse.Namespace(
+                id=args.id,
+                report_id=manifest["id"],
+                manifest=manifest_relative.as_posix(),
+                covered_at=manifest["published_at"],
+            )
+            changed = [retire_focus(prospective, retire_args)]
+        verify_manifest_set(
+            manifest_dir, args.registry, repo, verify_html=True,
+            registry_override=prospective,
+        )
+        registry = prospective
+    elif args.command == "add":
         changed = [add_focus(registry, args)]
     elif args.command == "update":
         changed = [update_focus(registry, args)]
     elif args.command == "supersede":
         changed = [supersede_focus(registry, args)]
-    elif args.command == "retire":
-        changed = [retire_focus(registry, args)]
-    elif args.command == "cover":
-        manifest = load_json(args.manifest)
-        changed = cover_from_manifest(registry, manifest, args.manifest)
     else:
         raise AssertionError(args.command)
     atomic_write_registry(args.registry, registry)

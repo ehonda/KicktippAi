@@ -6,10 +6,12 @@
   "eyebrow": "Session-analysis fixture",
   "published_at": "2026-08-29",
   "session_kind": "orchestration",
-  "source_path": "docs/codex/p0-closeout-session-investigation",
+  "source_path": ".agents/skills/session-analysis/references",
   "site_path": "session-analysis/p0-closeout",
   "html_file": "index.html",
   "focus_ids": [],
+  "legacy": false,
+  "analysis_file": ".agents/skills/session-analysis/references/parity-output/analysis.json",
   "analysis": {
     "root_thread_id": "01a02485-f0b3-7241-a6c7-c6f58fe44509",
     "root_log_name": "rollout-2026-08-21T15-32-33-01a02485-f0b3-7241-a6c7-c6f58fe44509.jsonl",
@@ -19,6 +21,7 @@
     "privacy": {
       "include_bounded_excerpts": true
     },
+    "snapshot_lock": ".agents/skills/session-analysis/references/p0-closeout-parity.snapshot.json",
     "repository": {
       "base_commit": "6d0fca306f83c72e26ab4bdbef92ca04154eb9e1",
       "final_commit": "2c824c8c82bcc157d1db9ae94dce0b27ec87db87"

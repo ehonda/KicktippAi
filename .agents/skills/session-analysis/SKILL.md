@@ -44,19 +44,27 @@ state denominator, cutoff, overlap, and pricing limitations near the claim.
 
 1. Read [the maintained schemas](references/schemas.md). Add one
    `docs/codex/session-analysis/reports/<id>.report.json` manifest and a new
-   purpose-named source directory under `docs/codex/`. Never rewrite a frozen
-   historical report to adopt this engine.
+   purpose-named source directory under `docs/codex/`. New manifests use
+   `legacy: false`, a non-null extraction contract, an `analysis_file`, and a
+   `snapshot_lock`. Never rewrite a frozen historical report to adopt this
+   engine or mark another report as legacy.
 2. Run `scripts/run_analysis.py` from the repository root with the manifest,
-   local sessions directory, repository, and an explicit output directory.
+   local sessions directory, repository, and `--create-snapshot-lock` on the
+   first extraction. Review and commit the generated lock; omit the creation
+   flag on reruns so any family, filename, included-byte, or hash drift fails.
+   An explicit output directory must contain the manifest's `analysis_file`.
 3. Add only report-specific enrichment and presentation needed by the
    questions. Preserve normalized data and a concise reproduction contract in
    the report source directory.
 4. For a new destination, run `scripts/create_report_shell.py --manifest
    <manifest> --repo .`, then replace its placeholder with whatever
    question-driven structure the report needs. The helper refuses to overwrite
-   an existing report. Runtime CSS, JavaScript, fonts, and data must be embedded;
-   ordinary source hyperlinks may remain external.
+   an existing report. Keep its offline Content-Security-Policy. Runtime CSS,
+   JavaScript, fonts, and data must be embedded; ordinary source hyperlinks may
+   remain external.
 5. Put in `focus_ids` only focuses actually addressed by the reviewed report.
+   If this changes the manifest after extraction, rerun the locked extraction
+   so the normalized artifact carries the final manifest digest and focus IDs.
    Run `scripts/report_manifest.py validate --verify-html
    --allow-unconsumed-focuses` before consuming them.
 6. In the same commit as the accepted report and manifest, run
@@ -76,7 +84,7 @@ Use repository-local `uv` execution and disable bytecode when the sandbox makes
 ```powershell
 $env:PYTHONDONTWRITEBYTECODE = '1'
 uv --cache-dir .uv-cache run python -B .agents/skills/session-analysis/scripts/report_manifest.py select-focuses --registry docs/codex/session-analysis/focuses.json --session-kind orchestration
-uv --cache-dir .uv-cache run python -B .agents/skills/session-analysis/scripts/run_analysis.py --manifest <manifest> --sessions-dir <sessions-dir> --repo . --output-dir <report-data-dir> --quiet
+uv --cache-dir .uv-cache run python -B .agents/skills/session-analysis/scripts/run_analysis.py --manifest <manifest> --sessions-dir <sessions-dir> --repo . --output-dir <report-data-dir> --quiet --create-snapshot-lock
 uv --cache-dir .uv-cache run python -B .agents/skills/session-analysis/scripts/create_report_shell.py --manifest <manifest> --repo .
 uv --cache-dir .uv-cache run python -B .agents/skills/session-analysis/scripts/report_manifest.py validate --manifest-dir docs/codex/session-analysis/reports --registry docs/codex/session-analysis/focuses.json --repo . --verify-html
 ```

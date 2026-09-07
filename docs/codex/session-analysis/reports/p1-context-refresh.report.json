@@ -10,5 +10,7 @@
   "site_path": "session-analysis/p1-context-refresh",
   "html_file": "index.html",
   "focus_ids": [],
+  "legacy": true,
+  "analysis_file": null,
   "analysis": null
 }

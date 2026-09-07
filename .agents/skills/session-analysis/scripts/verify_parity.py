@@ -51,6 +51,10 @@ def normalized_analysis(path: pathlib.Path, generated: bool) -> dict:
     if generated:
         removed = value["source"].pop("event_cutoff_at", None)
         require(removed is not None, "generated analysis is missing explicit event_cutoff_at")
+        for thread in value["threads"] + value["guardians"]:
+            for turn in thread["turns"]:
+                turn.pop("error_category", None)
+                turn.pop("error_sha256", None)
     return value
 
 
