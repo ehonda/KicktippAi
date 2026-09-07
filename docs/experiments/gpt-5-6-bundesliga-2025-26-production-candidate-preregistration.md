@@ -29,7 +29,7 @@ The execution outcome and exploratory statistical comparison are in the
 
 Related planning and decisions:
 
-- [P0-23 — GPT-5.6 production-candidate evidence](../../plans/bundesliga-2026-27/tasks/p0-23-gpt-5-6-production-candidate-evidence.md)
+- [P0-23 — GPT-5.6 production-candidate evidence](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-23-gpt-5-6-production-candidate-evidence.md)
 - [ADR-0006 — stage validation with a cheap test model](../../plans/bundesliga-2026-27/decisions/0006-stage-validation-with-a-cheap-test-model.md)
 - [ADR-0033 — pin the validation-model ledger and reserve production selection](../../plans/bundesliga-2026-27/decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md)
 - [ADR-0040 — hash-bound Bundesliga 2025/26 experiment compatibility](../../plans/bundesliga-2026-27/decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md)

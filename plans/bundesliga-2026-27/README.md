@@ -1,326 +1,76 @@
 # Bundesliga 2026/27 implementation plan
 
-This directory decomposes the P0 and P1 proposals in [the readiness research](../../docs/research/bundesliga-2026-27-onboarding-readiness.md) into implementation-sized tasks.
+- Program state: P0 complete; P1 active
+- Current execution policy: [execution strategy](execution-strategy.md)
+- Local instructions and archival lifecycle: [AGENTS.md](AGENTS.md)
+- Last reconciled: 2026-09-07
 
-P0 ends with successful manual production runs, the opening bonus and match predictions, deliberately enabled schedules, and observation of the first scheduled sequence. P1 then improves maintainability, freshness, experiment tooling, and live cost evidence.
+This file is the current program-state and navigation index. Completed
+chronology, task evidence, and superseded execution records live in the
+[opt-in archive](archive/README.md) and are not startup or recovery context.
 
-The accepted [execution strategy](execution-strategy.md) and
-[ADR-0075](decisions/0075-refine-orchestration-recovery-and-resource-admission.md) define
-whole-phase readiness preview, fully grilled runnable milestones, resource-
-admitted worktree parallelism, production-safe Git integration, Codex usage
-discipline, and the remaining owner-controlled launch decisions.
+## Current program state
 
-## P0 closeout — 2026-08-28
+- The live Bundesliga season/storage partition is `bundesliga-2026-27`.
+- P0 is closed. Its task ledger, handoffs, execution waves, and first natural
+  production-run evidence are indexed in the [P0 archive](archive/p0/README.md).
+- The production outer matchday workflow currently retains ADR-0062's reviewed
+  eight-pair source-copy topology. Under
+  [ADR-0068](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md),
+  it remains until a reviewed successor explicitly replaces or terminates it;
+  calendar time alone does not change runtime.
+- P1-04 and P1-05 share the accepted context-refresh seam in
+  [ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md).
+  Their retained common branch is not merged or active runtime.
+- P1-10 remains the final atomic target-primary replacement lane. Its temporary
+  recovery route and future implementation are governed by the
+  [P1 recovery packet](p1-execution-packet.md) and
+  [production-recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md).
 
-P0 is complete. Natural GitHub Actions `schedule` run
-[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
-succeeded on exact `main` head
-`50f3ed148891977b5909659f9986c9c9958d7875`: all eight
-context→match pairs ran serially, each context pass preserved the approved
-snapshots, and every match pass verified 9/9 current predictions without a
-write, generation, reprediction, token, or cost. The 2h46m22s GitHub delivery
-delay exceeded the 90-minute monitoring envelope, but the 38m46s run completed
-before the second daily occurrence and without overlap. The complete 16-job
-evidence is in [P0-21](tasks/p0-21-production-activation.md).
+## Active and deferred graph
 
-This closeout supersedes later statements in this plan that call P0-21 or the
-first scheduled observation open. Work now proceeds in P1. ADR-0058 makes
-P1-10 the final `schadensfresse` primary conversion and fully
-absorbs/supersedes P1-08; unattended Club Elo network refresh and exploratory
-model follow-ups are also non-P0 work.
-
-## Accepted direction
-
-- Bundesliga 2026/27 is the only live Bundesliga runtime target in scope. We are not preserving 2025/26 workflows, prompt routes, defaults, or implicit storage behavior.
-- Transfer documents are retired. Club Elo provides current strength context; current rosters and squad summaries provide membership and squad context.
-- Recent, home, and away history carries exact, source-attributed played dates where available: current-season Bundesliga rows come from the competition-scoped Kicktipp schedule/results, while intervening fixtures use an accepted source with explicit provenance. ADR-0067 permits a clearly non-exact collection-date proxy only for its bounded external labels. Head-to-head already carries dates and is not rewritten.
-- DuckDB is the primary roster-membership source per club once it explicitly represents 2026/27 and passes strict gates. A complete, source-dated 18-club seed and last-known-good snapshots cover missing, stale, partial, or suspicious data without ongoing manual maintenance.
-- Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
-- The required production scope is `pes-squad`, `schadensfresse`,
-  `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe
-  development target. ADR-0052 fixes the model/challenger matrix. ADR-0058
-  remains the target-primary final architecture, but
-  [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)
-  temporarily restores the ADR-0054/0055 source-compatible copy pair on
-  recovery `main` while P1-10 is completed atomically. This is temporary
-  scoring/provenance debt, not a claim that target-primary P1-10 is active.
-- Historical data is not deleted. A future historical experiment must opt into an explicit competition, prompt, and context setup.
-
-## P0 tasks
-
-| Task | Outcome | Depends on |
+| Lane | Current state | Dependencies and next gate |
 |---|---|---|
-| [P0-01](tasks/p0-01-current-competition.md) | Make 2026/27 the current Bundesliga competition | — |
-| [P0-02](tasks/p0-02-competition-scoped-storage.md) | Require explicit competition-scoped persistence | P0-01 |
-| [P0-03](tasks/p0-03-matchday-completion.md) | Require nine completed matches per Bundesliga matchday | P0-01 |
-| [P0-04](tasks/p0-04-team-manifest.md) | Check in the exact 18-team join manifest | — |
-| [P0-05](tasks/p0-05-prompt-route.md) | Implement hosted 2026/27 prompts with local fallback | P0-01 |
-| [P0-06](tasks/p0-06-model-ledger-and-cost-baseline.md) | Complete: production Sol/xhigh and the arena matrix are pinned with a non-enforced USD 35 planning orientation | P0-05, P0-23 |
-| [P0-07](tasks/p0-07-roster-contract.md) | Define quality-gated DuckDB and fallback roster contracts | P0-04 |
-| [P0-08](tasks/p0-08-roster-membership-seed.md) | Author and audit fallback membership for all clubs | P0-07 |
-| [P0-09](tasks/p0-09-roster-collector.md) | Select, enrich, and publish complete roster documents | P0-07, P0-08 |
-| [P0-10](tasks/p0-10-club-elo-source.md) | Accept a dated Club Elo launch source and gate network use | P0-04 |
-| [P0-11](tasks/p0-11-club-elo-collector.md) | Publish complete per-team and aggregate Elo snapshots | P0-04, P0-10 |
-| [P0-12](tasks/p0-12-match-context-and-transfer-retirement.md) | Replace transfer context with required Elo and roster context | P0-09, P0-11 |
-| [P0-13](tasks/p0-13-bonus-context-baseline.md) | Route safe aggregate and targeted bonus context | P0-09, P0-11, P0-12 |
-| [P0-14](tasks/p0-14-profile-driven-collection.md) | Select collectors from a competition profile | P0-09, P0-11, P0-12, P0-22 |
-| [P0-15](tasks/p0-15-context-document-hygiene.md) | Remove stale, duplicate, and deprecated live context | P0-12, P0-13, P0-14, P0-22 |
-| [P0-16](tasks/p0-16-question-aware-bonus-context.md) | Bound bonus context by question before the one-time bonus run | P0-13, P0-15 |
-| [P0-17](tasks/p0-17-community-scope.md) | Record community, context, model-slot, and credential topology | P0-05, P0-16 |
-| [P0-18](tasks/p0-18-base-workflow-support.md) | Teach reusable workflows the Bundesliga profile | P0-14, P0-17 |
-| [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
-| [P0-19 arena Luna/none](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger/validation triad on match v3 | P0-17, P0-18 |
-| [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | Complete: manual-only Sol/xhigh primary triad; P0-21 owns runtime evidence | P0-06, P0-17, P0-18 |
-| [P0-19 schadensfresse production copy](tasks/p0-19-schadensfresse-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh copy triad with audited bonus aliases/deadline scope; runtime remains P0-21 | P0-06, P0-17, P0-18, P0-24 |
-| [P0-19 relaxdays production copy](tasks/p0-19-relaxdays-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh copy triad sourced from `pes-squad` | P0-06, P0-17, P0-18, P0-24 |
-| [P0-19 arena production copy](tasks/p0-19-arena-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh production-copy triad sourced from `pes-squad` | P0-06, P0-17, P0-18, P0-24 |
-| [P0-19 arena Sol/high](tasks/p0-19-arena-sol-high-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
-| [P0-19 arena Luna/medium](tasks/p0-19-arena-luna-medium-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
-| [P0-19 arena Terra/xhigh](tasks/p0-19-arena-terra-xhigh-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
-| [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
-| [P0-21](tasks/p0-21-production-activation.md) | Complete: manual activation and the first natural eight-row scheduled sequence are green | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
-| [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
-| [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Complete: publish cutoff-safe GPT-5.6 cost/quality evidence with Luna/`max` incomplete; post-hoc Sol/`xhigh` and the later Sol/`max` extension remain explicitly exploratory | P0-05, P0-12, P0-20 |
-| [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
-| [P0-25](tasks/p0-25-roster-enrichment-and-team-total.md) | Complete: pinned enriched v2 arena rosters, deterministic team known-value subtotals, and one exact Luna/none replacement trace round are validated | P0-09, P0-20 |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | Source selected; specification not yet accepted | Reconcile the [in-flight handoff](handoffs/p1-04-club-elo-html-in-flight-2026-09-06.md), retained common seam, and remaining source-contract blockers before implementation |
+| [P1-05](tasks/p1-05-roster-refresh.md) | Common foundation implemented locally; source implementation not started | Fresh cumulative common review, then proceed independently under ADR-0074 using the [in-flight handoff](handoffs/p1-05-roster-refresh-in-flight-2026-09-06.md) |
+| [P1-06](tasks/p1-06-observability-datasets.md) | Not started | P0 context and production prerequisites are complete; freeze the exact experiment-data scope before work |
+| [P1-07](tasks/p1-07-cost-calibration.md) | Not started | Waits for live evidence from P1-04 and P1-05 |
+| P1-13 / R4a predecessor | Preserved and intentionally deferred | Reconcile the exact branch/PR state recorded in the [P1 status snapshot](p1-status-snapshot.md) before resuming; it gates final P1-10 work |
+| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) | In progress; atomic future PR | Resume after its predecessor lane; preserve recovery runtime until the independently reviewed replacement passes ADR-0068 |
+| [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Not started | Freeze the migration and compatibility boundary before implementation |
+| [P1-16](tasks/p1-16-automatic-history-date-updates.md) | Deferred / low urgency | Needs interview; current manual maintenance remains accepted under ADR-0072 |
 
-The implementation path through P0-20 and P0-23 through P0-25 is complete.
-ADR-0052 closes P0-06 and every schedule-free P0-19 repository row. At the
-2026-08-27 live-validation checkpoint, the exact manual context, matchday, and
-bonus triads succeeded for `pes-squad`, the `relaxdays-tippt` production copy,
-the arena Sol/`xhigh` production copy, and the self-contained arena challengers
-Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. The first
-`relaxdays-tippt` context attempt
-exposed a missing target-owned rules source; exact-head repair `eedf330` and
-green CI run `33049482431` preceded the successful retry. P0-21 later closed the
-final P0 gate. Luna/`none` bonus run `33055144574` first failed closed on stale
-immutable provenance at the zero-reprediction limit before a model call. The
-Owner-approved forced index-0 recovery `33089097055` then saved and posted the
-same five IDs, passed final 5/5 verification, and completed the manual triad
-without creating index `1+`. Payload-safe inspection is complete for every
-ready row: 70 real generations / `$0.5767396`, exact index-0
-prompt/model/context identities, zero document contamination, and zero model
-calls on both compatible copy rows. The recovery's five clean Flex generations
-cost `$0.0043837`; the original failed attempt still records zero generation,
-cost, or prediction mutation.
-The earlier 2026-08-27 11:41 CEST NOT READY audit is historical. After the
-administrator completed setup, read-only preflight found the exact same nine
-opening Bundesliga fixtures as `pes-squad`, plus five compatible Bundesliga
-bonus questions due `2026-08-28T18:30:00Z` and three CL questions due
-`2026-09-09T10:00:00Z`. ADR-0054 historically made ordinary Bundesliga work a
-copy path, added exact scoped question aliases and a deadline-bounded initial
-bonus run, and recorded mixed DFB/CL routing as P1-08. Its ordered
-context/match/bonus ladder was green on exact pushed head `3dd93d5`; ADR-0055
-then added target context and ordinary match copy to the recurring lane while
-leaving bonus and P1-08 work outside it. The Owner accepted ADR-0053's cadence,
-operating
-ownership, rollback contract, and ready-row schedule on 2026-08-27. Exact
-activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is now on
-`main`, and exact-head GitHub run
-[`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
-succeeded. The later closeout observation above supersedes this pre-observation
-checkpoint.
+Completed and superseded P1 task records are indexed in the
+[P1 archive](archive/p1/README.md). They are evidence, not active contracts.
 
-Those copy, `2/3/4`, four-point bonus, and September 9 statements remain
-historical P0 evidence, not the current contract. Authenticated read-only
-retrieval at `2026-08-30T07:35:21.9308276Z` verified target match scoring
-`2/3/5` for wins and `3/-/5` for draws, nine points per correct bonus answer,
-and a corrected common deadline `2026-09-08T16:45:00Z` for the three open CL
-questions. ADR-0058 preserves `bundesliga-2026-27` as the season/storage
-partition, adds a Bundesliga-partition-only typed subcompetition plus generic
-fixture/round/result-basis identity without changing WM26's specific model,
-and makes P1-10 the single target-owned implementation and staged-activation
-contract. It authorizes only immediate repository removal of the unsafe
-schadensfresse scheduled context/copy pair; no production force/model call,
-prediction/POST mutation, prompt promotion, or dispatch follows.
+## Production continuity and owner gates
 
-P0-19 is instantiated for every ADR-0052 deployable row. The development row
-remains a local CLI path; every production/copy/challenger leaf entrypoint is
-explicit, manual-only, and schedule-free. P0-21 completed live validation for
-all rows, including the `schadensfresse` ladder recorded in P0-21.
-P0-21's production outer matchday lane was prepared at exact
-commit `992af5a63c788c0cc066dce92dd1319a91e5083d` after independent exact-SHA
-approval with no findings. Its contract/actionlint/Release/`1142/1142`
-Orchestrator validation passed, and exact-head GitHub run
-[`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
-succeeded including Pages. The lane has strict context-before-matchday ordering
-and shared non-cancelling concurrency, with no bonus or `schadensfresse` at
-that historical checkpoint. ADR-0055 extends the lane to 16 jobs/eight pairs by
-inserting `schadensfresse` after `pes-squad`; bonus remains excluded.
-ADR-0053's sole recurring cron is active through the outer workflow while every
-leaf caller remains manual-only. Natural run `33143114280` subsequently proved
-the complete ADR-0055 topology.
+- Required production communities remain `pes-squad`, `schadensfresse`,
+  `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` remains the
+  safe plumbing target.
+- Every leaf caller remains manual-only. The sole recurring outer matchday lane
+  keeps cron `7 2,9 * * *`, non-cancelling concurrency, strict serial/default-
+  success ordering, and no scheduled bonus.
+- The current Schadensfresse recovery pair uses target context and
+  `pes-squad` source-compatible match copy. It grants no manual copy authority,
+  bonus scheduling, target-primary activation, prompt/model change, or force.
+- Existing Club Elo seed and roster last-known-good paths remain active until
+  P1-04/P1-05 successors are separately accepted and activated.
+- The owner retains final authority for source activation, production model or
+  prompt changes, prediction replacement/cost/cutoff bounds, and schedule or
+  topology changes.
 
-ADR-0062 temporarily restores `schadensfresse-context` and
-`schadensfresse-matchday` after `pes-squad-matchday`, with
-`relaxdays-tippt-context` depending on the Schadensfresse match. The active
-recovery contract is eight pairs/16 jobs at the unchanged
-cron/concurrency/order/failure/no-bonus boundary. It uses target-owned context,
-`pes-squad` source context, target credentials, zero expected copy model calls,
-and fail-closed compatibility. ADR-0068 keeps it until a reviewed successor
-replaces or terminates it; it is not manual-copy authority or target-primary activation.
+## Current execution artifacts
 
-The activation contract forbids dispatching the outer lane before activation:
-completed leaf validation plus static/review/CI evidence is sufficient, while a
-new run could consume index `1` or `2` repredictions. Its accepted cron is
-`7 2,9 * * *`, with fixed UTC times mapped to 04:07/11:07 CEST and
-03:07/10:07 CET. The 51m04s observed serialized duration supports a 90-minute
-monitoring/escalation envelope—not a timeout—and a three-hour later-pass
-completion margin. The Project Owner owns activation, first-cycle monitoring,
-on-call response, and rollback under 30-minute acknowledgement and 60-minute
-schedule-disable targets. The outer workflow is active as GitHub workflow
-`343638152`; before any outer run existed, the next natural occurrence was
-`2026-08-28T02:07:00Z` / 04:07 CEST, with monitoring due from 02:02 UTC. The
-readiness snapshot still contained nine open matches and a first cutoff at
-18:30 UTC. These are pre-observation facts, not runtime evidence. The forced
-Luna/`none` recovery is complete and must not be repeated.
-
-## Handoffs
-
-- [`buli-2627-p0-closeout-ready-2026-08-25`](handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) — closed P0 handoff with the final natural-schedule evidence and P1 boundary.
-- [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — historical foundation pause; superseded by the current task ledger and execution strategy.
-- [`buli-2627-p0-12-open-review-2026-08-19`](handoffs/buli-2627-p0-12-open-review-2026-08-19.md) — historical interrupted-review checkpoint; P0-12 is now complete, so its resume instructions are no longer active.
-
-## P1 tasks
-
-P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions that exist only at or before go-live. Numbering of the remaining P1 tasks stays stable.
-
-The dated [P1 status snapshot](p1-status-snapshot.md) records the readiness
-classification verified on 2026-09-06. It is a handoff artifact rather than
-execution authority; the next orchestration session must re-verify and update
-it before relying on it.
-
-The resumed P1-10 recovery is frozen in the
-[P1 execution packet](p1-execution-packet.md) and
-[production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md).
-They govern the temporary recovery and atomic PR delivery; they do not claim
-that the full P1-10 primary implementation is complete. Fully grilled runnable
-milestones may proceed while the remaining frontier stays `needs-interview`.
-P1-04 and P1-05 share the accepted/frozen
-[context-refresh design](designs/p1-04-05-context-refresh.md),
-[ADR-0073](decisions/0073-refresh-strength-and-rosters-during-context-collection.md),
-[ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md),
-and [execution packet](p1-04-05-execution-packet.md). P1-05 proceeds
-independently after the common seam; P1-04 accepting-source work remains
-separately gated. Neither task is runtime completion or activation evidence.
-P1-13 remains a prerequisite planning frontier and
-P1-10 is last: its recovery/target-primary delivery stays isolated until its
-own accepted replacement condition and atomic PR gate.
-
-| Task | Outcome | Depends on |
-|---|---|---|
-| [P1-03](tasks/p1-03-generic-onboarding-skill.md) | Extract generic competition onboarding tooling | P0-21 |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | Refresh Club Elo within existing context cycles with strict provenance/freshness/LKG gates | P0-21, common ADR-0074 seam, accepted source contract |
-| [P1-05](tasks/p1-05-roster-refresh.md) **Ready independently after common seam** | Refresh valid DuckDB membership/enrichment within existing context cycles | P0-21, ADR-0074 |
-| [P1-06](tasks/p1-06-observability-datasets.md) | Make experiment preparation explicitly 2026/27-capable | P0-12, P0-21 |
-| [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
-| [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
-| [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
-| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) | Recovery `main` retains the 8-pair source-copy lane until a reviewed successor replaces/terminates it; preserve the full implementation for an atomic target-primary PR | P0-21; absorbs P1-08 |
-| [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
-| [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
-| [P1-14](tasks/p1-14-history-source-continuity.md) | Complete exact selected-history provenance, bounded collection-date proxy continuity, and maintenance reporting; defer full-season capture redesign | P0-22, P0-21 |
-| [P1-15](tasks/p1-15-schadensfresse-champions-league-bonus.md) | Complete the three frozen target-owned CL bonus predictions without global P1-10 typing | ADR-0069 |
-| [P1-16](tasks/p1-16-automatic-history-date-updates.md) | Deferred low-urgency automatic exact-date update design; requires interview | ADR-0072 |
-
-There is intentionally no transfer-document automation task in P1.
-
-## Launch gates
-
-P0 is complete. The following gates are retained as the satisfied closeout
-contract:
-
-- all 18 teams map one-to-one across Kicktipp, document slugs, roster sources, and the accepted Club Elo snapshot;
-- all production reads and writes use `bundesliga-2026-27` and cannot fall back to the old unscoped Bundesliga identity;
-- every selected recent/home/away history row has exact source-attributed played-date evidence or ADR-0067's explicit, bounded collection-date proxy; collection timestamps and inferred league order are never presented as exact played dates, and head-to-head dates remain intact;
-- match and bonus context use explicit live allowlists, contain the required Elo/roster/squad documents, and exclude stale team/manager, transfer, old-season, and cross-competition documents;
-- bonus context is question-aware and bounded before the only pre-season bonus predictions are generated;
-- a partial matchday is not complete before all nine matches are complete;
-- hosted prompt versions and local mirrors agree, and the exact production model/configuration has owner approval plus a reproducible cost estimate;
-- final production selection uses the P0-23 comparative evidence, or its Accepted ADR explicitly records the owner's evidence waiver and accepted risk;
-- before the first production prediction, that community has a headed v2 roster publication from the exact pinned launch artifact, at least 464 known ages, 464 known positions, and 450 valued players, plus exactly one validated final `Team Accumulated` row per club; later no-DuckDB collection must preserve the enriched last-known-good snapshot;
-- the prepared `pes-squad`, `relaxdays-tippt`, and `schadensfresse` context
-  callers satisfy that non-arena gate through ADR-0052's false-by-default,
-  exact-pinned overlay step before normal profile collection; arena callers
-  preserve their already verified shared enriched head without redownloading;
-- autonomous Luna/none validation passes in development and through the arena local, `workflow_dispatch`, and schedule ladder;
-- manual production runs and opening writes succeed for every ADR-0052 row,
-  including P0-24-compatible copy-posting without an extra model call;
-- ADR-0053's schedule, as extended by ADR-0055 with `schadensfresse`, is enabled
-  only after accepted launch decisions and successful manual evidence reach
-  the default branch; the first natural scheduled sequence is then observed.
-
-## Decision index
-
-- [ADR-0001: Support only the current Bundesliga season](decisions/0001-current-bundesliga-season-only.md)
-- [ADR-0002: Supersede transfer documents with Elo and roster context](decisions/0002-supersede-transfer-documents.md) — superseded by ADR-0003
-- [ADR-0003: Use DuckDB-primary rosters with per-club fallback](decisions/0003-duckdb-primary-rosters-with-fallback.md)
-- [ADR-0004: Use hosted prompts with local fallback](decisions/0004-hosted-prompts-with-local-fallback.md)
-- [ADR-0005: Launch all selected communities with reference prediction reuse](decisions/0005-launch-community-and-prediction-topology.md) — superseded by ADR-0052
-- [ADR-0006: Stage validation with a cheap test model](decisions/0006-stage-validation-with-a-cheap-test-model.md)
-- [ADR-0007: Require context hygiene before launch](decisions/0007-require-context-hygiene-before-launch.md)
-- [ADR-0008: Launch Club Elo from a dated seed when necessary](decisions/0008-launch-club-elo-from-a-dated-seed.md)
-- [ADR-0009: Use bounded orchestration and hybrid Git integration](decisions/0009-bounded-orchestration-and-hybrid-git.md) — superseded by ADR-0061
-- [ADR-0010: Use a season-scoped strict team identity manifest](decisions/0010-season-scoped-team-identity-manifest.md)
-- [ADR-0011: Fix roster snapshots and atomic publication](decisions/0011-roster-snapshot-and-publication-contract.md)
-- [ADR-0012: Make matchday completion competition aware](decisions/0012-competition-aware-matchday-completion.md)
-- [ADR-0013: Fix the Club Elo snapshot and freshness contract](decisions/0013-club-elo-snapshot-and-freshness-contract.md)
-- [ADR-0014: Share atomic context and KPI publication snapshots](decisions/0014-share-atomic-context-kpi-publication.md)
-- [ADR-0015: Use strict Club Elo prompt documents and reconstructable publication provenance](decisions/0015-club-elo-prompt-publication-contract.md)
-- [ADR-0016: Validate Club Elo publication metadata semantically](decisions/0016-validate-club-elo-publication-metadata.md)
-- [ADR-0017: Fix roster collector DuckDB and reconstruction contract](decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md)
-- [ADR-0018: Validate roster publication metadata semantically](decisions/0018-validate-roster-publication-metadata-semantically.md)
-- [ADR-0019: Share one roster-publication truth boundary](decisions/0019-roster-publication-truth-boundary.md)
-- [ADR-0020: Record immutable match-context manifests](decisions/0020-record-immutable-match-context-manifests.md)
-- [ADR-0021: Bind ordinary context content and prepare provenance](decisions/0021-bind-ordinary-context-content-and-prepare-provenance.md) — supersedes only ADR-0020's ordinary-document version/content portions
-- [ADR-0022: Allocate Bundesliga repredictions transactionally](decisions/0022-transactional-bundesliga-reprediction-allocation.md) — supersedes only ADR-0020's Bundesliga prediction-save portion
-- [ADR-0023: Use orchestrator-created CLI worktrees for parallel writers](decisions/0023-use-orchestrator-created-cli-worktrees.md) — superseded by ADR-0061
-- [ADR-0024: Select bonus context by competition and question](decisions/0024-select-bonus-context-by-competition-and-question.md)
-- [ADR-0025: Reconstruct Bundesliga history played dates from fixed sources](decisions/0025-reconstruct-bundesliga-history-played-dates.md)
-- [ADR-0026: Exclude incomplete rows from selected match history](decisions/0026-exclude-incomplete-history-rows.md)
-- [ADR-0027: Add a fixed CC0 source for second-division history](decisions/0027-add-openfootball-for-second-bundesliga-history.md)
-- [ADR-0028: Capture OpenLigaDB for second-division history](decisions/0028-capture-openligadb-second-bundesliga-history.md)
-- [ADR-0029: Capture the OpenLigaDB DFB-Pokal final](decisions/0029-capture-openligadb-dfb-pokal-final.md)
-- [ADR-0030: Use the UEFA match record for the Europa League final](decisions/0030-use-uefa-match-record-for-europa-league-final.md)
-- [ADR-0031: Correct DFB-Pokal final inventory coverage](decisions/0031-correct-dfb-pokal-final-inventory-coverage.md)
-- [ADR-0032: Freeze the complete preseason history set and publish it atomically](decisions/0032-freeze-complete-history-set-and-publish-atomically.md)
-- [ADR-0033: Pin the validation model ledger and reserve production selection](decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md)
-- [ADR-0034: Drive context collection from competition profiles](decisions/0034-drive-context-collection-from-competition-profiles.md)
-- [ADR-0035: Freeze the first live DFB-Pokal history completion](decisions/0035-freeze-first-live-dfb-history-completion.md)
-- [ADR-0036: Retire legacy team and manager context](decisions/0036-retire-legacy-team-manager-context.md)
-- [ADR-0037: Record immutable bonus-context manifests](decisions/0037-record-immutable-bonus-context-manifests.md)
-- [ADR-0038: Bound bonus context by question policy](decisions/0038-bound-bonus-context-by-question-policy.md)
-- [ADR-0039: Record Bundesliga community and credential topology](decisions/0039-record-bundesliga-community-and-credential-topology.md)
-- [ADR-0040: Use hash-bound 2025/26 context for preseason cost experiments](decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md)
-- [ADR-0041: Freeze the completed DFB-Pokal first-round history transition](decisions/0041-freeze-completed-dfb-first-round-history-transition.md)
-- [ADR-0042: Publish complete preseason Kicktipp context atomically](decisions/0042-publish-complete-preseason-context-atomically.md) — superseded by ADR-0044
-- [ADR-0043: Freeze historical experiment aliases and the context-eligible pool](decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md) — refines ADR-0040's document-name and sampling-pool contract
-- [ADR-0044: Select canonical preseason history sources](decisions/0044-select-canonical-preseason-history-sources.md)
-- [ADR-0066: Refresh the rolling Bundesliga history source checkpoint](decisions/0066-refresh-history-source-checkpoint.md)
-- [ADR-0067: Tolerate unresolved external history dates with a collection-date proxy](decisions/0067-tolerate-unresolved-external-history-dates.md)
-- [ADR-0068: Replace the copy calendar sunset with a reviewed replacement condition](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md)
-- [ADR-0072: Operate history-date maintenance manually](decisions/0072-operate-history-date-maintenance-manually.md)
-- [ADR-0073: Refresh strength and rosters during context collection](decisions/0073-refresh-strength-and-rosters-during-context-collection.md)
-- [ADR-0074: Freeze context-source cycles, handoff, health, and successor provenance](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
-- [ADR-0045: Verify versioned prompt promotion before validation](decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
-- [ADR-0046: Bind cost usage to exact Langfuse dataset runs](decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
-- [ADR-0047: Observe one temporary arena Luna scheduled cycle](decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)
-- [ADR-0048: Verify bonus compatibility before reference copying](decisions/0048-verify-bonus-compatibility-before-reference-copy.md)
-- [ADR-0049: Preregister GPT-5.6 candidate evidence under one program ceiling](decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
-- [ADR-0050: Publish enriched launch rosters with derived team subtotals](decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md)
-- [ADR-0051: Require an explicit launch roster enrichment overlay](decisions/0051-require-explicit-launch-roster-enrichment-overlay.md)
-- [ADR-0052: Select the production model, community matrix, and match prompt v3](decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
-- [ADR-0053: Schedule the production-live matchday lane](decisions/0053-schedule-the-production-live-matchday-lane.md)
-- [ADR-0054: Copy schadensfresse Bundesliga predictions from pes-squad](decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
-- [ADR-0055: Add schadensfresse to the production-live matchday lane](decisions/0055-add-schadensfresse-to-production-live-lane.md)
-- [ADR-0056: Reconcile current open fixtures with outcomes](decisions/0056-reconcile-current-open-fixtures-with-outcomes.md) — supersedes only ADR-0034's exact-count requirement for the implicit current open view
-- [ADR-0057: Exempt standings from reprediction staleness](decisions/0057-exempt-standings-from-reprediction-staleness.md) — supersedes only ADR-0020's current-ordinary-identity comparison for standings
-- [ADR-0058: Make schadensfresse a Bundesliga-subcompetition-typed primary](decisions/0058-make-schadensfresse-a-competition-typed-primary.md) — final target-primary architecture; P1-10 absorbs P1-08
-- [ADR-0059: Bind schadensfresse rules to a structured semantic record](decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md) — narrowly supersedes ADR-0058's legacy normalized rules hash as the semantic publication/freshness gate; preserves it as historical evidence and makes the structured v1 record canonical
-- [ADR-0060: Separate generation provenance from current rules attestation](decisions/0060-separate-generation-manifest-from-current-rules-attestation.md) — keeps generation manifests immutable while a directly keyed, exact-publication binding may refresh unchanged authenticated rules evidence for zero-call, zero-mutation reuse
-- [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — superseded in part by ADR-0075; its whole-phase preview, production-continuity, Git, and publication decisions remain operative
-- [ADR-0075: Refine orchestration recovery and resource admission](decisions/0075-refine-orchestration-recovery-and-resource-admission.md) — adds manifest-verified hot recovery, bounded continuity/final review, Astra/high architecture leadership, dynamic disk reservations, and the low-memory circuit breaker
-- [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery; ADR-0068 replaces only its calendar sunset with a reviewed replacement condition
-- [ADR-0069: Deliver the frozen schadensfresse Champions-League bonus exception](decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md) — narrow target-owned, context-free, manual-only exception for the three September 8 CL questions
-- [ADR-0070: Isolate the strict CL bonus mutation transport](decisions/0070-isolate-the-strict-cl-bonus-mutation-transport.md) — share authenticated cookies across distinct handler chains while preventing mutation replay and unsafe redirects
-- [ADR-0071: Bind the strict CL POST to a stable advertised action](decisions/0071-bind-strict-cl-post-to-stable-advertised-action.md) — preserve one concurrency-checked member of the finite observed action set without fallback or replay
+- [P1 status snapshot](p1-status-snapshot.md) — dated reconciliation aid; verify
+  it against live Git, worktree, agent, and PR state before relying on it.
+- [P1-04/P1-05 execution packet](p1-04-05-execution-packet.md) — frozen common
+  context-refresh graph and handoff boundary.
+- [P1 recovery execution packet](p1-execution-packet.md) — P1-10 recovery and
+  atomic delivery boundary.
+- [Context-refresh design](designs/p1-04-05-context-refresh.md).
+- [P1-10 production-recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md).
+- [Decision index](decisions/README.md) — specialist lookup for accepted and
+  superseded ADRs; ADR age or phase number is not an archival criterion.
+- [Historical orchestration investigations](archive/orchestration/README.md) —
+  opt-in evidence only.

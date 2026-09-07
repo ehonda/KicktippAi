@@ -26,7 +26,7 @@ Give the strict CL route a second, dedicated `HttpClient` whose primary handler 
 
 ## Affected tasks
 
-- [P1-15](../tasks/p1-15-schadensfresse-champions-league-bonus.md)
+- [P1-15](../archive/p1/tasks/p1-15-schadensfresse-champions-league-bonus.md)
 
 ## Supersedes
 

@@ -138,10 +138,10 @@ or workflow dispatch, or enable a schedule.
 
 ## Affected tasks
 
-- [P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md)
-- [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md)
-- [P0-19](../tasks/p0-19-community-workflow-triad.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-23](../archive/p0/tasks/p0-23-gpt-5-6-production-candidate-evidence.md)
+- [P0-06](../archive/p0/tasks/p0-06-model-ledger-and-cost-baseline.md)
+- [P0-19](../archive/p0/tasks/p0-19-community-workflow-triad.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 

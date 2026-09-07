@@ -43,14 +43,14 @@ Official Bundesliga pages establish current club names and roster-source URLs. C
 
 ## Affected tasks
 
-- [P0-04](../tasks/p0-04-team-manifest.md)
-- [P0-07](../tasks/p0-07-roster-contract.md)
-- [P0-08](../tasks/p0-08-roster-membership-seed.md)
-- [P0-09](../tasks/p0-09-roster-collector.md)
-- [P0-10](../tasks/p0-10-club-elo-source.md)
-- [P0-11](../tasks/p0-11-club-elo-collector.md)
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
-- [P0-14](../tasks/p0-14-profile-driven-collection.md)
+- [P0-04](../archive/p0/tasks/p0-04-team-manifest.md)
+- [P0-07](../archive/p0/tasks/p0-07-roster-contract.md)
+- [P0-08](../archive/p0/tasks/p0-08-roster-membership-seed.md)
+- [P0-09](../archive/p0/tasks/p0-09-roster-collector.md)
+- [P0-10](../archive/p0/tasks/p0-10-club-elo-source.md)
+- [P0-11](../archive/p0/tasks/p0-11-club-elo-collector.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-14](../archive/p0/tasks/p0-14-profile-driven-collection.md)
 
 ## Supersedes
 

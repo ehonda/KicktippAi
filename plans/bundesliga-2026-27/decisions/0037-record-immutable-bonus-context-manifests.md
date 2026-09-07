@@ -44,10 +44,10 @@ For the Bundesliga generation command, a cache/coherence read failure, provenanc
 
 ## Affected tasks
 
-- [P0-13](../tasks/p0-13-bonus-context-baseline.md)
-- [P0-15](../tasks/p0-15-context-document-hygiene.md)
-- [P0-16](../tasks/p0-16-question-aware-bonus-context.md)
-- [P0-18](../tasks/p0-18-base-workflow-support.md)
+- [P0-13](../archive/p0/tasks/p0-13-bonus-context-baseline.md)
+- [P0-15](../archive/p0/tasks/p0-15-context-document-hygiene.md)
+- [P0-16](../archive/p0/tasks/p0-16-question-aware-bonus-context.md)
+- [P0-18](../archive/p0/tasks/p0-18-base-workflow-support.md)
 
 ## Supersedes
 

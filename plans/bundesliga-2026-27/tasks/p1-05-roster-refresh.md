@@ -2,7 +2,7 @@
 
 - Status: Common seam frozen; implementation not started
 - Priority: Ready independently after the common seam
-- Depends on: [P0-21](p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
+- Depends on: [P0-21](../archive/p0/tasks/p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
 - Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
 - Design: [P1-04/P1-05 context refresh](../designs/p1-04-05-context-refresh.md)
 - Packet: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)

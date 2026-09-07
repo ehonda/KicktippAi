@@ -33,7 +33,7 @@ No migration or deletion is performed. Existing prediction rows, including legac
 
 ## Affected tasks
 
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
 
 ## Supersedes
 

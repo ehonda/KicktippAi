@@ -31,12 +31,12 @@ Historical competition partitions are preserved. Remote deletion is not a launch
 
 ## Affected tasks
 
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
-- [P0-13](../tasks/p0-13-bonus-context-baseline.md)
-- [P0-15](../tasks/p0-15-context-document-hygiene.md)
-- [P0-16](../tasks/p0-16-question-aware-bonus-context.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-13](../archive/p0/tasks/p0-13-bonus-context-baseline.md)
+- [P0-15](../archive/p0/tasks/p0-15-context-document-hygiene.md)
+- [P0-16](../archive/p0/tasks/p0-16-question-aware-bonus-context.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 

@@ -311,7 +311,7 @@ Activation is staged and ordered:
 
 ## Affected tasks
 
-- [P1-08](../tasks/p1-08-schadensfresse-mixed-competition-routing.md)
+- [P1-08](../archive/p1/tasks/p1-08-schadensfresse-mixed-competition-routing.md)
 - [P1-10](../tasks/p1-10-schadensfresse-primary-community.md)
 
 ## Supersedes

@@ -86,8 +86,8 @@ cycle.
 
 ## Affected tasks
 
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 
 ## Supersedes
 

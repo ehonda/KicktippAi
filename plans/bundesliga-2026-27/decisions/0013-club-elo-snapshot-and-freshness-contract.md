@@ -42,10 +42,10 @@ Invalid, partial, unavailable, older, same-date, or more-than-seven-day-old netw
 
 ## Affected tasks
 
-- [P0-10](../tasks/p0-10-club-elo-source.md)
-- [P0-11](../tasks/p0-11-club-elo-collector.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
+- [P0-10](../archive/p0/tasks/p0-10-club-elo-source.md)
+- [P0-11](../archive/p0/tasks/p0-11-club-elo-collector.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 - [P1-04](../tasks/p1-04-club-elo-refresh.md)
 
 ## Supersedes

@@ -46,8 +46,8 @@ This decision does not alter P0-02 storage scoping. Match outcomes remain partit
 
 ## Affected tasks
 
-- [P0-03](../tasks/p0-03-matchday-completion.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
+- [P0-03](../archive/p0/tasks/p0-03-matchday-completion.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
 
 ## Supersedes
 

@@ -83,8 +83,8 @@ or ADR-0012's nine-outcome completion policy.
 
 ## Affected tasks
 
-- [P1-09](../tasks/p1-09-current-open-matchday-context.md)
-- [P0-14](../tasks/p0-14-profile-driven-collection.md)
+- [P1-09](../archive/p1/tasks/p1-09-current-open-matchday-context.md)
+- [P0-14](../archive/p0/tasks/p0-14-profile-driven-collection.md)
 
 ## Supersedes
 

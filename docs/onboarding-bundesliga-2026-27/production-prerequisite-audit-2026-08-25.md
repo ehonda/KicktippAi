@@ -1,6 +1,6 @@
 # Bundesliga 2026/27 production prerequisite audit — 2026-08-25
 
-This read-only audit records which production prerequisites can be verified before the owner selects the final model and arena participants. It is prerequisite evidence for [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md), not production validation or authorization to post predictions.
+This read-only audit records which production prerequisites can be verified before the owner selects the final model and arena participants. It is prerequisite evidence for [P0-21](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-21-production-activation.md), not production validation or authorization to post predictions.
 
 ## Final closeout addendum — 2026-08-28
 
@@ -18,7 +18,7 @@ actual error outcome, or overlap evidence.
 
 GitHub delivered the nominal 02:07 UTC event 2h46m22s late, beyond the
 90-minute monitoring envelope, but the 38m46s run completed before the next
-daily occurrence. [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md)
+daily occurrence. [P0-21](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-21-production-activation.md)
 contains the authoritative per-job and payload-safe evidence. The dated
 read-only rows below remain historical, not current blockers. P1 is next;
 P1-08 remains open for `schadensfresse` mixed-competition routing, and Club Elo
@@ -290,7 +290,7 @@ Repository preparation and live authorization have separate gates:
 1. The model-independent `pes-squad` and `schadensfresse` context callers are
    prepared and locally contract/actionlint validated from the accepted topology
    and credential names; neither has been dispatched.
-2. Their final matchday and bonus callers wait only for [P0-06](../../plans/bundesliga-2026-27/tasks/p0-06-model-ledger-and-cost-baseline.md)
+2. Their final matchday and bonus callers wait only for [P0-06](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-06-model-ledger-and-cost-baseline.md)
    to record the exact owner-selected `production-primary` configuration.
 3. Arena production-copy repository preparation additionally waits for the owner
    to select its participant/profile/exact credential names and for the reviewed
@@ -303,7 +303,7 @@ The `schadensfresse` setup request is external and pending with the community
 administrator. The agent is not authorized or expected to administer that
 community; P0-21 consumes the administrator's result before live dispatch.
 
-[P0-23](../../plans/bundesliga-2026-27/tasks/p0-23-gpt-5-6-production-candidate-evidence.md)
+[P0-23](../../plans/bundesliga-2026-27/archive/p0/tasks/p0-23-gpt-5-6-production-candidate-evidence.md)
 retains the reusable Luna cost row, but its earlier Terra/`medium`, Sol/`medium`,
 cap-`10000`, and `15 × 20` surface is a superseded provisional example and was
 not selected. The owner will supply a detailed experiment surface and phase

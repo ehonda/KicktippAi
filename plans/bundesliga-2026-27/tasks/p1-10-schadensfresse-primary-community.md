@@ -1,13 +1,14 @@
 # P1-10 — Convert schadensfresse to a subcompetition-typed primary community
 
 - Status: In progress; recovery runtime is frozen, target-primary completion remains an atomic future PR
-- Priority: P1 — deadline-critical
-- Depends on: [P0-21](p0-21-production-activation.md)
-- Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Priority: P1 — final typed-primary replacement lane
+- Depends on: [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
+- Absorbs: [P1-08](../archive/p1/tasks/p1-08-schadensfresse-mixed-competition-routing.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0068](../decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md), [ADR-0069](../decisions/0069-deliver-frozen-schadensfresse-champions-league-bonus.md)
 
 - Orchestration readiness: The completed checkboxes are historical integrated
-  evidence. The resumed recovery's frozen artifacts are the
+  evidence, summarized in the [foundation evidence archive](../archive/p1/evidence/p1-10-foundation-evidence-2026-08-30.md).
+  The resumed recovery's frozen artifacts are the
   [P1 execution packet](../p1-execution-packet.md) and
   [production recovery design](../designs/p1-10-production-recovery-and-atomic-delivery.md).
   They govern recovery only; they do not mark the target-primary route done.
@@ -39,14 +40,17 @@ contract without recording prediction contents or selected answers:
   `2026-09-08T16:45:00Z`. Their full texts and per-question option hashes are
   frozen in ADR-0058; the complete safe array SHA-256 is
   `80def7b217a382ed95450c2a8f8db227ba13a2f55ca72513a8897f86fa511ef9`.
+  P1-15 later completed those exact deadline-bound answers through its narrow
+  target-owned exception; that completed operation is not authority for the
+  future general P1-10 route.
 
 The earlier September 9 deadline, four-point bonus score, `2/3/4` match score,
 and ordinary Bundesliga copy premise are historical for the final target route.
 ADR-0062 temporarily restores source-compatible copy on recovery `main` while
-the full target-primary implementation is preserved for an atomic PR. This
-temporary route expires at `2026-09-08T12:00:00Z`; it creates no manual-copy
-contingency. The separate September 8 CL bonus deadline remains a final-route
-gate, not recovery authority.
+the full target-primary implementation is preserved for an atomic PR. Under
+ADR-0068, that route remains until a reviewed successor explicitly replaces
+or terminates it; calendar time alone does not trigger quarantine. It creates
+no manual-copy contingency, and completed P1-15 is not recovery authority.
 
 ## Outcome
 
@@ -75,10 +79,10 @@ exact-SHA review, exact-head CI, and first natural-run observation.
 Recovery `main` temporarily runs target-owned Schadensfresse context followed
 by `pes-squad`-source copy matching after `pes-squad`; relaxdays follows it.
 The route preserves the cron, non-cancelling concurrency, default-success
-serial chain, manual-only leaves, and no scheduled bonus. It expires at
-`2026-09-08T12:00:00Z`: the atomic P1-10 PR must merge and replace/terminate
-it, or Schadensfresse is re-quarantined while seven pairs remain. Project
-Owner/on-call inherits ADR-0053's 30-minute acknowledgement and 60-minute
+serial chain, manual-only leaves, and no scheduled bonus. ADR-0068 keeps it in
+place until an independently reviewed P1-10 successor names the replacement
+topology, rollback/recovery owner, exact integrated revision, and required
+green validation. Project Owner/on-call inherits ADR-0053's 30-minute acknowledgement and 60-minute
 whole-cron-disable trigger. No manual dispatch, force, reprediction, prompt or
 model change/call, prediction mutation, external write, credential change, or
 other activation is authorized. Natural runs caused by the restored declarative
@@ -241,8 +245,9 @@ until the persistence/call-site owner completes all of the following.
 - [ ] Obtain Owner approval for the exact copied-row replacement set, maximum
       added calls/cost, force/reprediction limits, and UTC cutoff. No default
       budget exists; this task makes no production force/model call before it.
-- [ ] Complete and verify the DFB/CL hosted prompt publication before the CL
-      bonus deadline `2026-09-08T16:45:00Z`.
+- [ ] Complete and verify each immutable DFB/CL hosted prompt before its
+      corresponding target-primary operation. P1-15's completed one-off CL
+      bonus prompt and route do not substitute for this general contract.
 - [ ] Run target context collection, then only the approved minimum manual
       primary operations. Inspect Kicktipp, Firestore, and Langfuse in order
       using payload-safe IDs/counts/hashes/configuration/usage/cost, without
@@ -257,127 +262,12 @@ until the persistence/call-site owner completes all of the following.
 - [ ] Verify branch, remotes, status, and latest commit; commit scoped changes
       intentionally and push the explicit remote/branch.
 
-## Contract-slice evidence — 2026-08-30
+## Historical foundation evidence
 
-- ADR-0058 is accepted from evidence-backed decisions the Owner authorized on
-  2026-08-30; it does not claim that the Owner reviewed a draft.
-- Pre-`b0fd6b6` code inspection confirmed `Match` lacked a stable fixture ID
-  and generic round/result-basis fields, `BonusQuestion` lacked a typed
-  Bundesliga-season subcompetition, and the parser discarded round/penalty
-  meaning outside WM26. The later typed implementation is preserved on the
-  archival/full PR, not temporary recovered runtime after B.
-- This planning slice makes no external write, prompt promotion, production
-  model call, forced prediction, POST, or schedule mutation. ADR-0058 separately
-  authorizes the immediate fail-safe repository workflow removal only.
-
-## Typed-foundation evidence — 2026-08-30
-
-- P1-10 commit `b0fd6b6` updates the checked-in
-  `data/bundesliga-2026-27/schadensfresse-routing-seed.json` with exact
-  `1662323362` and `1662323366` entries (`bundesliga` / `1. Spieltag` /
-  `regularTime90Minutes`), the three evidenced CL question identities, all 111
-  ordered option ID/text bindings, and canonical hash
-  `81b1c6ab0a6ad3159fcafebcbf1e3525df2cdf8e1279369f2515f001176008e5`.
-  This is truthful preserved archival/full-PR implementation evidence, not
-  temporary recovered-runtime state after B.
-- Core loader/classifier validation and captured parser tests reject missing,
-  duplicate, unknown, and drifted identities. Parsing retains a source round,
-  penalty result basis, and stable bonus-question ID when exposed, without
-  deriving a fixture ID or subcompetition from text, teams, or partition.
-- Focused Core and KicktippIntegration TUnit gates passed locally; the full
-  affected project gates also passed. Existing unrelated nullable warnings
-  remain in the test projects.
-
-## Rules-contract evidence — 2026-08-30
-
-- Payload-safe authenticated evidence at SHA-256
-  `4503636dba2e6d14cd276733dffd12a3d3acd344c85368417d0f9d50e7869e95`
-  exactly reproduced ADR-0058's legacy normalized hash
-  `b6d27eba00e58ba7e98613f24d4669d115302a92c26f83c153b69c97d4949c03`
-  and proved that its keyword filter omits both numeric scoring rows.
-- Accepted ADR-0059 now fixes the exact authenticated source/DOM failure gates,
-  every v1 field/type/value, canonical System.Text.Json bytes and 822-byte
-  contract, structured SHA-256
-  `1fac1a26a539a8c20b5f71be6e6e6dccb622528fc8aa40cdea22e6b21d994d90`,
-  and diagnostic scoring-table SHA-256
-  `4ea1a5203ec2870141e59aa5573559a3945741984411f0d5cd3c66fb3a5f473e`.
-- The rules validator/publication slice is unblocked only by that Accepted
-  contract. The historical digest remains regression evidence and no source,
-  live publication, prompt, production, or schedule mutation occurred in this
-  decision slice.
-- Local validator/publication evidence (no authenticated production collection
-  was invoked) now covers the complete ADR-0059 negative matrix through
-  systematic source, DOM, semantic-value, numeric, canonical-JSON, Markdown,
-  publication-identity, freshness, and numeric-drift mutations. Focused gates
-  passed for the provider matrix (21/21, 1.169s), Core rules contract (5/5,
-  0.864s), ordinary publication including unchanged and interleaved
-  different-to-original concurrency (3/3, 2.495s), full atomic publication
-  (1/1, 2.701s), future-generation preflight (1/1, 0.790s), and Firebase atomic
-  result/concurrency behavior (8/8, 36.391s).
-- Full affected suites passed via `dotnet run --project tests/Core.Tests`
-  (316/316, 0 failed, 0 skipped, 3.233s), `dotnet run --project
-  tests/ContextProviders.Kicktipp.Tests` (74/74, 0 failed, 0 skipped, 1.899s),
-  `dotnet run --project tests/Orchestrator.Tests` (1195/1195, 0 failed,
-  0 skipped, 1m 54.711s), and `dotnet run --project
-  tests/FirebaseAdapter.Tests` (302/302, 0 failed, 0 skipped, 54.935s). Each
-  report is under its project `bin/Debug/net10.0/TestResults/` directory; no
-  Integration project source was affected by this slice.
-- The command path authenticates/extracts before target markdown collection,
-  validates the checked-in semantic/content identities before publication, and
-  publishes the target through an atomic transaction in both ordinary and full
-  modes. That transaction returns the independently selected effective immutable
-  version even for unchanged content while retaining created-version/null
-  compatibility, and the command reads back only that exact version by expected
-  name and content hash; it never resolves the target through floating latest.
-  The checked-in Markdown is pinned to repository LF bytes by an exact-path
-  attribute and verifies as 763 bytes with SHA-256
-  `f943f4b8f19d69dd1fc378d5684a2fdf7f59596accab4aa25866f81889b3e709`.
-  The blocking successor above deliberately keeps this non-Firebase slice from
-  claiming resolved-manifest persistence or DFB/CL generation readiness.
-
-## Persistence-hardening evidence — 2026-08-30
-
-- Typed match and bonus rows now bind exact canonical season identity. Bonus
-  identity includes question text, deadline, maximum selections, and every
-  ordered option ID/text pair; typed current reads require complete immutable
-  provenance, while legacy APIs retain their old behavior and exclude typed
-  rows.
-- Typed DFB-Pokal and Champions League persistence remains fail closed until
-  `resolvedTypedContextManifest` exists. Typed cancelled-match lookup is
-  available explicitly, without changing the legacy cancelled-match contract.
-- Typed initial match saves plus typed initial and repredicted bonus saves use
-  transactional deterministic allocation. Concurrent writers cannot create a
-  duplicate semantic index, approved reprediction limits remain enforceable,
-  and subcompetition, stable identity, and model-configuration scopes remain
-  isolated. Any pre-existing duplicate full-provenance exact-config typed index
-  fails closed across current, cancelled, copy, and reprediction paths. Legacy
-  and WM26 persistence paths are unchanged.
-- Focused Firebase identity/concurrency and duplicate-corruption coverage
-  passed `9/9`. The exact full Firebase gate passed with
-  `dotnet run --project tests/FirebaseAdapter.Tests`
-  (`301/301`, `0` failed, `0` skipped, `1m 12s 712ms`) and
-  `dotnet run --project tests/Core.Tests` (`311/311`, `0` failed, `0` skipped,
-  `3s 477ms`).
-
-## Manifest-lifecycle decision evidence — 2026-08-30
-
-- Accepted ADR-0060 preserves the exact field
-  `bundesligaSeasonSubcompetition`, fixes `rulesObservedAt` to canonical
-  100-nanosecond UTC text, and defines freshness as the inclusive interval
-  from the evaluation instant through exactly 24 hours old.
-- The prediction's generation-time resolved manifest is immutable. A separate
-  publication binding is directly addressed by the exact season/community/
-  profile/routing-seed tuple and binds one exact immutable document plus the
-  structured rules schema, hash, and current authenticated observation.
-- Re-attestation refreshes only binding-scoped rules/profile/seed/document
-  identity. Per-prediction reuse separately compares the current typed
-  invocation, exact pinned prompt route, and model/service configuration with
-  immutable prediction provenance before allowing zero model calls and zero
-  prediction mutation. Trace and verification distinguish generation from
-  current observation; drift and legacy state fail closed, and ADR-0058's
-  Owner replacement/cost/force/cutoff gate remains.
-- This accepted planning decision makes no fixture seed or prompt decision,
-  performs no production or external write, and does not activate a schedule.
+The completed 2026-08-30 planning, typed-foundation, rules-contract,
+persistence-hardening, and manifest-lifecycle evidence is preserved in the
+[P1-10 foundation evidence archive](../archive/p1/evidence/p1-10-foundation-evidence-2026-08-30.md).
+It is evidence for the retained full-PR work, not runtime completion.
 
 ## Complete when
 
@@ -387,15 +277,15 @@ until the persistence/call-site owner completes all of the following.
   fails closed on unknown or drifted state.
 - No `schadensfresse` prediction can read, copy, or inherit payload/provenance
   from `pes-squad`; no untyped legacy row is accepted as current.
-- The three CL questions pass exact-identity validation and are handled through
-  the promoted CL route before `2026-09-08T16:45:00Z`.
+- Future typed CL operations pass exact-identity validation through the
+  reviewed general CL route; completed P1-15 remains a separate historical exception.
 - Local and applicable dev/arena evidence is green; the approved production
   replacement stays within its exact budget/cutoff and passes payload-safe
   Kicktipp/Firestore/Langfuse inspection.
 - Until the final P1-10 merge, ADR-0062's temporary source-compatible pair is
   the active recovery route and its eight-pair operating contract is preserved.
-  The final merge replaces or terminates it atomically; any missed sunset
-  re-quarantines Schadensfresse while preserving seven unaffected pairs.
+  A reviewed successor replaces or terminates it atomically under ADR-0068;
+  the former calendar sunset no longer changes runtime by itself.
 - A separately reviewed primary-activation commit reintroduces target context
   plus the primary match job, preserves the outer operating contract, and its
   first natural execution is green.

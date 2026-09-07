@@ -20,7 +20,7 @@ The broken historical full-season collection path is deferred; this decision doe
 
 ## Affected tasks
 
-- [P1-14](../tasks/p1-14-history-source-continuity.md)
+- [P1-14](../archive/p1/tasks/p1-14-history-source-continuity.md)
 
 ## Supersedes
 

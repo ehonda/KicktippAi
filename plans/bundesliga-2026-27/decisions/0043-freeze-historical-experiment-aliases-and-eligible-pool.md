@@ -56,7 +56,7 @@ The local prepared compatibility contract binds eligibility policy `bundesliga-2
 
 ## Affected tasks
 
-- [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md)
+- [P0-06](../archive/p0/tasks/p0-06-model-ledger-and-cost-baseline.md)
 - [P1-07](../tasks/p1-07-cost-calibration.md)
 
 ## Refines

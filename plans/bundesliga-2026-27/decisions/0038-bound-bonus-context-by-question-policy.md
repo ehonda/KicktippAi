@@ -76,9 +76,9 @@ The maximum observed selection is 3 documents, 4,441 UTF-8 bytes, and 1,111 esti
 
 ## Affected tasks
 
-- [P0-16](../tasks/p0-16-question-aware-bonus-context.md)
-- [P0-18](../tasks/p0-18-base-workflow-support.md)
-- [P0-20](../tasks/p0-20-seed-and-development-validation.md)
+- [P0-16](../archive/p0/tasks/p0-16-question-aware-bonus-context.md)
+- [P0-18](../archive/p0/tasks/p0-18-base-workflow-support.md)
+- [P0-20](../archive/p0/tasks/p0-20-seed-and-development-validation.md)
 
 ## Supersedes
 

@@ -117,9 +117,9 @@ For the currently supported `bundesliga-2026-27` runtime:
 
 ## Affected tasks
 
-- [P0-19 schadensfresse production copy](../tasks/p0-19-schadensfresse-production-copy-workflow-triad.md)
-- [P0-21](../tasks/p0-21-production-activation.md)
-- [P1-08](../tasks/p1-08-schadensfresse-mixed-competition-routing.md)
+- [P0-19 schadensfresse production copy](../archive/p0/tasks/p0-19-schadensfresse-production-copy-workflow-triad.md)
+- [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
+- [P1-08](../archive/p1/tasks/p1-08-schadensfresse-mixed-competition-routing.md)
 
 ## Supersedes
 

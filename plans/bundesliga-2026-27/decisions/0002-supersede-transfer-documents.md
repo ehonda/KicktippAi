@@ -31,11 +31,11 @@ Existing historical transfer documents in Firestore do not need to be deleted. A
 
 ## Affected tasks
 
-- [P0-07](../tasks/p0-07-roster-contract.md)
-- [P0-09](../tasks/p0-09-roster-collector.md)
-- [P0-11](../tasks/p0-11-club-elo-collector.md)
-- [P0-12](../tasks/p0-12-match-context-and-transfer-retirement.md)
-- [P0-13](../tasks/p0-13-bonus-context-baseline.md)
+- [P0-07](../archive/p0/tasks/p0-07-roster-contract.md)
+- [P0-09](../archive/p0/tasks/p0-09-roster-collector.md)
+- [P0-11](../archive/p0/tasks/p0-11-club-elo-collector.md)
+- [P0-12](../archive/p0/tasks/p0-12-match-context-and-transfer-retirement.md)
+- [P0-13](../archive/p0/tasks/p0-13-bonus-context-baseline.md)
 
 ## Supersedes
 

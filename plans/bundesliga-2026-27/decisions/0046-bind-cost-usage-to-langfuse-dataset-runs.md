@@ -87,7 +87,7 @@ cost runs must use exact dataset-run binding.
 
 ## Affected tasks
 
-- [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md)
+- [P0-06](../archive/p0/tasks/p0-06-model-ledger-and-cost-baseline.md)
 
 ## Supersedes
 

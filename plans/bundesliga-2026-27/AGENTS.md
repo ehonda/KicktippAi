@@ -51,13 +51,16 @@ These instructions apply to every file and implementation task under this direct
 - After its configured participant and credentials are available, the same Luna/none path may be validated in `ehonda-ai-arena` through local CLI, `workflow_dispatch`, and an arena-only schedule. Inspect Kicktipp writes, Firestore state, Langfuse traces, and workflow ordering at each stage.
 - Never promote the validation model to production. The project owner controls the final model/prompt/cost decision, Club Elo unattended-network decision, and final schedule activation.
 - Load community-specific sibling `.env.<community>` credentials for local writes without printing values or replacing the base development `.env`.
-- Production bonus callers remain manual-only. Match predictions for the ready
-  `pes-squad`, `relaxdays-tippt`, and `ehonda-ai-arena` rows run only through
-  [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)'s
-  strict outer schedule; their leaf callers remain manual-only. ADR-0058
-  supersedes ADR-0055's schadensfresse copy topology and currently keeps both
-  schadensfresse scheduled jobs absent. P1-10 may restore only the separately
-  reviewed typed target-owned context/match path. See
+- Production bonus callers remain manual-only. Match predictions run only
+  through [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)'s
+  strict outer schedule; all leaf callers remain manual-only. The currently
+  accepted recovery is [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)'s
+  eight-pair topology: Schadensfresse uses target-owned context followed by a
+  source-compatible `pes-squad` match copy. Under
+  [ADR-0068](decisions/0068-replace-copy-sunset-with-reviewed-replacement-condition.md),
+  that pair remains until a reviewed successor replaces or terminates it.
+  P1-10's typed target-primary route is still the separately reviewed atomic
+  successor, not current runtime. See
   [ADR-0006](decisions/0006-stage-validation-with-a-cheap-test-model.md).
 
 ## Task records

@@ -2,7 +2,7 @@
 
 - Status: Common seam frozen; accepting source and implementation not started
 - Priority: Deferred accepting-source lane
-- Depends on: [P0-21](p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), accepted source/date contract
+- Depends on: [P0-21](../archive/p0/tasks/p0-21-production-activation.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), accepted source/date contract
 - Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md)
 - Design: [P1-04/P1-05 context refresh](../designs/p1-04-05-context-refresh.md)
 - Packet: [P1-04/P1-05 execution packet](../p1-04-05-execution-packet.md)

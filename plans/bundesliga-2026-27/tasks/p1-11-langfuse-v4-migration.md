@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P1
-- Depends on: [P0-21](p0-21-production-activation.md)
+- Depends on: [P0-21](../archive/p0/tasks/p0-21-production-activation.md)
 - Coordinates with: [P1-06](p1-06-observability-datasets.md)
 - Deadline: Complete before Langfuse Cloud removes legacy APIs on 2026-11-16
 

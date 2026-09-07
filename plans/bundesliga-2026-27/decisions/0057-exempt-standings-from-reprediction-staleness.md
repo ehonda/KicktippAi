@@ -68,7 +68,7 @@ failures continue to fail closed. Bonus prediction behavior is not changed.
 
 ## Affected tasks
 
-- [P1-12](../tasks/p1-12-standings-reprediction-exemption.md)
+- [P1-12](../archive/p1/tasks/p1-12-standings-reprediction-exemption.md)
 
 ## Supersedes
 
