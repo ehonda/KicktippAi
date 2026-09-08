@@ -59,7 +59,14 @@ C2 owns only `src/Core/DocumentPublication.cs`,
 `tests/FirebaseAdapter.Tests/FirebaseContextSourceCycleRepositoryTests.cs`,
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceCycleCoordinatorTests.cs`, and
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceBundleHandoffTests.cs` for
-the matrix/fence and its round-trip/null/legacy/crash-replay tests. R1 owns only
+the matrix/fence and its round-trip/null/legacy/crash-replay tests. Sequentially
+after C1 integration, C2 additionally reuses the thirteenth path,
+`tests/Orchestrator.Tests/Commands/Operations/Dev/CompetitionCollectionProfileTests.cs`,
+for exactly two mechanical fixture substitutions to
+`BundesligaContextSourceDescriptorContract.RosterMetadataUrl` and
+`BundesligaContextSourceDescriptorContract.RosterArtifactUrl`; C1's historical
+ownership of that path remains satisfied, and this test-fixture-only reuse
+authorizes no other change in the file or any additional path. R1 owns only
 `src/Core/BundesligaRosterRefresh.cs`, `src/Core/BundesligaRosterModels.cs`,
 `src/Core/BundesligaRosterPolicy.cs`, `src/Core/BundesligaRosterPublication.cs`,
 `src/Core/BundesligaRosterPublicationContract.cs`, `src/Core/BundesligaRosterCsv.cs`,
