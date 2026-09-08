@@ -84,3 +84,4 @@ remain authoritative.
 | [0076](0076-pause-orchestration-hook-readiness-gate.md) | Pause the orchestration hook-readiness gate | Accepted |
 | [0077](0077-refresh-club-elo-from-official-html.md) | Official-HTML Club Elo refresh contract | Accepted |
 | [0078](0078-refine-context-source-pre-artifact-and-publication-fence.md) | Context-source pre-artifact and publication fence | Accepted |
+| [0079](0079-pin-roster-refresh-endpoints-and-close-c2-validation.md) | Pinned roster endpoints and C2 validation closure | Accepted |

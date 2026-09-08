@@ -1,8 +1,8 @@
 # P1-04 — Refresh Club Elo during context collection
 
 - Status: Accepted official-HTML contract; dormant implementation
-- Depends on: C1 review/integration, C2, C3, then E1
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md)
+- Depends on: S1 acceptance, C2, C3, then E1; C1 is satisfied/integrated at `f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07`
+- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md)
 
 ## Outcome
 
@@ -25,6 +25,7 @@ seven-calendar-day network-candidate limit retain seed/LKG.
   LKG/no-change, disabled-source zero calls, and publication-v2 reconstruction.
 - [ ] Complete fresh incremental/final reviews and exact-head CI.
 
+ADR-0079 makes C2 writable but does not release this lane or P1-05's R1 source.
 The retained HTML body is historical specification evidence, not a live
 acceptance. Synthetic fixtures prove mechanics only; a real accepting-evidence
 recipe is unsupported pending separate specification. Flags remain false.

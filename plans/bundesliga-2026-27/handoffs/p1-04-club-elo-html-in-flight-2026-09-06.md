@@ -1,18 +1,20 @@
 # P1-04 official Club Elo HTML in-flight handoff
 
-- Status: ADR-0077 accepted; dormant C3/E1 only
-- Date reconciled: 2026-09-07
+- Status: C1 satisfied/integrated; S1 acceptance then dormant C2/C3/E1
+- Date reconciled: 2026-09-08
 - Task: [P1-04](../tasks/p1-04-club-elo-refresh.md)
-- Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), and [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md)
+- Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), and [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md)
 
 ## Resume boundary
 
 The Owner-selected official HTML contract is accepted, but selection is not
-unattended-reuse or activation authority. First complete fresh C1 review of
-`c99e163..852d179`, content-integrate accepted 20-path bytes onto current main,
-and implement/accept C2. Then C3 owns ADR-0077's exact nine shared surfaces;
-only after C3 may E1 own the literal source/dependency/mapping/fixture surface.
-P1-05 remains independent of HTML.
+unattended-reuse or activation authority. C1 review/integration is satisfied on
+current `main` at `f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07`; its
+`c99e163..852d179` review and 20-path integration are historical. Resume with
+S1 acceptance, then C2. C3 owns ADR-0077's exact nine shared surfaces only
+after C2; only after C3 may E1 own the literal source/dependency/mapping/fixture
+surface. P1-05 remains independent of HTML. ADR-0079 makes C2 writable but
+keeps R1 dormant until dcaribou publishes its conforming pinned sidecar.
 
 Two official captures eleven minutes apart were byte-identical: displayed date
 `2026-09-04`, body length `562,238`, SHA-256
