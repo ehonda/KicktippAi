@@ -10,8 +10,8 @@ authority. Recheck Git/worktree/CI before relying on it.
 
 | Item | Current state | Next gate |
 | --- | --- | --- |
-| P1-04 | ADR-0077 accepts the official-HTML contract; no implementation or live authority | S1 acceptance, C2, C3, E1 and reviews |
-| P1-05 | dcaribou sidecar is absent; this is `MetadataUnavailable`, with no artifact request and seed/LKG retained | S1 acceptance, C2; R1 remains dormant until a conforming sidecar and owner gates |
+| P1-04 | ADR-0077 accepts the official-HTML contract; no implementation or live authority | S3 tracked-contract acceptance/publication, then C2, C3, E1 and reviews |
+| P1-05 | dcaribou sidecar is absent; this is `MetadataUnavailable`, with no artifact request and seed/LKG retained | S3 tracked-contract acceptance/publication, then C2; R1 remains dormant until a conforming sidecar and owner gates |
 
 The current DuckDB artifact remains rejection-only (`NO_ELIGIBLE_2026_MEMBERSHIP`,
 `UNKNOWN_SOURCE_DATE`); retained seed/LKG dates and enrichment facts must stay

@@ -28,6 +28,23 @@ mismatch is fatal and mutation-free; replay never rewrites a head, source
 health, revision state, issue projection, receipt, or immutable publication
 document.
 
+Before entering retriable Firebase transaction work, the implementation
+defensively snapshots and freezes every caller-supplied retry-sensitive
+publication input: the document collection and its ordered entries, guard
+evidence, receipt template, and condition collection. Every transaction attempt
+uses only that frozen input, so caller mutation cannot alter validation or the
+persisted receipt semantics between retries. Supplied order must already be the
+canonical valid order and invalid order fails; the implementation must not sort
+or otherwise normalize order silently.
+
+One shared retained-diagnostic evaluation-precedence validator governs
+observation diagnostics, retained descriptors, and
+`MetadataUnchanged.retainedDiagnostics`. It validates the ADR-defined,
+non-lexical supplied order and primary diagnostic rather than allowing per-call
+ad hoc or lexical ordering. Direct proof covers a valid non-lexical ADR order,
+and hostile proof covers reversed order, duplicate diagnostics, an invalid
+primary diagnostic, and an unknown code.
+
 With an absent receipt, C2 first validates the exact typed guard, source enablement,
 outer `HandoffReady` cycle and bundle digest, finalized source observation and
 observation digest, exact watermark, strict consumer-prefix state, and the
@@ -89,6 +106,10 @@ implementation surface.
   ordinary atomic `Published` and `Reactivated`; malformed/ambiguous proof;
   strict prefix, supersession, legacy null-guard, crash/retry, and prior-cycle
   versus current-cycle staleness cases.
+- The same direct suite proves retry-stable defensive snapshots for documents/
+  entries, guard evidence, receipt template, and conditions, plus the one shared
+  retained-diagnostic precedence validator's valid non-lexical order and its
+  reversed, duplicate, invalid-primary, and unknown-code hostiles.
 - Manual ambiguity recovery, flag-off rollback by reviewed revert, the project
   owner as recovery owner, and separate restoration/activation/completion gates
   remain unchanged. Source flags remain false.

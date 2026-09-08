@@ -12,8 +12,8 @@ behavior remain unchanged.
 
 | Lane | State | Next gate |
 | --- | --- | --- |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | Official HTML contract accepted; dormant | S1 acceptance, C2, C3, then E1; no source activation |
-| [P1-05](tasks/p1-05-roster-refresh.md) | dcaribou-sidecar-gated roster lane | S1 acceptance then C2; R1 remains dormant until a conforming sidecar and separate owner gates |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | Official HTML contract accepted; dormant | S3 tracked-contract acceptance/publication, then C2, C3, then E1; no source activation |
+| [P1-05](tasks/p1-05-roster-refresh.md) | dcaribou-sidecar-gated roster lane | S3 tracked-contract acceptance/publication, then C2; R1 remains dormant until a conforming sidecar and separate owner gates |
 | P1-10 and every other P1 task | Excluded | Not released by this closeout |
 
 The operative decisions are [ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md),

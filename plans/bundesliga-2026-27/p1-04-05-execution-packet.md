@@ -132,6 +132,14 @@ including current-equals-target, mutation-free provable `Unchanged`, ordinary
 atomic `Published`/`Reactivated`, and distinct prior/current staleness. The
 five local corrections are exact receipt replay, guard-before-head ordering,
 mismatch fatality, bounded recovery, and authoritative prior-cycle selection.
+Before retriable Firebase work, C2 defensively snapshots/freezes caller-supplied
+document collection/ordered entries, guard evidence, receipt template, and
+conditions; every retry uses that frozen canonical input. Invalid supplied order
+fails and C2 never silently sorts it. One shared retained-diagnostic
+evaluation-precedence validator covers observation diagnostics, retained
+descriptors, and `MetadataUnchanged.retainedDiagnostics`; no per-call ad hoc or
+lexical order is permitted. Direct Firebase proof includes valid non-lexical ADR
+order plus reversed, duplicate, invalid-primary, and unknown-code hostiles.
 R1's frozen hostile/null/replay/supersession
 checklist includes ADR-0079's strict sidecar contract.
 C3/E1 cover HTML fixture/reconstruction/integer contracts; R1 covers rejection
