@@ -20,4 +20,9 @@ pins the future sidecar/artifact URLs and rejects all other
 provider or URL-adoption claims. A synthetic trusted-date artifact proves
 mechanics only. The retained official HTML capture is historical specification
 evidence, not an accepting live run. Source flags are false and no other P1
-task is released.
+task is released. [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md)
+must be accepted before C2: a present receipt replays exactly; an absent receipt
+can reduce only a proved `expected == current == target` case to no-rewrite
+`Unchanged`; every expected/current mismatch is fatal and mutation-free. C2
+then corrects the five local fence/recovery areas and direct guarded Firebase
+matrix before either source lane can proceed.

@@ -1,8 +1,8 @@
 # P1-05 — Refresh quality-gated DuckDB roster membership and enrichment
 
 - Status: dcaribou-sidecar-gated, rejection-only dormant lane
-- Depends on: S1 acceptance then C2; C1 is satisfied/integrated at `f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07`; not HTML
-- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), and [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md)
+- Depends on: S1 acceptance, S3 ADR-0080 acceptance, then C2; C1 is satisfied/integrated at `f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07`; not HTML
+- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), and [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md)
 
 ## Outcome
 
@@ -21,7 +21,10 @@ current-source acceptance.
 - [ ] C2 implements ADR-0078's evaluation precedence, required/null fields,
   nullable receipt revision rule, revision-state protection, optional guard,
   state-aware reasons, canonical `rosters` lane ID, and guarded
-  metadata-unchanged prior receipt/health validation.
+  metadata-unchanged prior receipt/health validation. ADR-0080 additionally
+  requires receipt-first replay, fatal expected/current mismatch (including a
+  current target), provable no-rewrite `Unchanged` only, normal atomic
+  `Published`/`Reactivated`, and prior-cycle selection validation.
 - [ ] R1 implements bounded acquisition/selection/diff/carry/v3 only after C2,
   a conforming ADR-0079 sidecar, and separate owner permission.
 - [ ] Cover metadata unavailable/malformed/revision, hostile sidecar/URL,

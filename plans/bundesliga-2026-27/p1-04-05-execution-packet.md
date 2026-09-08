@@ -1,7 +1,7 @@
 # P1-04 / P1-05 execution packet
 
-- Status: Frozen S1 metadata-authority successor contract — 2026-09-08
-- Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), and [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md)
+- Status: Frozen S3 transitional-recovery successor contract — 2026-09-08
+- Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), and [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md)
 - Scope: dormant P1-04/P1-05 only; no source is enabled
 
 ## Frozen order
@@ -10,11 +10,13 @@
    `f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07`. Its historical cumulative review
    of `c99e163..852d179` and 20-path integration are not future work.
 2. S1 acceptance closes the metadata-authority contract.
-3. C2 implements ADR-0078's roster matrix and optional source publication
-   fence as closed by ADR-0079, then receives incremental and fresh final
+3. S3 accepts ADR-0080's narrow replacement for transitional C1 inference.
+   It releases no source and authorizes no implementation by itself.
+4. C2 implements ADR-0078's roster matrix and optional source publication
+   fence as closed by ADR-0079 and ADR-0080, then receives incremental and fresh final
    review. S1 makes C2 writable only; R1 remains dormant until the exact
    dcaribou sidecar exists and separate owner gates permit it.
-4. C3 applies the nine literal shared HTML amendments; E1 implements official
+5. C3 applies the nine literal shared HTML amendments; E1 implements official
    HTML only after C3. R1 follows C2 independently of HTML. W1 follows C2 and
    at least one accepted source. Exact-head CI closes each cohesive milestone.
 
@@ -121,11 +123,16 @@ C3 starts only after C2 acceptance and serially reuses its shared paths.
 
 ## Verification and authority
 
-C2 covers round-trip/null/fence/supersession/crash-retry/legacy compatibility,
+C2 covers receipt-first round-trip/null/fence/supersession/crash-retry/legacy compatibility,
 state-aware reason precedence, impossible-reason exclusion for unavailable
 identity, raw SHA/length drift evidence, canonical lane IDs, prior
-receipt/health validation before metadata-unchanged writes, and exact
-ambiguity-fatal C1 inference. R1's frozen hostile/null/replay/supersession
+receipt/health validation before metadata-unchanged writes, and ADR-0080's
+direct guarded Firebase matrix: exact replay, fatal expected/current mismatch
+including current-equals-target, mutation-free provable `Unchanged`, ordinary
+atomic `Published`/`Reactivated`, and distinct prior/current staleness. The
+five local corrections are exact receipt replay, guard-before-head ordering,
+mismatch fatality, bounded recovery, and authoritative prior-cycle selection.
+R1's frozen hostile/null/replay/supersession
 checklist includes ADR-0079's strict sidecar contract.
 C3/E1 cover HTML fixture/reconstruction/integer contracts; R1 covers rejection
 and synthetic takeover; disabled sources prove zero resolution/writes/API calls.

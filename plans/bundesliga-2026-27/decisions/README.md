@@ -85,3 +85,4 @@ remain authoritative.
 | [0077](0077-refresh-club-elo-from-official-html.md) | Official-HTML Club Elo refresh contract | Accepted |
 | [0078](0078-refine-context-source-pre-artifact-and-publication-fence.md) | Context-source pre-artifact and publication fence | Accepted |
 | [0079](0079-pin-roster-refresh-endpoints-and-close-c2-validation.md) | Pinned roster endpoints and C2 validation closure | Accepted |
+| [0080](0080-bound-transitional-context-publication-recovery.md) | Bound transitional context-publication recovery | Accepted; narrowly supersedes ADR-0078's transitional inference paragraph |

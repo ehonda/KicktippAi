@@ -18,19 +18,23 @@ behavior remain unchanged.
 
 The operative decisions are [ADR-0074](decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md),
 [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), and
-[ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), and
-[ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md).
+[ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md),
+[ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), and
+[ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md).
 ADR-0077 preserves CSV-era evidence as history and selects official HTML only
 for the dormant P1-04 source. ADR-0078 refines roster pre-artifact evaluation
-and source-backed publication fencing without enabling either source. ADR-0079
+and source-backed publication fencing without enabling either source; ADR-0080
+narrowly replaces only its transitional C1 inference with receipt-first,
+provable-`Unchanged` recovery. ADR-0079
 pins the future dcaribou sidecar/artifact contract; until that sidecar exists,
 P1-05 is `MetadataUnavailable`, makes no artifact request, and retains seed/LKG.
 
 ## Required order and gates
 
 `C1 satisfied/integrated at f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07 -> S1
-acceptance -> C2 shared amendment -> (C3 HTML common -> E1) and R1; W1 follows
-C2 and one accepted source.` The C1 review of `c99e163..852d179` and its
+acceptance -> S3 ADR-0080 contract acceptance -> C2 shared amendment -> (C3
+HTML common -> E1) and R1; W1 follows C2 and one accepted source.` The C1
+review of `c99e163..852d179` and its
 20-path integration are satisfied historical sequencing, not future work.
 Preserve ADR-0074's seven-milestone upper bound. C2 and each source milestone
 use incremental review, a fresh final review, one serialized heavy family, and

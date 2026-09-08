@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 execution strategy
 
 - Status: Accepted current P1 strategy
-- Last updated: 2026-09-07
+- Last updated: 2026-09-08
 
 P1-04/P1-05 closeout is limited to the accepted contracts and their dormant
 implementation; other P1 work stays excluded. Current production continuity is
@@ -11,12 +11,14 @@ models, prompts, credentials, posting and copy compatibility remain fixed.
 
 ## Sequencing
 
-The accepted ADRs and current packet precede a fresh C1 review of
-`c99e163..852d179`; acceptance precedes content integration of its exact
-20-path bytes onto current main. C2 follows integration. C3 then E1 follow C2
-and ADR-0077; R1 follows C2 independently; W1 requires C2 and an accepted
-source. Keep ADR-0074's seven-milestone upper bound. No old run branch,
-resource cap, writer count, or per-lane push rule survives this freeze.
+C1 review and exact 20-path content integration are historical, satisfied work
+at `f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07`; no future C1 review or
+integration is sequenced. S1 is accepted, then S3 accepts ADR-0080's bounded
+transitional contract before C2. C2 corrects the five local fence/recovery
+areas and direct guarded Firebase matrix. C3 then E1 follow accepted C2 and
+ADR-0077; R1 follows C2 independently; W1 requires C2 and an accepted source.
+Keep ADR-0074's seven-milestone upper bound. No old run branch, resource cap,
+writer count, or per-lane push rule survives this freeze.
 
 ## Quality and authority
 

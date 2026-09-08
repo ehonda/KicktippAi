@@ -1,6 +1,6 @@
 # ADR-0078: Refine context-source pre-artifact and publication fence
 
-- Status: Accepted
+- Status: Accepted — its transitional C1 separate-receipt inference paragraph is narrowly superseded by [ADR-0080](0080-bound-transitional-context-publication-recovery.md); all other decisions remain operative.
 - Implementation: Not started
 - Date: 2026-09-07
 
