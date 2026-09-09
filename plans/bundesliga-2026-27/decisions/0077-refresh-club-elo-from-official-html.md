@@ -4,6 +4,11 @@
 - Implementation: Not started
 - Date: 2026-09-07
 
+> ADR-0081 refines this ADR's C3/E1 ownership, shared-selection,
+> receipt-completion and publication seams. This ADR remains Accepted; its
+> detailed HTML acquisition and parser contract remains operative unless
+> ADR-0081 explicitly refines it.
+
 ## Context
 
 The CSV route accepted by ADR-0073 and described by the Club Elo portion of

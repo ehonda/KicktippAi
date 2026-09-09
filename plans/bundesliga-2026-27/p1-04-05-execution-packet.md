@@ -1,7 +1,7 @@
 # P1-04 / P1-05 execution packet
 
-- Status: Frozen S3 transitional-recovery successor contract — 2026-09-08
-- Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), and [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md)
+- Status: Frozen C3/E1 successor contract — 2026-09-09; implementation pending
+- Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md), and [ADR-0081](decisions/0081-close-club-elo-html-publication-and-selection-seams.md)
 - Scope: dormant P1-04/P1-05 only; no source is enabled
 
 ## Frozen order
@@ -12,13 +12,11 @@
 2. S1 acceptance closes the metadata-authority contract.
 3. S3 accepts ADR-0080's narrow replacement for transitional C1 inference.
    It releases no source and authorizes no implementation by itself.
-4. C2 implements ADR-0078's roster matrix and optional source publication
-   fence as closed by ADR-0079 and ADR-0080, then receives incremental and fresh final
-   review. S1 makes C2 writable only; R1 remains dormant until the exact
-   dcaribou sidecar exists and separate owner gates permit it.
-5. C3 applies the nine literal shared HTML amendments; E1 implements official
-   HTML only after C3. R1 follows C2 independently of HTML. W1 follows C2 and
-   at least one accepted source. Exact-head CI closes each cohesive milestone.
+4. C2 is accepted at `c7cc0712b16834d4013948949f1502514ae46770`.
+5. The tracked ADR-0081 specification receives fresh acceptance/publication;
+   a fresh C3 writer then applies its 13 exact paths, followed by E1's 17 exact
+   paths. R1 follows C2 independently; W1 follows C2 and one accepted source
+   but cannot partially wire Club Elo. Exact-head CI closes each milestone.
 
 This preserves ADR-0074's seven-milestone upper bound; no two/three-writer or
 old-run push assumption applies. One heavy-operation family is serialized.
@@ -104,7 +102,22 @@ W1 owns only `src/Orchestrator/Commands/Operations/CollectContext/GitHubContextS
 
 ## Literal C3/E1 ownership
 
-C3 owns the exact nine paths listed in ADR-0077. E1 owns only
+C3 owns exactly these 13 paths:
+`src/Core/BundesligaContextSourceBundle.cs`,
+`src/Core/BundesligaContextSourceHealth.cs`,
+`src/FirebaseAdapter/FirebaseContextSourceCycleRepository.cs`,
+`src/Orchestrator/Commands/Operations/CollectContext/ContextSourceCycleCoordinator.cs`,
+`src/Orchestrator/Commands/Operations/CollectContext/ContextSourceBundleHandoff.cs`,
+`tests/Core.Tests/BundesligaContextSourceBundleContractTests.cs`,
+`tests/Core.Tests/BundesligaContextSourceHealthContractTests.cs`,
+`tests/FirebaseAdapter.Tests/FirebaseContextSourceCycleRepositoryTests.cs`,
+`tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceCycleCoordinatorTests.cs`,
+`src/Core/BundesligaClubEloPublication.cs`,
+`tests/Core.Tests/BundesligaClubEloPublicationTests.cs`,
+`tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextSourceBundleHandoffTests.cs`, and
+`tests/FirebaseAdapter.Tests/FirebaseDocumentPublicationRepositoryTests.cs`.
+The last is tests only; no Firebase publication-repository implementation is
+authorized. E1 owns exactly these 17 paths:
 `src/Core/BundesligaClubEloRefresh.cs`,
 `src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloRefreshSource.cs`,
 `src/Orchestrator/Orchestrator.csproj`, `data/bundesliga-2026-27/club-elo-name-map.csv`,
@@ -116,10 +129,17 @@ C3 owns the exact nine paths listed in ADR-0077. E1 owns only
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/partial.html`,
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-dom.html`,
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-lexer.html`, and
-`tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-fragment.html`.
-No inferred dependency/fixture is authorized. R1 cannot edit shared
-descriptor/receipt/health/fence surfaces.
-C3 starts only after C2 acceptance and serially reuses its shared paths.
+`tests/Orchestrator.Tests/Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-fragment.html`,
+`src/Orchestrator/Commands/Operations/CollectContext/CollectContextClubEloCommand.cs`,
+`tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextClubEloCommandTests.cs`,
+`tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextClubEloCommandFirestoreTests.cs`, and
+`tests/Orchestrator.Tests/Orchestrator.Tests.csproj`.
+The test-project edit makes only the six named fixtures deterministically
+available. E1 adds a direct AngleSharp reference to `Orchestrator.csproj`
+using the existing central 1.7.2 pin; no central-package edit or inferred
+dependency/fixture is authorized. R1 cannot edit shared descriptor/receipt/
+health/fence surfaces. C3 starts only after accepted ADR-0081 specification
+publication and serially reuses C2 paths.
 
 ## Verification and authority
 
@@ -142,8 +162,9 @@ lexical order is permitted. Direct Firebase proof includes valid non-lexical ADR
 order plus reversed, duplicate, invalid-primary, and unknown-code hostiles.
 R1's frozen hostile/null/replay/supersession
 checklist includes ADR-0079's strict sidecar contract.
-C3/E1 cover HTML fixture/reconstruction/integer contracts; R1 covers rejection
-and synthetic takeover; disabled sources prove zero resolution/writes/API calls.
+C3/E1 cover ADR-0081's HTML fixture/reconstruction/integer, receipt-completion
+and family-specific numeric contracts; R1 covers rejection and synthetic
+takeover; disabled sources prove zero resolution/writes/API calls.
 All flags remain false. Separate owner gates cover live acquisition,
 development persistence, unattended HTML reuse, GitHub mutations, production
 writes/activation, rollback, restoration and completion evidence.
