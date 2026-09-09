@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-07",
+  "updated_at": "2026-09-09",
   "focuses": [
     {
       "id": "astra-high-architecture-lead-next-p1",
@@ -16,15 +16,23 @@
         "description": "The first Bundesliga P1 orchestration run after the workflow-improvement PRs."
       },
       "cadence": "once",
-      "status": "active",
+      "status": "retired",
       "evidence_source_hints": [
         "git",
         "independent review outcomes",
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
-        "retired_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "superseded_by": null
       }
     },
@@ -50,7 +58,42 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "heavy-operation-concurrency-policy",
+      "questions": [
+        "Could resource-aware admission safely permit more than one concurrent heavy-operation family when measured memory and disk headroom are sufficient?",
+        "For each analyzed run, what heavy-operation concurrency would the observed minimum memory headroom have supported, and what queue delay did the one-family lease cause?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions that sample heavy-operation admission and queue independent heavy work."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "agent intervals",
+        "heavy-operation evidence",
+        "resource snapshots",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "retired_by": null,
         "superseded_by": null
       }
@@ -68,7 +111,7 @@
         "description": "The first orchestration run using the hot-recovery and compact-preview contract from ADR-0075."
       },
       "cadence": "once",
-      "status": "active",
+      "status": "retired",
       "evidence_source_hints": [
         "compaction events",
         "recovery manifests",
@@ -76,8 +119,16 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
-        "retired_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "superseded_by": null
       }
     },
@@ -102,7 +153,77 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "metadata-research-gate-stall",
+      "questions": [
+        "Why did the P1-05 C2 metadata-authority question stall on owner authorization even though the proposed work was bounded read-only endpoint and schema research, and how much avoidable delay resulted?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 and P1-05 orchestration session that stopped on 2026-09-09."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "capsule gates",
+        "owner messages",
+        "task timeline",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "orchestration-delivery-efficiency",
+      "questions": [
+        "How efficiently did the orchestration workflow convert root and agent wall time, model usage, and machine capacity into accepted or published deliverables?",
+        "For long multi-milestone runs such as P1-04 and P1-05, how much work went to shared foundations, milestone output, review, recovery, scheduling, idle time, and rework before judging elapsed time against the visible pull-request diff?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Long-running orchestration sessions that deliver multiple milestones or shared foundations."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "agent intervals",
+        "git and GitHub",
+        "review outcomes",
+        "task timeline",
+        "transcript usage"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "retired_by": null,
         "superseded_by": null
       }
@@ -128,8 +249,115 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "p1-c3-compile-validation-handoff",
+      "questions": [
+        "Why did C3 reach its publication checkpoint with seven cumulative test compile errors, which writer or reviewer validation scope should have caught them, and why did the root have to attribute and forward compiler diagnostics instead of receiving a build-clean handoff?",
+        "What delay and rework did the test-only correction loop add, and was the final draft or WIP stop proportionate?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 C3 milestone in the P1-04 and P1-05 orchestration session that stopped on 2026-09-09."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "build output",
+        "review handoffs",
+        "task timeline",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "p1-milestone-pr-publication-timing",
+      "questions": [
+        "Why were the long-running P1-05 and P1-04 lanes not represented by draft pull requests earlier, which work was pushed directly to main or remained unpublished, and what visibility or recovery risk did that create?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 and P1-05 orchestration session that stopped on 2026-09-09."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "capsule publication topology",
+        "git and GitHub",
+        "task timeline",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "p1-worktree-retention-cleanup",
+      "questions": [
+        "Why did the P1-04 and P1-05 run accumulate roughly 29 worktrees, which were still necessary at the stop boundary, how much disk did obsolete worktrees consume, and why were removal-ready worktrees not pruned once their retention conditions cleared?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 and P1-05 orchestration session that stopped on 2026-09-09."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "capsule reservations",
+        "disk inventory",
+        "git worktree inventory",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "superseded_by": null
       }
     },
@@ -155,7 +383,11 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "retired_by": null,
         "superseded_by": null
       }
@@ -181,7 +413,42 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "subagent-polling-overhead",
+      "questions": [
+        "What polling cadence did the root use while waiting for subagents, how many no-change polls or commentary updates resulted, and what token, context, and tool-call overhead did they add?",
+        "Would longer event-driven waits preserve responsiveness while reducing orchestration churn?"
+      ],
+      "created_at": "2026-09-09",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Orchestration sessions that wait for subagents or repeatedly inspect their status."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "agent wait calls",
+        "commentary events",
+        "transcript timestamps",
+        "usage records"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "retired_by": null,
         "superseded_by": null
       }
@@ -209,7 +476,11 @@
         "transcript"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-05-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
+          "covered_at": "2026-09-09"
+        },
         "retired_by": null,
         "superseded_by": null
       }

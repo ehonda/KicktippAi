@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:">
+  <title>P1-04 / P1-05 orchestration analysis</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0b0d10; --panel:#13171c; --panel2:#181e25; --text:#edf1f5; --muted:#9aa6b2; --line:#2b3540; --cyan:#4fd1c5; --blue:#63a9ff; --amber:#f7b955; --red:#ff746c; --green:#70d58b; }
+    * { box-sizing:border-box; } html { scroll-behavior:smooth; }
+    body { margin:0; background:linear-gradient(160deg,#0b0d10 0%,#10151b 55%,#0b0d10 100%); color:var(--text); font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif; }
+    main { max-width:1180px; margin:0 auto; padding:48px 24px 80px; }
+    h1,h2,h3 { line-height:1.15; letter-spacing:-.02em; } h1 { font-size:clamp(34px,5vw,62px); margin:8px 0 18px; max-width:900px; } h2 { font-size:28px; margin:54px 0 18px; } h3 { font-size:18px; margin:0 0 8px; }
+    p { margin:0 0 14px; } a { color:#8fc5ff; } code { color:#d8e5f2; font-family:"Cascadia Code",Consolas,monospace; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:12px; font-weight:750; } .lede { color:#c9d3dc; font-size:19px; max-width:900px; } .muted,.note { color:var(--muted); }
+    .verdict { margin:30px 0; padding:24px; border:1px solid #5b4020; border-left:5px solid var(--amber); border-radius:12px; background:linear-gradient(120deg,#211a12,#15191e); } .verdict strong { color:#ffd894; }
+    .grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; } .card { min-width:0; border:1px solid var(--line); border-radius:12px; background:rgba(19,23,28,.94); padding:18px; }
+    .metric { font-size:30px; font-weight:760; letter-spacing:-.04em; margin:4px 0; } .metric.good { color:var(--green); } .metric.warn { color:var(--amber); } .metric.bad { color:var(--red); } .metric.info { color:var(--blue); } .label { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.08em; }
+    .bar-row { display:grid; grid-template-columns:170px 1fr 95px; gap:12px; align-items:center; margin:10px 0; } .bar { height:16px; border-radius:8px; background:#222a33; overflow:hidden; } .fill { height:100%; border-radius:8px; background:linear-gradient(90deg,var(--blue),var(--cyan)); } .fill.amber { background:linear-gradient(90deg,#e38d38,var(--amber)); } .fill.red { background:linear-gradient(90deg,#cf4d55,var(--red)); }
+    table { width:100%; border-collapse:collapse; margin:16px 0; background:rgba(19,23,28,.78); } th,td { padding:11px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line); } th { color:#bed0df; font-size:12px; text-transform:uppercase; letter-spacing:.06em; } td.num,th.num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+    .callout { border:1px solid var(--line); border-radius:12px; padding:20px; background:var(--panel2); margin:16px 0; } .callout.bad { border-left:5px solid var(--red); } .callout.good { border-left:5px solid var(--green); }
+    .timeline { border-left:2px solid var(--line); margin:20px 0 0 9px; padding-left:24px; } .event { position:relative; margin:0 0 20px; padding-left:24px; } .event:before { content:""; position:absolute; width:10px; height:10px; border-radius:50%; background:var(--cyan); left:-30px; top:7px; }
+    .tag { display:inline-block; border:1px solid var(--line); border-radius:999px; padding:2px 8px; font-size:12px; color:#c7d3dd; margin-right:6px; } ol.recs { padding-left:22px; } ol.recs li { margin:14px 0; padding-left:5px; }
+    .status { font-weight:700; white-space:nowrap; } .answered { color:var(--green); } .bounded { color:var(--amber); } footer { margin-top:64px; padding-top:22px; border-top:1px solid var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:900px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .bar-row { grid-template-columns:120px 1fr 75px; } } @media (max-width:560px) { main { padding:28px 14px 60px; } .grid { grid-template-columns:1fr; } table { display:block; overflow-x:auto; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Codex session analysis · 9 September 2026</div>
+  <h1>P1-04 / P1-05 orchestration: substantial output, weak conversion</h1>
+  <p class="lede">The run produced a large shared foundation and a sizable P1-04 checkpoint, but coordination and validation converted that effort poorly: neither task ended functionally complete, C3 was published with known compile failures, and control-plane churn was unusually high.</p>
+
+  <div class="verdict"><strong>Overall verdict: useful engineering, inefficient orchestration.</strong> The visible 3,644-line PR is only part of the story—9,943 inserted lines had already reached <code>main</code>, including a 6,586-line common-foundation commit. Even after crediting that work, 146 subagent threads, 263 turns, 117 follow-up turns, 13 compactions, and roughly 33.8 hours of observed root engagement are too much for a result that leaves P1-04 unbuildable and P1-05 deliberately deferred. The largest correctable causes were late cumulative compilation, overlong correction circuits, heavy root state maintenance, and one-minute polling.</div>
+
+  <section class="grid" aria-label="Headline metrics">
+    <article class="card"><div class="label">Session wall span</div><div class="metric info">49.4 h</div><p class="note">Includes capacity stops, owner waits, and a reboot.</p></article>
+    <article class="card"><div class="label">Observed root engagement</div><div class="metric warn">≈33.8 h</div><p class="note">17.9 h completed-turn time plus a 16.0 h interrupted turn.</p></article>
+    <article class="card"><div class="label">Subagent work</div><div class="metric warn">29.0 h</div><p class="note">Aggregate active time; overlaps root and other agents.</p></article>
+    <article class="card"><div class="label">Task outcomes</div><div class="metric bad">0 / 2</div><p class="note">P1-04 incomplete; P1-05 dormant/deferred.</p></article>
+    <article class="card"><div class="label">Subagent topology</div><div class="metric warn">146 / 263</div><p class="note">Threads / turns; 56 threads were reused.</p></article>
+    <article class="card"><div class="label">Repository output</div><div class="metric good">13,521</div><p class="note">Insertions across 43 files; 956 deletions.</p></article>
+    <article class="card"><div class="label">Model usage</div><div class="metric warn">926.3 M</div><p class="note">Root + subagent tokens; 96.8% of input was cached.</p></article>
+    <article class="card"><div class="label">API list-price equivalent</div><div class="metric warn">$496.36</div><p class="note">Comparison proxy, not a Codex subscription bill.</p></article>
+  </section>
+
+  <h2>What was actually delivered</h2>
+  <table><thead><tr><th>Surface</th><th class="num">Files</th><th class="num">Insertions</th><th class="num">Deletions</th><th>Outcome at cutoff</th></tr></thead><tbody>
+    <tr><td>Full frozen range</td><td class="num">43</td><td class="num">13,521</td><td class="num">956</td><td>11 commits across shared foundations, contracts, and C3</td></tr>
+    <tr><td>Integrated on <code>main</code></td><td class="num">41</td><td class="num">9,943</td><td class="num">943</td><td>Shared foundation and accepted contract milestones; exact-head CI was green</td></tr>
+    <tr><td><a href="https://github.com/ehonda/KicktippAi/pull/111">Draft PR #111</a></td><td class="num">13</td><td class="num">3,644</td><td class="num">79</td><td>Open draft at <code>d647016</code>; Build failed on seven known test compile errors</td></tr>
+    <tr><td>P1-05 dormant closeout</td><td class="num">12</td><td class="num">264</td><td class="num">109</td><td><code>869d3f2</code> went directly to <code>main</code>; no associated PR</td></tr>
+  </tbody></table>
+  <p class="note">The ranges are not strictly additive because the PR modifies files already changed on main. Lines are a scope measure, not a value measure. About three quarters of inserted session-range content had already landed on main; the important caveat is that neither requested feature was complete.</p>
+
+  <h2>Where the effort went</h2>
+  <div class="bar-row"><span>Review / specification</span><div class="bar"><div class="fill red" style="width:100%"></div></div><strong>12.07 h</strong></div>
+  <div class="bar-row"><span>Writers</span><div class="bar"><div class="fill" style="width:56%"></div></div><strong>6.76 h</strong></div>
+  <div class="bar-row"><span>Diagnosis</span><div class="bar"><div class="fill amber" style="width:30%"></div></div><strong>3.65 h</strong></div>
+  <div class="bar-row"><span>Architecture</span><div class="bar"><div class="fill amber" style="width:22%"></div></div><strong>2.69 h</strong></div>
+  <div class="bar-row"><span>Validation / CI</span><div class="bar"><div class="fill" style="width:11%"></div></div><strong>1.38 h</strong></div>
+  <p class="note">Role classification is name-based and agent time overlaps. Still, review/specification taking 1.8× writer time is a strong churn signal, reinforced by 118 root follow-up calls and 117 derived follow-up turns.</p>
+  <table><thead><tr><th>Task group</th><th class="num">Threads</th><th class="num">Turns</th><th class="num">Agent-hours</th><th class="num">API-equivalent</th></tr></thead><tbody>
+    <tr><td>P1-04 C3</td><td class="num">59</td><td class="num">113</td><td class="num">14.42</td><td class="num">$150.35</td></tr>
+    <tr><td>Shared C2</td><td class="num">47</td><td class="num">82</td><td class="num">6.51</td><td class="num">$57.53</td></tr>
+    <tr><td>Shared foundation</td><td class="num">11</td><td class="num">17</td><td class="num">2.88</td><td class="num">$27.08</td></tr>
+    <tr><td>P1-05</td><td class="num">14</td><td class="num">28</td><td class="num">2.70</td><td class="num">$25.17</td></tr>
+    <tr><td>Shared C1 + recovery contracts</td><td class="num">14</td><td class="num">22</td><td class="num">2.49</td><td class="num">$18.67</td></tr>
+  </tbody></table>
+  <div class="callout bad"><h3>Correction circuit breakers did not hold</h3><p>Six subagent threads exceeded four total turns, and one C2 correction writer reached nine. A C3 architecture thread reached eight turns. The policy allows an initial writer turn plus at most three corrections and requires release on a material role change or exhausted circuit. Regardless of labels, these long-lived threads defeated the bounded-context intent and correlate with repeated re-freezes and reviewer churn.</p></div>
+
+  <h2>Parallelism was not capped by the four-writer limit</h2>
+  <p>Subagents were active during 22.86 wall-hours. Average concurrency while any subagent was active was 1.27; only 5.36 hours had two or more agents, 45 minutes had three or more, and four-way concurrency lasted about four minutes. The owner’s maximum of four was reached, but it was not the throughput constraint. Serial correction/review dependencies and validation sequencing dominated.</p>
+  <section class="grid"><article class="card"><div class="label">One agent</div><div class="metric info">17.50 h</div></article><article class="card"><div class="label">Two agents</div><div class="metric info">4.60 h</div></article><article class="card"><div class="label">Three agents</div><div class="metric warn">41.5 min</div></article><article class="card"><div class="label">Four agents</div><div class="metric warn">3.9 min</div></article></section>
+
+  <h2>Polling created measurable control-plane churn</h2>
+  <table><thead><tr><th>Period</th><th class="num">Completed waits</th><th class="num">Timed out</th><th class="num">Median requested</th><th class="num">Actual wait time</th><th class="num">Calls / wait-hour</th></tr></thead><tbody>
+    <tr><td>Before owner adjustment</td><td class="num">1,063</td><td class="num">810</td><td class="num">60 s</td><td class="num">17.25 h</td><td class="num">61.6</td></tr>
+    <tr><td>After owner adjustment</td><td class="num">40</td><td class="num">15</td><td class="num">300 s</td><td class="num">2.45 h</td><td class="num">16.3</td></tr>
+  </tbody></table>
+  <p>The ad-hoc long-wait change reduced poll-call density by about <strong>74%</strong> while retaining event-driven early return: 25 of 40 later calls returned before timeout. Across the run, 1,104 wait actions appeared in model responses. Those responses carried 155.1M tokens—35.7% of root usage and about <strong>$71</strong> of API list-price equivalent. This is an upper-bound attribution for one mixed-action response; the pure-wait result is virtually identical.</p>
+  <div class="callout good"><h3>Standing change</h3><p>Default to 5–10 minute event-driven waits once useful root work is exhausted. Post commentary only on a result, blocker, or gate change. The run’s own before/after result supports this.</p></div>
+
+  <h2>The metadata research question should not have stalled C2</h2>
+  <p>The root asked permission for bounded, read-only metadata/API research at 07:33 UTC on 8 September. The owner answered at 15:50 UTC: an 8 hour 17 minute gate span. Research then took about 41 minutes and surfaced the genuine design decision; the owner resolved that second question 16 minutes later.</p>
+  <p><strong>The classification was wrong.</strong> Read-only endpoint/schema research was already within ordinary task scope and did not authorize a DuckDB download, mutation, persistence, or activation. The root should have researched first and asked only the actual metadata-authority choice. The entire span cannot be called saved critical path because the owner may have been unavailable, but useful work was unnecessarily forbidden; under the observed response opportunity, the genuine decision could plausibly have been ready roughly 57 minutes earlier.</p>
+
+  <h2>Heavy leases: make them weighted, not simply plural</h2>
+  <p>The run supports a more generous policy only in bounded form. One restore/test family began with 2.28 GiB available and bottomed at 1.46 GiB without OOM or severe paging. Another snapshot had roughly 3 GiB available, so two similarly bounded operations could have remained above the 1.0 GiB floor. But a default parallel MSBuild attempt expanded from 30 to 90 heavy processes and ended with only 1.53 GiB available plus a non-diagnostic failure.</p>
+  <p>The evidence does <em>not</em> justify two unrestricted solution builds. It supports weighted reservations: retain one lease for restore or default-parallel full builds; allow two only for serial/single-node or targeted test operations whose measured reservations leave the hard floor and warning margin intact. This run recorded no causal heavy-lease queue delay, so throughput benefit remains unproven.</p>
+
+  <h2>Why compiler errors were forwarded so late</h2>
+  <div class="timeline">
+    <div class="event"><span class="tag">Early C3</span><strong>A cumulative writer initially ran Core, Orchestrator, and FirebaseAdapter tests successfully.</strong><p class="note">Later corrections expanded and changed the cumulative surface.</p></div>
+    <div class="event"><span class="tag">Resliced C3</span><strong>Most subsequent writers were explicitly told not to build or test.</strong><p class="note">Publication, matrix, handoff, origin, manifest, and proof slices reported static diff/scope checks only.</p></div>
+    <div class="event"><span class="tag">Late gate</span><strong>The first cumulative heavy gate hit restore/tool-host problems, then three Core failures.</strong><p class="note">After a fixture repair, another parallel build failed without diagnostics.</p></div>
+    <div class="event"><span class="tag">Diagnosis</span><strong>A serial build finally exposed seven test compile errors.</strong><p class="note">Six were in FirebaseAdapter tests and one in Orchestrator tests; the latest Core fixture commit itself compiled.</p></div>
+    <div class="event"><span class="tag">Stop</span><strong>The owner requested a checkpoint, so the known-broken cumulative tip became draft PR #111.</strong></div>
+  </div>
+  <p>Forwarding an attributed error packet to a fixer is reasonable once a cumulative failure exists. The inefficiency happened earlier: assignments deliberately waived runtime validation through many correction rounds. The root then had to determine which prior slice owned each failure so it would not send the fix to the latest, innocent Core writer.</p>
+  <div class="callout bad"><h3>Required workflow correction</h3><p>Every writer should compile the changed project when admitted. If a heavy lease is unavailable, label the handoff “static-only” and stop cumulative review/integration at a mandatory project-build gate. After merging path-disjoint slices, run one serial cumulative build before more semantic review. A final reviewer must reject any acceptance packet without exact build evidence.</p></div>
+
+  <h2>PR timing and worktree cleanup were both too late</h2>
+  <section class="grid"><article class="card"><h3>Publication</h3><p>P1-05’s dormant closeout was pushed directly to main because the frozen topology allowed it. By the time the owner requested PR visibility, a retroactive PR had no diff. P1-04’s draft topology was accepted only near the stop boundary; PR #111 was created at 19:18 UTC, eleven minutes after the pause request.</p></article><article class="card"><h3>Worktrees</h3><p>The audit found 29 registered worktrees. Fresh ownership and “park, do not silently delete” explain the accumulation, but release conditions were not acted on. One PR worktree was added, 27 obsolete worktrees were safely removed with branches retained, 11.11 GiB was freed, and three remained.</p></article></section>
+  <p>Long milestones should get draft PRs at their first coherent reviewed checkpoint, while acceptance and merge remain separate gates. Clean, unowned worktrees should be retired at every accepted, rejected, or correction-exhausted milestone after preserving the branch/tip. Safety explains why deletion was not automatic; it does not justify delaying proof-and-remove until the owner notices disk use.</p>
+
+  <h2>Recovery was safe, but expensive</h2>
+  <p>The run survived usage-limit interruptions and a Windows reboot, preserved exact branch/tip state, and stopped with a sealed capsule. Thirteen compactions align with thirteen recovery-snapshot command occurrences, and maximum observed root input was 214,193 tokens—below the 272k premium-pricing threshold. That is good durability evidence.</p>
+  <p>There is no matched baseline proving that hot recovery reduced work. The transcript also shows a checksum mismatch that triggered cold repair and independent review. Pattern-derived root counts found 241 capsule-hook occurrences, 246 recovery-manifest builder occurrences, 128 resource snapshots, and 587 nested patch calls. Some were legitimate barriers, but the scale indicates that recovery/state machinery became a first-class workload.</p>
+
+  <h2>Astra allocation was compliant; stability was mixed</h2>
+  <p>All five explicit GPT-6 Astra spawns were architecture/reconciliation leads, not mechanical status work. Separate Sol/xhigh specification reviews followed. That satisfies the model-role boundary. Downstream stability was weaker: C2 and C3 each needed further architecture or seam re-freezes, and the longest C3 architecture thread ran eight turns.</p>
+
+  <h2>Recommended changes, in priority order</h2>
+  <ol class="recs">
+    <li><strong>Install compile gates between integration waves.</strong> Use targeted project builds per writer and one serial cumulative build after integration.</li>
+    <li><strong>Enforce correction limits mechanically.</strong> Release at the fourth writer turn or on material role change.</li>
+    <li><strong>Make long waits the default.</strong> Use 300–600 second event-driven waits and no-change-silent commentary.</li>
+    <li><strong>Create draft PRs early.</strong> Freeze base/head and create a WIP PR at the first coherent milestone.</li>
+    <li><strong>Retire worktrees at lifecycle boundaries.</strong> Preserve branches, but remove clean, unowned worktrees promptly.</li>
+    <li><strong>Replace the global heavy mutex with weighted admission.</strong> Permit two bounded operations only when measured reservations preserve the floor.</li>
+    <li><strong>Stop asking permission for read-only diagnosis.</strong> Ask only for genuine authority or outcome decisions.</li>
+    <li><strong>Reduce capsule churn.</strong> Audit the 241 hook and 246 manifest-builder occurrences and coalesce unchanged-state work.</li>
+  </ol>
+
+  <h2>Focus coverage</h2>
+  <table><thead><tr><th>Focus</th><th>Status</th><th>Answer</th></tr></thead><tbody>
+    <tr><td><code>orchestration-delivery-efficiency</code></td><td class="status answered">Answered</td><td>Substantial foundation, poor conversion; review, polling, and state churn were disproportionate.</td></tr>
+    <tr><td><code>subagent-polling-overhead</code></td><td class="status answered">Answered</td><td>1,104 waits and 155.1M response tokens; longer waits cut call density about 74%.</td></tr>
+    <tr><td><code>metadata-research-gate-stall</code></td><td class="status answered">Answered</td><td>The research permission was not a genuine authority gate and created an 8h17 idle gate span.</td></tr>
+    <tr><td><code>p1-milestone-pr-publication-timing</code></td><td class="status answered">Answered</td><td>P1-05 used direct-main topology; P1-04 got a draft only after the owner requested visibility.</td></tr>
+    <tr><td><code>p1-worktree-retention-cleanup</code></td><td class="status answered">Answered</td><td>Safety parking plus missed release cleanup accumulated worktrees; 27 removals recovered 11.11 GiB.</td></tr>
+    <tr><td><code>p1-c3-compile-validation-handoff</code></td><td class="status answered">Answered</td><td>Static-only assignments deferred compilation; late attribution was necessary but avoidable.</td></tr>
+    <tr><td><code>heavy-operation-concurrency-policy</code></td><td class="status bounded">Bounded</td><td>Weighted dual admission looks feasible for bounded jobs; unrestricted dual builds are unsupported.</td></tr>
+    <tr><td><code>memory-policy-restrictiveness</code></td><td class="status bounded">Bounded</td><td>No OOM/severe paging; process fan-out remains a material risk.</td></tr>
+    <tr><td><code>useful-parallelism-and-wave-throttle</code></td><td class="status answered">Answered</td><td>Average active concurrency was 1.27; the four-writer cap was not binding.</td></tr>
+    <tr><td><code>review-correction-churn</code></td><td class="status answered">Answered</td><td>Review/spec time exceeded writer time; 117 follow-up turns show high churn.</td></tr>
+    <tr><td><code>reconciliation-models-and-stability</code></td><td class="status answered">Answered</td><td>Model allocation was appropriate; stability was mixed and repeated re-freezes followed.</td></tr>
+    <tr><td><code>astra-high-architecture-lead-next-p1</code></td><td class="status answered">Answered</td><td>Astra/high stayed in architecture roles with separate review, but one thread persisted too long.</td></tr>
+    <tr><td><code>owner-waiting-vs-agent-blocking</code></td><td class="status answered">Answered</td><td>Usage/reboot interruptions were external; metadata research permission was avoidable blocking.</td></tr>
+    <tr><td><code>compaction-recovery-and-context-occupancy</code></td><td class="status bounded">Bounded</td><td>13 compactions and 13 recovery snapshots; savings versus a baseline cannot be established.</td></tr>
+    <tr><td><code>hot-recovery-compact-preview-effectiveness</code></td><td class="status bounded">Bounded</td><td>Durability held and context stayed under 272k, but cold repair and overhead remained.</td></tr>
+  </tbody></table>
+
+  <h2>Snapshot and limitations</h2>
+  <p>Root thread <code>01a07d0b-35b7-73b3-8ea4-dd57b89cbd81</code>; UTC cutoff <code>2026-09-09T19:29:13.555Z</code>; Git boundary <code>fa170211…d647016</code>; timezone Europe/Berlin. The snapshot lock binds 204 root/subagent/guardian logs by filename, byte count, record count, and SHA-256. Complete message bodies and excerpts are excluded.</p>
+  <p>Pricing uses official OpenAI documentation as of 2026-09-09: <a href="https://developers.openai.com/api/docs/models/gpt-5.6-sol">GPT-5.6 Sol</a>, <a href="https://developers.openai.com/api/docs/models/gpt-5.6-terra">GPT-5.6 Terra</a>, <a href="https://developers.openai.com/api/docs/models/gpt-5.6-luna">GPT-5.6 Luna</a>, and <a href="https://developers.openai.com/api/docs/models/gpt-6-astra">GPT-6 Astra</a>. Values are API list-price equivalents only. Overlapping agent time is not additive. One interrupted root turn lacks a completion event, so normalized active time understates engagement. Counterfactual schedule savings remain estimates.</p>
+  <footer>Generated from the repository’s session-analysis engine, frozen transcript snapshot, Git range, sealed orchestration artifacts, and exact GitHub PR state. Private transcripts remain local.</footer>
+</main>
+</body>
+</html>

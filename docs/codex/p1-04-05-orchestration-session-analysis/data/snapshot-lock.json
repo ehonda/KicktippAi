@@ -1,0 +1,1435 @@
+{
+  "schema_version": 1,
+  "root_thread_id": "01a07d0b-35b7-73b3-8ea4-dd57b89cbd81",
+  "event_cutoff_at": "2026-09-09T19:29:13.555Z",
+  "threads": [
+    {
+      "thread_id": "01a07d0b-35b7-73b3-8ea4-dd57b89cbd81",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-04-42-01a07d0b-35b7-73b3-8ea4-dd57b89cbd81.jsonl",
+      "included_bytes": 45792274,
+      "included_records": 24713,
+      "sha256": "ef0d089779ad338bb94decbafb683fa813623ac0049bd31a340c5de76fa50077"
+    },
+    {
+      "thread_id": "01a07d0b-3774-7133-98e4-549aa67532f9",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-04-42-01a07d0b-3774-7133-98e4-549aa67532f9.jsonl",
+      "included_bytes": 7741598,
+      "included_records": 610,
+      "sha256": "191abeedb6be7797742f2f744b546f8ce679f71131452c7f089ea5d3de9c2736"
+    },
+    {
+      "thread_id": "01a07d13-c63d-77f3-903d-6e071fb2b414",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-14-03-01a07d13-c63d-77f3-903d-6e071fb2b414.jsonl",
+      "included_bytes": 2338967,
+      "included_records": 180,
+      "sha256": "4ef931232f9a6bacef8906e4cbba9be9d0530ca5f746620025adb4fc66d10149"
+    },
+    {
+      "thread_id": "01a07d1c-7d73-7d80-9c6d-6edda2bddd65",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-23-34-01a07d1c-7d73-7d80-9c6d-6edda2bddd65.jsonl",
+      "included_bytes": 3761524,
+      "included_records": 336,
+      "sha256": "950826baf939bbc33d961ccaa4b208cdbbf7f1476511e5223c039fe4705dd299"
+    },
+    {
+      "thread_id": "01a07d32-4c63-7b92-af15-a53eac467025",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-47-23-01a07d32-4c63-7b92-af15-a53eac467025.jsonl",
+      "included_bytes": 5532113,
+      "included_records": 783,
+      "sha256": "1d5b0826ac64fa17f83f5f02c1984fbb0a02bab3e456e9b29e7e9e145374379f"
+    },
+    {
+      "thread_id": "01a07d32-4e22-76f0-853f-1d1b3ab66bf7",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-47-24-01a07d32-4e22-76f0-853f-1d1b3ab66bf7.jsonl",
+      "included_bytes": 552948,
+      "included_records": 89,
+      "sha256": "b77a97a3fcfc3e3c47d1e584893121f82ee6ada31f730eb70885a750548cbbe7"
+    },
+    {
+      "thread_id": "01a07d3d-ad14-7260-b7ad-b369d75a01f2",
+      "log_file": "2026/09/07/rollout-2026-09-07T20-59-49-01a07d3d-ad14-7260-b7ad-b369d75a01f2.jsonl",
+      "included_bytes": 6289830,
+      "included_records": 740,
+      "sha256": "b643c84967ec4eb8166eac3efab2453abed02cafa30b4c51616b5ac6ec240e94"
+    },
+    {
+      "thread_id": "01a07d7d-a305-7a13-8523-7cb33f673056",
+      "log_file": "2026/09/07/rollout-2026-09-07T22-09-41-01a07d7d-a305-7a13-8523-7cb33f673056.jsonl",
+      "included_bytes": 2662885,
+      "included_records": 205,
+      "sha256": "3e91004dbb1c45aff29323eb4b09a37d4dade7f576ddeb01b11ef4e1b43e7de6"
+    },
+    {
+      "thread_id": "01a07d8d-75ad-7471-ab73-d3f3ababfabf",
+      "log_file": "2026/09/07/rollout-2026-09-07T22-26-57-01a07d8d-75ad-7471-ab73-d3f3ababfabf.jsonl",
+      "included_bytes": 783188,
+      "included_records": 126,
+      "sha256": "c199949454ea5d44287912007dcc041623ace26f6474fd06168971351bdcb7e7"
+    },
+    {
+      "thread_id": "01a07d8d-7732-7ba0-aa94-e6fc25c03a45",
+      "log_file": "2026/09/07/rollout-2026-09-07T22-26-58-01a07d8d-7732-7ba0-aa94-e6fc25c03a45.jsonl",
+      "included_bytes": 208340,
+      "included_records": 26,
+      "sha256": "c748c75c0efb72a650a0424ef7088aa555322d1a321b00338a04cdf93ec4c89b"
+    },
+    {
+      "thread_id": "01a07d93-0c98-7482-8afa-d68b880fee7b",
+      "log_file": "2026/09/07/rollout-2026-09-07T22-33-04-01a07d93-0c98-7482-8afa-d68b880fee7b.jsonl",
+      "included_bytes": 3507179,
+      "included_records": 390,
+      "sha256": "4faf9bcf92fbdafad9df68853f204b364f62bfb037dac44cb0b930b237fbd81f"
+    },
+    {
+      "thread_id": "01a07da8-6b82-7ec3-b3e8-a534cd02d420",
+      "log_file": "2026/09/07/rollout-2026-09-07T22-56-24-01a07da8-6b82-7ec3-b3e8-a534cd02d420.jsonl",
+      "included_bytes": 1419010,
+      "included_records": 235,
+      "sha256": "f2dd840b69485e72869e4ee949a13cbcba80d7868ee3b5f9f1623ce9838f73af"
+    },
+    {
+      "thread_id": "01a07da8-6cf1-7d50-963c-2d5d876e5bfa",
+      "log_file": "2026/09/07/rollout-2026-09-07T22-56-25-01a07da8-6cf1-7d50-963c-2d5d876e5bfa.jsonl",
+      "included_bytes": 303921,
+      "included_records": 47,
+      "sha256": "5f7036db2cbef41b52b904ea82b0419996e36ab15fffa8229909f54badc3eda1"
+    },
+    {
+      "thread_id": "01a07db7-95b8-75c0-ab12-0ae1a405f284",
+      "log_file": "2026/09/07/rollout-2026-09-07T23-12-58-01a07db7-95b8-75c0-ab12-0ae1a405f284.jsonl",
+      "included_bytes": 1896206,
+      "included_records": 273,
+      "sha256": "7715d43c86ae95b6ce27d22f3cb66342290a57c030b24f7bd1eb0321077ed151"
+    },
+    {
+      "thread_id": "01a07dc8-15c2-72d1-8b06-946ef8e4effa",
+      "log_file": "2026/09/07/rollout-2026-09-07T23-31-00-01a07dc8-15c2-72d1-8b06-946ef8e4effa.jsonl",
+      "included_bytes": 853358,
+      "included_records": 107,
+      "sha256": "317b3ce4be5a178c0020a87ad14d9512d95fc39f1bcef0d37185585da66f713d"
+    },
+    {
+      "thread_id": "01a07dd6-36a2-7d90-ad6b-caba95f9d51a",
+      "log_file": "2026/09/07/rollout-2026-09-07T23-46-25-01a07dd6-36a2-7d90-ad6b-caba95f9d51a.jsonl",
+      "included_bytes": 1895504,
+      "included_records": 208,
+      "sha256": "91f62711abcabefc9f135bccf327fa090e1dfd77000405f07164f04ba65ec1bb"
+    },
+    {
+      "thread_id": "01a07def-1e37-76e1-aa12-dfa2969a033b",
+      "log_file": "2026/09/08/rollout-2026-09-08T00-13-38-01a07def-1e37-76e1-aa12-dfa2969a033b.jsonl",
+      "included_bytes": 10085885,
+      "included_records": 651,
+      "sha256": "6d25f392186678ac657fd0c52a34edd10eabe60ba6ecfcdd1828a7152fd9021c"
+    },
+    {
+      "thread_id": "01a07e13-8304-7912-a0f8-858f53ae3c42",
+      "log_file": "2026/09/08/rollout-2026-09-08T00-53-23-01a07e13-8304-7912-a0f8-858f53ae3c42.jsonl",
+      "included_bytes": 3660442,
+      "included_records": 410,
+      "sha256": "0c9acd81edadc60985b045a011eefc21565d8f9ce388021b755fd34faca9a04b"
+    },
+    {
+      "thread_id": "01a07e13-8410-7af1-89fd-aab29922cf82",
+      "log_file": "2026/09/08/rollout-2026-09-08T00-53-23-01a07e13-8410-7af1-89fd-aab29922cf82.jsonl",
+      "included_bytes": 595890,
+      "included_records": 153,
+      "sha256": "7e0db7288fd5722221e941d37336b96cc11ee5b15219e7165fde58c6e90c3663"
+    },
+    {
+      "thread_id": "01a07e35-1ef4-7db3-9856-e391c1e57872",
+      "log_file": "2026/09/08/rollout-2026-09-08T01-30-05-01a07e35-1ef4-7db3-9856-e391c1e57872.jsonl",
+      "included_bytes": 526156,
+      "included_records": 153,
+      "sha256": "b0186c7307f773166d748d05c3ceba9136e566a0bdf51ee4701fd36a4b16712b"
+    },
+    {
+      "thread_id": "01a07e35-1ff6-7461-95a8-2236057bfdf1",
+      "log_file": "2026/09/08/rollout-2026-09-08T01-30-06-01a07e35-1ff6-7461-95a8-2236057bfdf1.jsonl",
+      "included_bytes": 175536,
+      "included_records": 37,
+      "sha256": "c4e371875f839c8598800fc545315b60a039b8ee80745e1d2bdb86786fe6e608"
+    },
+    {
+      "thread_id": "01a07e3c-cd89-7241-b563-22c85bc6a2d4",
+      "log_file": "2026/09/08/rollout-2026-09-08T01-38-29-01a07e3c-cd89-7241-b563-22c85bc6a2d4.jsonl",
+      "included_bytes": 4645420,
+      "included_records": 347,
+      "sha256": "5ac8488af8028faeb912fb4c6fe7d73f6821ed7fc7283fa11a19c2502a4c6672"
+    },
+    {
+      "thread_id": "01a07e53-0a95-7060-bec0-8778c84da423",
+      "log_file": "2026/09/08/rollout-2026-09-08T02-02-46-01a07e53-0a95-7060-bec0-8778c84da423.jsonl",
+      "included_bytes": 377209,
+      "included_records": 66,
+      "sha256": "c410ce136e51d2a008f597731f805bfd804cc043b94e8ef15229bc6ff1213058"
+    },
+    {
+      "thread_id": "01a07e53-0bba-7fe0-886f-3650a7351578",
+      "log_file": "2026/09/08/rollout-2026-09-08T02-02-47-01a07e53-0bba-7fe0-886f-3650a7351578.jsonl",
+      "included_bytes": 191763,
+      "included_records": 37,
+      "sha256": "3bd7428646bfa0cac49f733ac2c7f90c49807cd4eeffcaf673a018f9c2556fb4"
+    },
+    {
+      "thread_id": "01a07e59-31ba-7001-b66d-128cdce3366e",
+      "log_file": "2026/09/08/rollout-2026-09-08T02-09-29-01a07e59-31ba-7001-b66d-128cdce3366e.jsonl",
+      "included_bytes": 5312919,
+      "included_records": 473,
+      "sha256": "6562896493aee007b1dd78c196440cb5c5b1eb6368b286deb372653d15c59b7a"
+    },
+    {
+      "thread_id": "01a07e59-3328-7752-ae82-4113046ae4e7",
+      "log_file": "2026/09/08/rollout-2026-09-08T02-09-30-01a07e59-3328-7752-ae82-4113046ae4e7.jsonl",
+      "included_bytes": 437783,
+      "included_records": 124,
+      "sha256": "b25d07109bc83f03bf493c8dbbef3e50c4d09e2a91f2421241976a3cc787b165"
+    },
+    {
+      "thread_id": "01a07fca-3120-72e3-94cc-3c645def7312",
+      "log_file": "2026/09/08/rollout-2026-09-08T08-52-32-01a07fca-3120-72e3-94cc-3c645def7312.jsonl",
+      "included_bytes": 3716322,
+      "included_records": 376,
+      "sha256": "a855a6a2f1b9090155b9f002a2de9714ce7e1c86cdc93117d60b0ea730050af7"
+    },
+    {
+      "thread_id": "01a07fde-efdc-7eb3-8fdd-ddcda82726c6",
+      "log_file": "2026/09/08/rollout-2026-09-08T09-15-12-01a07fde-efdc-7eb3-8fdd-ddcda82726c6.jsonl",
+      "included_bytes": 6573445,
+      "included_records": 355,
+      "sha256": "8466c1c1cbe69a419c154106a6583a596b34a91f8fd58b9027ae88f710cd0f74"
+    },
+    {
+      "thread_id": "01a081b9-05ae-7402-96ad-653d4b90d461",
+      "log_file": "2026/09/08/rollout-2026-09-08T17-53-01-01a081b9-05ae-7402-96ad-653d4b90d461.jsonl",
+      "included_bytes": 1700908,
+      "included_records": 210,
+      "sha256": "93c6b46ab986f85c70687ba92d9e5290bbbd88058edae06c12cedafa3d150ae9"
+    },
+    {
+      "thread_id": "01a081b9-06e0-7ef3-8191-515111689909",
+      "log_file": "2026/09/08/rollout-2026-09-08T17-53-02-01a081b9-06e0-7ef3-8191-515111689909.jsonl",
+      "included_bytes": 536745,
+      "included_records": 147,
+      "sha256": "549037658d653e05378775680615e741c715238b4dcb4be3ac69a7d4a8e5a2f2"
+    },
+    {
+      "thread_id": "01a081d0-bfc7-7c62-b71a-0143d2f35601",
+      "log_file": "2026/09/08/rollout-2026-09-08T18-18-56-01a081d0-bfc7-7c62-b71a-0143d2f35601.jsonl",
+      "included_bytes": 1082234,
+      "included_records": 161,
+      "sha256": "873c858d8926297d1e36e8d206011e1eb8ee7335fc971b779a3e369684b9485b"
+    },
+    {
+      "thread_id": "01a081f0-71a4-77c1-912c-a3d8febaa5ba",
+      "log_file": "2026/09/08/rollout-2026-09-08T18-53-33-01a081f0-71a4-77c1-912c-a3d8febaa5ba.jsonl",
+      "included_bytes": 1767038,
+      "included_records": 302,
+      "sha256": "4ea97557fb3493a82b4a8337589c8b14332e1066a77b6b9cdc0bfbf3dcbedc90"
+    },
+    {
+      "thread_id": "01a081f0-7336-7ba3-9201-489188ff4a07",
+      "log_file": "2026/09/08/rollout-2026-09-08T18-53-34-01a081f0-7336-7ba3-9201-489188ff4a07.jsonl",
+      "included_bytes": 399664,
+      "included_records": 58,
+      "sha256": "7c78ccff3330544a0ff1212d6562e40330d0bcef2eded368ec911d3df8f6b5d8"
+    },
+    {
+      "thread_id": "01a081fa-26d9-71a1-bf69-38fd448c4744",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-04-10-01a081fa-26d9-71a1-bf69-38fd448c4744.jsonl",
+      "included_bytes": 2207221,
+      "included_records": 321,
+      "sha256": "0a3ef5296bbd27d988fb1a2f8bc2796417c2d95fe9f87a8dcb0b89a770d8cc1b"
+    },
+    {
+      "thread_id": "01a08212-5412-7842-bb79-7e42bb968cc7",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-30-34-01a08212-5412-7842-bb79-7e42bb968cc7.jsonl",
+      "included_bytes": 432410,
+      "included_records": 83,
+      "sha256": "7c9e6f6df1d3d9058a84b1e0b82b990d7059628ca4a22a0bc933226f89b941f2"
+    },
+    {
+      "thread_id": "01a08212-55a3-7223-a3d1-39db4894b3a8",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-30-35-01a08212-55a3-7223-a3d1-39db4894b3a8.jsonl",
+      "included_bytes": 231019,
+      "included_records": 45,
+      "sha256": "b373fed58253fcfa1f5e6a255c2763aa391d39f124fbba9981757e05e33beaa7"
+    },
+    {
+      "thread_id": "01a08218-df4c-78d0-afab-6dd1eb1e4604",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-37-43-01a08218-df4c-78d0-afab-6dd1eb1e4604.jsonl",
+      "included_bytes": 13196157,
+      "included_records": 955,
+      "sha256": "98b2c00b1e6d0a5ce35947156ba19b8604128248f8d038e527f6c68fba0cf043"
+    },
+    {
+      "thread_id": "01a08218-e0d8-73e3-9de2-8cbf65da9267",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-37-43-01a08218-e0d8-73e3-9de2-8cbf65da9267.jsonl",
+      "included_bytes": 848906,
+      "included_records": 145,
+      "sha256": "ac894ca64579baa5a9460db7ea5a4f2a511d60f1defcb5cd6f5968d730b66bba"
+    },
+    {
+      "thread_id": "01a08224-c71d-7fd2-b350-806c4d76ae06",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-50-43-01a08224-c71d-7fd2-b350-806c4d76ae06.jsonl",
+      "included_bytes": 1061259,
+      "included_records": 68,
+      "sha256": "d24c0b93d31a4872cf2123f1632b5b99974831faf0590105d30ba34b5f62d135"
+    },
+    {
+      "thread_id": "01a08229-9451-7b30-8bf3-7beeb7bca377",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-55-58-01a08229-9451-7b30-8bf3-7beeb7bca377.jsonl",
+      "included_bytes": 484207,
+      "included_records": 84,
+      "sha256": "1fed93227d0c20ac034f50306aa0da4774136434a5c5bb95d66421ed7bf7b995"
+    },
+    {
+      "thread_id": "01a08229-956a-74a0-aa0c-1fe181279e47",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-55-58-01a08229-956a-74a0-aa0c-1fe181279e47.jsonl",
+      "included_bytes": 166643,
+      "included_records": 14,
+      "sha256": "09247da18aa2705eb468a74d3269268fa725cedcce303085437b6feab8e3ec89"
+    },
+    {
+      "thread_id": "01a0822b-b4b6-7c60-bdad-a7938d374391",
+      "log_file": "2026/09/08/rollout-2026-09-08T19-58-17-01a0822b-b4b6-7c60-bdad-a7938d374391.jsonl",
+      "included_bytes": 1013562,
+      "included_records": 101,
+      "sha256": "c227b06c8c567fe45938500accda5c49ab2517e8779f587eed10e682194ddb22"
+    },
+    {
+      "thread_id": "01a0823b-8341-7a22-bd8b-f6bc7774555f",
+      "log_file": "2026/09/08/rollout-2026-09-08T20-15-33-01a0823b-8341-7a22-bd8b-f6bc7774555f.jsonl",
+      "included_bytes": 792262,
+      "included_records": 170,
+      "sha256": "cbd09e02f3b015327562194a7bcc7fd6604ff49df06db853846986cc8844b21d"
+    },
+    {
+      "thread_id": "01a08245-dd4e-7413-9ee2-f226e67b0464",
+      "log_file": "2026/09/08/rollout-2026-09-08T20-26-52-01a08245-dd4e-7413-9ee2-f226e67b0464.jsonl",
+      "included_bytes": 506228,
+      "included_records": 92,
+      "sha256": "094497ac946a1fed9a8bd5d587fa4ac45e3743a5bddebddeb7818d6ca3455ebd"
+    },
+    {
+      "thread_id": "01a08245-de7a-72f2-beb3-9fbac1a0c51d",
+      "log_file": "2026/09/08/rollout-2026-09-08T20-26-52-01a08245-de7a-72f2-beb3-9fbac1a0c51d.jsonl",
+      "included_bytes": 252013,
+      "included_records": 97,
+      "sha256": "51e99a64fd93d9e18237c1d9d4651c959991083d8d62b4566f768fa530f7ac44"
+    },
+    {
+      "thread_id": "01a08261-a721-7371-a629-244b8c7c71f2",
+      "log_file": "2026/09/08/rollout-2026-09-08T20-57-13-01a08261-a721-7371-a629-244b8c7c71f2.jsonl",
+      "included_bytes": 4638983,
+      "included_records": 223,
+      "sha256": "1a9eae338bcaa59abc8a80a670dab505adb78317741f432ed6102e21ec19610b"
+    },
+    {
+      "thread_id": "01a08279-566b-7b32-b497-fb548ee108ca",
+      "log_file": "2026/09/08/rollout-2026-09-08T21-23-05-01a08279-566b-7b32-b497-fb548ee108ca.jsonl",
+      "included_bytes": 3232161,
+      "included_records": 228,
+      "sha256": "519192fb3d212fa30353fd69e46a1e71d3a097c077b55e4fa38335372c81b85d"
+    },
+    {
+      "thread_id": "01a08283-dc79-7a43-8bb4-90f575ed80ba",
+      "log_file": "2026/09/08/rollout-2026-09-08T21-34-35-01a08283-dc79-7a43-8bb4-90f575ed80ba.jsonl",
+      "included_bytes": 3436831,
+      "included_records": 352,
+      "sha256": "34f67912fd29c7c57a278b1751af2e2e419aebe5deaabb0eadc3bfe1114a6b08"
+    },
+    {
+      "thread_id": "01a08283-de08-7d90-a75d-22fa2538b675",
+      "log_file": "2026/09/08/rollout-2026-09-08T21-34-35-01a08283-de08-7d90-a75d-22fa2538b675.jsonl",
+      "included_bytes": 595405,
+      "included_records": 231,
+      "sha256": "4014673a7ead4ab06746ee636f295a1aca0901113f572f9055f19990d8089d86"
+    },
+    {
+      "thread_id": "01a08295-121c-71e3-9179-4c7d5899b71e",
+      "log_file": "2026/09/08/rollout-2026-09-08T21-53-22-01a08295-121c-71e3-9179-4c7d5899b71e.jsonl",
+      "included_bytes": 3575957,
+      "included_records": 263,
+      "sha256": "87f4405aefd81bad231ce3632bc5fcacce67c64abca3c1cad6a273bf61e34bb5"
+    },
+    {
+      "thread_id": "01a082a2-8cae-7f31-a005-015242cd4e5c",
+      "log_file": "2026/09/08/rollout-2026-09-08T22-08-06-01a082a2-8cae-7f31-a005-015242cd4e5c.jsonl",
+      "included_bytes": 3028291,
+      "included_records": 236,
+      "sha256": "adce46c755efca751140dc683b1183feb42816c2a3ba3b9fe007e49e2e49cae0"
+    },
+    {
+      "thread_id": "01a082ad-fb46-7153-b332-e7160146b377",
+      "log_file": "2026/09/08/rollout-2026-09-08T22-20-35-01a082ad-fb46-7153-b332-e7160146b377.jsonl",
+      "included_bytes": 1525684,
+      "included_records": 88,
+      "sha256": "a6fd4278e281ab106d3dc1cde4f53700beda6e3e8ee97b9846d6dc071c089dc6"
+    },
+    {
+      "thread_id": "01a082b3-264d-7982-bb99-d03ab5a2fd63",
+      "log_file": "2026/09/08/rollout-2026-09-08T22-26-14-01a082b3-264d-7982-bb99-d03ab5a2fd63.jsonl",
+      "included_bytes": 3329411,
+      "included_records": 184,
+      "sha256": "4b168ad8d42988077003e5dd25c0b67af911498dd384c23e0b03d4e22f72c522"
+    },
+    {
+      "thread_id": "01a082bd-6d3a-7b61-a35b-866c48026294",
+      "log_file": "2026/09/08/rollout-2026-09-08T22-37-27-01a082bd-6d3a-7b61-a35b-866c48026294.jsonl",
+      "included_bytes": 3631905,
+      "included_records": 228,
+      "sha256": "efea7630b7620aa16b04a2a46e4d9568199be123bee094321e2d3767b8b0d008"
+    },
+    {
+      "thread_id": "01a082bd-6ebb-7221-97df-6094af1d78b5",
+      "log_file": "2026/09/08/rollout-2026-09-08T22-37-28-01a082bd-6ebb-7221-97df-6094af1d78b5.jsonl",
+      "included_bytes": 311959,
+      "included_records": 57,
+      "sha256": "b4f95dff25fe22fe23f0592f5361294da254c81f34d08a58b61a7ad85c0455df"
+    },
+    {
+      "thread_id": "01a082c9-e680-7731-a733-e117b97df247",
+      "log_file": "2026/09/08/rollout-2026-09-08T22-51-05-01a082c9-e680-7731-a733-e117b97df247.jsonl",
+      "included_bytes": 930962,
+      "included_records": 139,
+      "sha256": "843991cc75c5ab070f07ef13fa5f412304af470cfcdeb7568485095517a14599"
+    },
+    {
+      "thread_id": "01a082dd-6838-75b3-af7b-6468dd1baf1b",
+      "log_file": "2026/09/08/rollout-2026-09-08T23-12-23-01a082dd-6838-75b3-af7b-6468dd1baf1b.jsonl",
+      "included_bytes": 644822,
+      "included_records": 70,
+      "sha256": "640c0b8f4ffbf7cb7c337215a413e3b6f27145a7f9e19dc3784d17f861411c08"
+    },
+    {
+      "thread_id": "01a082dd-699f-7632-949c-8625f649216b",
+      "log_file": "2026/09/08/rollout-2026-09-08T23-12-24-01a082dd-699f-7632-949c-8625f649216b.jsonl",
+      "included_bytes": 184900,
+      "included_records": 37,
+      "sha256": "a24a11a038cd58bc8b200fd7fe6f0b1643cb31f78d879c7c01d411a6b964ad70"
+    },
+    {
+      "thread_id": "01a082e2-a077-7260-af48-b13c049efc59",
+      "log_file": "2026/09/08/rollout-2026-09-08T23-18-05-01a082e2-a077-7260-af48-b13c049efc59.jsonl",
+      "included_bytes": 5051066,
+      "included_records": 568,
+      "sha256": "7273b216a6ad6b40e71b8fbf26d408380195e85cdbd9588f3c01bd36c95ad35d"
+    },
+    {
+      "thread_id": "01a082fc-398e-7540-bb78-915b334076ee",
+      "log_file": "2026/09/08/rollout-2026-09-08T23-46-03-01a082fc-398e-7540-bb78-915b334076ee.jsonl",
+      "included_bytes": 5062685,
+      "included_records": 248,
+      "sha256": "19b4c815d6f963ab155399b61d4be217f103525b4ff357969ca2363d59e3a380"
+    },
+    {
+      "thread_id": "01a08309-f688-7fe0-ac59-706d6c5e0038",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-01-03-01a08309-f688-7fe0-ac59-706d6c5e0038.jsonl",
+      "included_bytes": 236452,
+      "included_records": 63,
+      "sha256": "9758ac7015190f1d822be5f9a03302dd945dd590bd196a7f8ba2edbf6acbbe04"
+    },
+    {
+      "thread_id": "01a0830f-a142-7841-bf9b-c8471a8c4b05",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-07-14-01a0830f-a142-7841-bf9b-c8471a8c4b05.jsonl",
+      "included_bytes": 661834,
+      "included_records": 66,
+      "sha256": "f4b571c20448b688dd698d01c954964ff2e2f8bf361bb4e849e1b7631b1ea421"
+    },
+    {
+      "thread_id": "01a08315-98d4-7140-8b74-62691ca6771f",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-13-45-01a08315-98d4-7140-8b74-62691ca6771f.jsonl",
+      "included_bytes": 1904121,
+      "included_records": 297,
+      "sha256": "6224be99634f822b23e2b89857cc8daefade7b21fcd5dc23b710a5ab4a4e250d"
+    },
+    {
+      "thread_id": "01a08315-9a76-7d33-9c2e-1b5303a89f50",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-13-46-01a08315-9a76-7d33-9c2e-1b5303a89f50.jsonl",
+      "included_bytes": 389906,
+      "included_records": 81,
+      "sha256": "1a386a4a8469241b771081bdfe2c0f5010b128fcacd04270ff67b0cd036bc6a6"
+    },
+    {
+      "thread_id": "01a08324-d13d-70f1-9b55-4e10cfa5ff04",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-30-23-01a08324-d13d-70f1-9b55-4e10cfa5ff04.jsonl",
+      "included_bytes": 9659408,
+      "included_records": 627,
+      "sha256": "546aa16054687264e039f28026c5f7695e16fddca59d66ea2d7aeae62c60334f"
+    },
+    {
+      "thread_id": "01a08337-836b-7cd1-864f-4d55a6d7c2cf",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-50-48-01a08337-836b-7cd1-864f-4d55a6d7c2cf.jsonl",
+      "included_bytes": 3122439,
+      "included_records": 390,
+      "sha256": "5beb5a598dd1a71f776f2f553c20f6c5f5368e611721524f27a6f1863438cb84"
+    },
+    {
+      "thread_id": "01a08337-8517-75a0-9c9b-c7c94099fc0d",
+      "log_file": "2026/09/09/rollout-2026-09-09T00-50-49-01a08337-8517-75a0-9c9b-c7c94099fc0d.jsonl",
+      "included_bytes": 349567,
+      "included_records": 37,
+      "sha256": "9a7194ad7818d40bfc0c72a7986b2bfad4aabb29ab5de9cad8dd76ad62dda380"
+    },
+    {
+      "thread_id": "01a08347-3a47-7271-810f-1d585b90d653",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-07-58-01a08347-3a47-7271-810f-1d585b90d653.jsonl",
+      "included_bytes": 867885,
+      "included_records": 179,
+      "sha256": "3a9879c56b7cac5935362e3937e9feb3aac980344b35d9f5f932b3fd8d2dbb35"
+    },
+    {
+      "thread_id": "01a08347-3c24-7b21-85d3-196b091e4d41",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-07-59-01a08347-3c24-7b21-85d3-196b091e4d41.jsonl",
+      "included_bytes": 407640,
+      "included_records": 135,
+      "sha256": "29e77b580967b84284868e9861a589551a22ecd08c43895ff09b665933e7be78"
+    },
+    {
+      "thread_id": "01a0834d-bf14-7c01-b62f-02585050e82e",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-15-05-01a0834d-bf14-7c01-b62f-02585050e82e.jsonl",
+      "included_bytes": 766623,
+      "included_records": 84,
+      "sha256": "9d502b572c106376ec8b87159d9ccb91401ec1710a5e4200764db24a5b83f793"
+    },
+    {
+      "thread_id": "01a0834d-c0bc-7ed0-bf45-d4563917beba",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-15-06-01a0834d-c0bc-7ed0-bf45-d4563917beba.jsonl",
+      "included_bytes": 166505,
+      "included_records": 14,
+      "sha256": "86716342e958b3391de68a0e3795ecad8164c70dcdf24b5e7379f464c7cfebda"
+    },
+    {
+      "thread_id": "01a08357-1324-7630-a47a-45d4b984cb07",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-25-17-01a08357-1324-7630-a47a-45d4b984cb07.jsonl",
+      "included_bytes": 3150729,
+      "included_records": 274,
+      "sha256": "fbedb1e0972324424a98eb72caee5ae961a45761d69afac6c11b8fc4ecf1a450"
+    },
+    {
+      "thread_id": "01a0836d-c0b9-7e92-a009-32becfcbe401",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-50-03-01a0836d-c0b9-7e92-a009-32becfcbe401.jsonl",
+      "included_bytes": 1809234,
+      "included_records": 268,
+      "sha256": "84660e5b99f2472e395720a7ea8d48ef486bc8bc4030e37c143579305c61d182"
+    },
+    {
+      "thread_id": "01a0836d-c23c-7ec2-aadf-ccd3c90ced97",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-50-03-01a0836d-c23c-7ec2-aadf-ccd3c90ced97.jsonl",
+      "included_bytes": 262956,
+      "included_records": 48,
+      "sha256": "0788e7a31f71807a53878792c1c06ca65e732417effefe6e00e26c87a9a4f446"
+    },
+    {
+      "thread_id": "01a08374-a0d6-7f13-9143-1623399bbbf2",
+      "log_file": "2026/09/09/rollout-2026-09-09T01-57-33-01a08374-a0d6-7f13-9143-1623399bbbf2.jsonl",
+      "included_bytes": 184002,
+      "included_records": 64,
+      "sha256": "e3d85fb6df9b0c72b2393b80c77306df95966b6138265d089d0666afeffc2bf9"
+    },
+    {
+      "thread_id": "01a08379-548a-7763-853e-cc34ac423aa9",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-02-42-01a08379-548a-7763-853e-cc34ac423aa9.jsonl",
+      "included_bytes": 763580,
+      "included_records": 204,
+      "sha256": "c1240563ed525668cd4dc2487f98669fde3c43952c2e912aaaa1060bdcbceb7d"
+    },
+    {
+      "thread_id": "01a08389-7999-7521-b90a-7477f9323407",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-20-20-01a08389-7999-7521-b90a-7477f9323407.jsonl",
+      "included_bytes": 262849,
+      "included_records": 118,
+      "sha256": "655ee4db3d22c940548aa65b4fe4626225351022cd19ba9afda29f405b6e49b6"
+    },
+    {
+      "thread_id": "01a08392-1773-7ca1-a3d2-b5005769bc8c",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-29-44-01a08392-1773-7ca1-a3d2-b5005769bc8c.jsonl",
+      "included_bytes": 185214,
+      "included_records": 63,
+      "sha256": "81ca505a97bc21638a011e67b9c340a907dab5c71b4e4e621f4a28723c16016f"
+    },
+    {
+      "thread_id": "01a08392-18df-7ac0-8e73-68f1a60163bc",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-29-45-01a08392-18df-7ac0-8e73-68f1a60163bc.jsonl",
+      "included_bytes": 118308,
+      "included_records": 14,
+      "sha256": "ca70fa6ce5be26ac44b8017d172cc1d9d98d3e2e97832fd683c130792bfc8311"
+    },
+    {
+      "thread_id": "01a08395-1669-7742-a310-45eefe21ea28",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-33-01-01a08395-1669-7742-a310-45eefe21ea28.jsonl",
+      "included_bytes": 220800,
+      "included_records": 79,
+      "sha256": "b87e1ccd57e77abc9a3bd46f2e82cc7fcbef743d8ba992c6382b59e9ccf9ee2d"
+    },
+    {
+      "thread_id": "01a08398-6b21-7cc0-bfa7-8be27c76d822",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-36-39-01a08398-6b21-7cc0-bfa7-8be27c76d822.jsonl",
+      "included_bytes": 755700,
+      "included_records": 113,
+      "sha256": "26d01dc24ab6bc4a9cb6e419548bdd8e71598bc986556057bb366ced03123a3f"
+    },
+    {
+      "thread_id": "01a083a1-360c-7712-9b3e-9cbf832ee708",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-46-15-01a083a1-360c-7712-9b3e-9cbf832ee708.jsonl",
+      "included_bytes": 617532,
+      "included_records": 162,
+      "sha256": "6abc1d1714a3744b8e03549e73fac106267004bc2c5774ebd1c04cf3239fda98"
+    },
+    {
+      "thread_id": "01a083a1-3776-71a2-a893-03d362658620",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-46-16-01a083a1-3776-71a2-a893-03d362658620.jsonl",
+      "included_bytes": 145236,
+      "included_records": 14,
+      "sha256": "b5cda4b985272e1cbf7220c531130f3270b58ac44c3380079bb794bb01ea38a0"
+    },
+    {
+      "thread_id": "01a083a8-148e-7c03-98a9-c13f1a455349",
+      "log_file": "2026/09/09/rollout-2026-09-09T02-53-45-01a083a8-148e-7c03-98a9-c13f1a455349.jsonl",
+      "included_bytes": 2305185,
+      "included_records": 283,
+      "sha256": "c0446b5b71d5cc19efc380b1d5295f09ba9cb7d1b8dff95d2ee74f99ca0971d1"
+    },
+    {
+      "thread_id": "01a083b4-4671-74e0-93a9-10c727f4e7c2",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-07-05-01a083b4-4671-74e0-93a9-10c727f4e7c2.jsonl",
+      "included_bytes": 2648190,
+      "included_records": 413,
+      "sha256": "31dc37f637a8dfb6a3d8a8aef0d7bdf58d500cef3f8cdff1c953cf052a668fcb"
+    },
+    {
+      "thread_id": "01a083b4-47fe-7561-b2e4-ae1f06cf22f7",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-07-05-01a083b4-47fe-7561-b2e4-ae1f06cf22f7.jsonl",
+      "included_bytes": 369196,
+      "included_records": 47,
+      "sha256": "2d72066043617076f802c83e6d0bdb2ab393b589de758e09a07777a16e608cb5"
+    },
+    {
+      "thread_id": "01a083bb-1233-72d1-9a3c-429f2db682f7",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-14-30-01a083bb-1233-72d1-9a3c-429f2db682f7.jsonl",
+      "included_bytes": 435774,
+      "included_records": 169,
+      "sha256": "073120bb91e6934e09690eeee363292900db882b01b4e3a854f2c516e47daf8b"
+    },
+    {
+      "thread_id": "01a083bb-13b7-7f41-a07c-36052f412541",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-14-30-01a083bb-13b7-7f41-a07c-36052f412541.jsonl",
+      "included_bytes": 271312,
+      "included_records": 89,
+      "sha256": "b6855429f8e1f130573b5b4c898e13ef5d54b6e4d296bb9b4210d761ba2207c6"
+    },
+    {
+      "thread_id": "01a083c3-cad3-72a0-bc54-1bab29df01e9",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-24-02-01a083c3-cad3-72a0-bc54-1bab29df01e9.jsonl",
+      "included_bytes": 1540949,
+      "included_records": 182,
+      "sha256": "8d9232670418ae973bfb4d9e47314f56732c60f8fedd33d30cde4b170dede710"
+    },
+    {
+      "thread_id": "01a083cf-c127-7b03-b379-b8edaf7559ff",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-37-05-01a083cf-c127-7b03-b379-b8edaf7559ff.jsonl",
+      "included_bytes": 249847,
+      "included_records": 83,
+      "sha256": "5b9bc2047430d822fe384e0d1c2691d49343f43f3ddbd8f020482f81de2c5338"
+    },
+    {
+      "thread_id": "01a083d6-e3bd-7392-9b75-0e726a61029a",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-44-53-01a083d6-e3bd-7392-9b75-0e726a61029a.jsonl",
+      "included_bytes": 553557,
+      "included_records": 103,
+      "sha256": "f28cf8a2932c8a39bc38e2d7b217328bc6fc01273b323630c05fed0d359f286f"
+    },
+    {
+      "thread_id": "01a083d6-e548-7203-a0c2-e0af3cebd274",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-44-54-01a083d6-e548-7203-a0c2-e0af3cebd274.jsonl",
+      "included_bytes": 165363,
+      "included_records": 26,
+      "sha256": "319db79155fb7c7ccf7758296b44d548b44ae702353a1d2f3e147f725ef758d8"
+    },
+    {
+      "thread_id": "01a083db-25c7-7d70-a666-39aef168640b",
+      "log_file": "2026/09/09/rollout-2026-09-09T03-49-32-01a083db-25c7-7d70-a666-39aef168640b.jsonl",
+      "included_bytes": 2014509,
+      "included_records": 143,
+      "sha256": "935e74f62c0d7a25ca5cb7a1ff58d6e745d0b68ed2d4e55cb396e34b6202f54c"
+    },
+    {
+      "thread_id": "01a083e5-b11f-7ef3-a117-123197a485dc",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-01-03-01a083e5-b11f-7ef3-a117-123197a485dc.jsonl",
+      "included_bytes": 1107631,
+      "included_records": 492,
+      "sha256": "9d23f1920f3b32cd50834e5646ef83626e69deeb07183c57fbfa271d5802a829"
+    },
+    {
+      "thread_id": "01a083e5-b299-7103-b7c8-46db574f7283",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-01-04-01a083e5-b299-7103-b7c8-46db574f7283.jsonl",
+      "included_bytes": 320413,
+      "included_records": 58,
+      "sha256": "f698178fd4bc51a490df235aa470e12627e4783b1e1b6f82af9e482f8ec5519f"
+    },
+    {
+      "thread_id": "01a0840a-fe0d-7782-ada4-d9830e758595",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-41-48-01a0840a-fe0d-7782-ada4-d9830e758595.jsonl",
+      "included_bytes": 702632,
+      "included_records": 199,
+      "sha256": "f3f12cf1b5a49972635278587dcd6d1b14870ca583e69c538b703bb57adc3c2c"
+    },
+    {
+      "thread_id": "01a0840a-ffa6-7981-9196-d0b257612366",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-41-48-01a0840a-ffa6-7981-9196-d0b257612366.jsonl",
+      "included_bytes": 294508,
+      "included_records": 89,
+      "sha256": "1d63241c63b2db47befc9a3c002642510a799ddd8cb7c4c15cd378e0be5e98a9"
+    },
+    {
+      "thread_id": "01a08414-c399-7680-bf10-9bfdce5d3ccf",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-52-28-01a08414-c399-7680-bf10-9bfdce5d3ccf.jsonl",
+      "included_bytes": 673160,
+      "included_records": 72,
+      "sha256": "723e3c01e0b59ebdb23e4f8c3c1e01caba0019fd4c849741f2ca44619471ea07"
+    },
+    {
+      "thread_id": "01a08417-6257-7110-a436-8a3dbd0b0c79",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-55-20-01a08417-6257-7110-a436-8a3dbd0b0c79.jsonl",
+      "included_bytes": 203059,
+      "included_records": 61,
+      "sha256": "563cdf0729ca2d3f9684726b2add00b0bae209d1c73d0b80a6faa407f8ddf209"
+    },
+    {
+      "thread_id": "01a08417-63c3-72c2-b35b-41fb3931a4bc",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-55-20-01a08417-63c3-72c2-b35b-41fb3931a4bc.jsonl",
+      "included_bytes": 131220,
+      "included_records": 14,
+      "sha256": "21e63ce9a7b73cc07c5ca24d34638e3f2230a925eb508560b02419d9241cc48d"
+    },
+    {
+      "thread_id": "01a0841b-8124-7562-a3a9-8164f8073451",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-59-50-01a0841b-8124-7562-a3a9-8164f8073451.jsonl",
+      "included_bytes": 754157,
+      "included_records": 217,
+      "sha256": "70dc298e7c40bca72006d932ed29eff3f27465d4e4527af6cecbf306b8cad3ee"
+    },
+    {
+      "thread_id": "01a0841b-8282-7bf3-8d34-ab8d5453d049",
+      "log_file": "2026/09/09/rollout-2026-09-09T04-59-50-01a0841b-8282-7bf3-8d34-ab8d5453d049.jsonl",
+      "included_bytes": 320295,
+      "included_records": 112,
+      "sha256": "b9ada6b3580f7bfba454f2426e9364676cb8f75e0515da1debab9f7deeae94e3"
+    },
+    {
+      "thread_id": "01a08423-25a3-7cd2-a482-5b06dcd9ffe6",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-08-11-01a08423-25a3-7cd2-a482-5b06dcd9ffe6.jsonl",
+      "included_bytes": 3876358,
+      "included_records": 329,
+      "sha256": "fa480c2fb1a313f3002653d5cb070f3ea0d5e16747954adcfed5ab22c74ede2a"
+    },
+    {
+      "thread_id": "01a08435-ae01-7fd0-903d-1df09199dec5",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-28-25-01a08435-ae01-7fd0-903d-1df09199dec5.jsonl",
+      "included_bytes": 612492,
+      "included_records": 82,
+      "sha256": "3814faa4d0433a9fa73ba65d689b81d1e92ed39a092a0ad2d4b03fc6da6b77f9"
+    },
+    {
+      "thread_id": "01a08435-af94-7e31-ace6-8442010d25ad",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-28-26-01a08435-af94-7e31-ace6-8442010d25ad.jsonl",
+      "included_bytes": 219434,
+      "included_records": 58,
+      "sha256": "19231bb015000489f239de0f3239246790e1ec49ec60701edc7cc20ec6674173"
+    },
+    {
+      "thread_id": "01a0843f-3d12-7d70-8624-217f2824ab11",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-38-52-01a0843f-3d12-7d70-8624-217f2824ab11.jsonl",
+      "included_bytes": 3542484,
+      "included_records": 697,
+      "sha256": "1bc9637631702ca9e8d9ea374b15701ed3e58eb0cb15bf6408154f6ae5899d14"
+    },
+    {
+      "thread_id": "01a0843f-3e03-7670-bac1-2809256a01f7",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-38-52-01a0843f-3e03-7670-bac1-2809256a01f7.jsonl",
+      "included_bytes": 436062,
+      "included_records": 80,
+      "sha256": "a2219025535dfb62b74df787d02b0c2cbda532ca9ff4db255d2b490c48329cec"
+    },
+    {
+      "thread_id": "01a08440-c78b-75d1-bdf3-65fcbb8f2dbe",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-40-33-01a08440-c78b-75d1-bdf3-65fcbb8f2dbe.jsonl",
+      "included_bytes": 3009403,
+      "included_records": 283,
+      "sha256": "2a55cbd0ac4373d8923d383e412e57a96089a920538bddca56f2de3748559bde"
+    },
+    {
+      "thread_id": "01a08440-c8e8-7521-8636-b054fb3c717b",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-40-33-01a08440-c8e8-7521-8636-b054fb3c717b.jsonl",
+      "included_bytes": 195477,
+      "included_records": 14,
+      "sha256": "ee032eb290e8207f3c592a72c7c0449edab7853797c12b67def2014587e15930"
+    },
+    {
+      "thread_id": "01a0844b-40bd-72b3-8861-8bc5d887e2c4",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-51-59-01a0844b-40bd-72b3-8861-8bc5d887e2c4.jsonl",
+      "included_bytes": 6741636,
+      "included_records": 835,
+      "sha256": "c239e7255fcb5a5e4f51dd464c62a8fdf4aab6ce81263993ccb9cdda41d88a2c"
+    },
+    {
+      "thread_id": "01a0844b-89d5-7af3-8109-463fd4bc383f",
+      "log_file": "2026/09/09/rollout-2026-09-09T05-52-18-01a0844b-89d5-7af3-8109-463fd4bc383f.jsonl",
+      "included_bytes": 3502700,
+      "included_records": 349,
+      "sha256": "dd3a066a47c97d5d04e69b8b5442264edf936644100f868fb648d400536499f4"
+    },
+    {
+      "thread_id": "01a0845e-c32a-74a3-b873-c30db217a811",
+      "log_file": "2026/09/09/rollout-2026-09-09T06-13-18-01a0845e-c32a-74a3-b873-c30db217a811.jsonl",
+      "included_bytes": 2890566,
+      "included_records": 904,
+      "sha256": "a2c1219b539bb64098d1abc18ee2fd5ee9f07bfd6cdf570e64ba86a0db8e19f8"
+    },
+    {
+      "thread_id": "01a08474-af5f-7190-ba92-2283e0d26163",
+      "log_file": "2026/09/09/rollout-2026-09-09T06-37-14-01a08474-af5f-7190-ba92-2283e0d26163.jsonl",
+      "included_bytes": 3867501,
+      "included_records": 446,
+      "sha256": "6747f05b06208b7502c24b357e423d8f25b40d1755c04fb82d2cc282f80f0647"
+    },
+    {
+      "thread_id": "01a08497-fbca-7f23-8144-0fa9277f68f8",
+      "log_file": "2026/09/09/rollout-2026-09-09T07-15-48-01a08497-fbca-7f23-8144-0fa9277f68f8.jsonl",
+      "included_bytes": 2201225,
+      "included_records": 314,
+      "sha256": "741dd855933e0d752fac34d9d233f63a3ce32f481201e523be2dedbfec618f1b"
+    },
+    {
+      "thread_id": "01a08497-fce2-7e03-9104-54c8033c310a",
+      "log_file": "2026/09/09/rollout-2026-09-09T07-15-48-01a08497-fce2-7e03-9104-54c8033c310a.jsonl",
+      "included_bytes": 307127,
+      "included_records": 35,
+      "sha256": "dd33849d78cc6d5972c7f7df3460c037e90e7f63bb6437428d45af3577cf4dc2"
+    },
+    {
+      "thread_id": "01a084a5-de63-7383-b2a2-b6787eb7279b",
+      "log_file": "2026/09/09/rollout-2026-09-09T07-30-58-01a084a5-de63-7383-b2a2-b6787eb7279b.jsonl",
+      "included_bytes": 2024715,
+      "included_records": 207,
+      "sha256": "c0271225ecbd891dd3f9e6ff5b6846561075630ef2d6a10cbcab82a6457376ca"
+    },
+    {
+      "thread_id": "01a084b5-6f2e-7363-a2d7-710119519dbe",
+      "log_file": "2026/09/09/rollout-2026-09-09T07-47-58-01a084b5-6f2e-7363-a2d7-710119519dbe.jsonl",
+      "included_bytes": 2878057,
+      "included_records": 216,
+      "sha256": "069caa411538282688d6c874af19341351dfeb971643f9fe707b78399f344312"
+    },
+    {
+      "thread_id": "01a084bc-e94f-75d1-9773-6d0dd922bcc3",
+      "log_file": "2026/09/09/rollout-2026-09-09T07-56-08-01a084bc-e94f-75d1-9773-6d0dd922bcc3.jsonl",
+      "included_bytes": 2578989,
+      "included_records": 275,
+      "sha256": "9e8f606b0b5d14bec4f3543de997e11ef8ce4d4bb48790892c837e7c98516422"
+    },
+    {
+      "thread_id": "01a084c8-1ec9-7642-9841-90a510ca888b",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-08-22-01a084c8-1ec9-7642-9841-90a510ca888b.jsonl",
+      "included_bytes": 1325996,
+      "included_records": 86,
+      "sha256": "4a154b5e148f48944010d6981daf6de749e57ab233ce482304575627d39442e2"
+    },
+    {
+      "thread_id": "01a084ca-bb49-74c0-8398-a9e233f66abc",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-11-13-01a084ca-bb49-74c0-8398-a9e233f66abc.jsonl",
+      "included_bytes": 2064893,
+      "included_records": 182,
+      "sha256": "125c99ff8246404956da565e88f514f14c69b66e8c2f3280974baf36fd2b4a49"
+    },
+    {
+      "thread_id": "01a084d1-6efb-76c0-b952-f9c8c7c95128",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-18-33-01a084d1-6efb-76c0-b952-f9c8c7c95128.jsonl",
+      "included_bytes": 1284411,
+      "included_records": 167,
+      "sha256": "49a30fa9b1a60cb02066a9f0cfea4969fd604f01efca25603361e77369cb6e76"
+    },
+    {
+      "thread_id": "01a084e1-2c54-7d91-ae76-bab8eaa6a5f5",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-35-44-01a084e1-2c54-7d91-ae76-bab8eaa6a5f5.jsonl",
+      "included_bytes": 406898,
+      "included_records": 82,
+      "sha256": "8523d01bffec9daecfd2adad64bef37036d7a4ba58fd92a9607f7cc284341065"
+    },
+    {
+      "thread_id": "01a084e1-2dcb-7ea1-ac1f-eb0f8fdb0342",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-35-45-01a084e1-2dcb-7ea1-ac1f-eb0f8fdb0342.jsonl",
+      "included_bytes": 213569,
+      "included_records": 47,
+      "sha256": "483457d115cdb0d7835040a58516a65b1d1606d6163bfb2ff2bd551b82e8f148"
+    },
+    {
+      "thread_id": "01a084e9-3648-7db3-a8c8-bcbbf07754f7",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-44-31-01a084e9-3648-7db3-a8c8-bcbbf07754f7.jsonl",
+      "included_bytes": 4446169,
+      "included_records": 530,
+      "sha256": "276bb199fb58c1154dacfc1def77186553548f1da4f3e290e51fc3d731c42233"
+    },
+    {
+      "thread_id": "01a084e9-37a9-7192-92fb-ae167df911db",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-44-32-01a084e9-37a9-7192-92fb-ae167df911db.jsonl",
+      "included_bytes": 541326,
+      "included_records": 81,
+      "sha256": "dcb38b4f2564d04cc0f787a84fd863236d2ce6d10f60a36109cfb981ded9f582"
+    },
+    {
+      "thread_id": "01a084e9-e208-7de1-9784-dcf052ec3e9e",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-45-15-01a084e9-e208-7de1-9784-dcf052ec3e9e.jsonl",
+      "included_bytes": 1614992,
+      "included_records": 325,
+      "sha256": "1824893d8fa506ce4bde3b3ed5cf1580bcbdaf50d14b5a7e47a64bc982e9442c"
+    },
+    {
+      "thread_id": "01a084e9-e377-71f2-af18-302dec6f1d69",
+      "log_file": "2026/09/09/rollout-2026-09-09T08-45-16-01a084e9-e377-71f2-af18-302dec6f1d69.jsonl",
+      "included_bytes": 301299,
+      "included_records": 48,
+      "sha256": "a99e66d6ca85cfc209c13650a0485fce24ad3d02dcfbc61dd4864ef311b339e3"
+    },
+    {
+      "thread_id": "01a084f8-49cc-7f11-8d04-b1dc401f8be0",
+      "log_file": "2026/09/09/rollout-2026-09-09T09-00-59-01a084f8-49cc-7f11-8d04-b1dc401f8be0.jsonl",
+      "included_bytes": 9529326,
+      "included_records": 870,
+      "sha256": "0108143956659a1e11a9235597d599ef9f6232412f377abdac96f2c66b0a9ad7"
+    },
+    {
+      "thread_id": "01a084f8-affe-7101-bd8c-6a5fd12a5577",
+      "log_file": "2026/09/09/rollout-2026-09-09T09-01-25-01a084f8-affe-7101-bd8c-6a5fd12a5577.jsonl",
+      "included_bytes": 1906117,
+      "included_records": 289,
+      "sha256": "aab05391f85d853866a4528fa3eb86f44fdf36daf7f95c12b787dec4b6641dd0"
+    },
+    {
+      "thread_id": "01a0850e-9526-7082-ba4c-349058c65c16",
+      "log_file": "2026/09/09/rollout-2026-09-09T09-25-20-01a0850e-9526-7082-ba4c-349058c65c16.jsonl",
+      "included_bytes": 1979221,
+      "included_records": 241,
+      "sha256": "050bd7b73d401ea1dbfd87a3d19a067afa2b2906cfad75b2162a398ec0127d59"
+    },
+    {
+      "thread_id": "01a0851b-1b73-7cb2-a719-51d63422444a",
+      "log_file": "2026/09/09/rollout-2026-09-09T09-39-01-01a0851b-1b73-7cb2-a719-51d63422444a.jsonl",
+      "included_bytes": 567566,
+      "included_records": 65,
+      "sha256": "0bccaf1c0a56faeec32ebb8d57c21b143ec3daf6c24d0712b1c3bc533f6899ec"
+    },
+    {
+      "thread_id": "01a0851f-2d77-7e62-826f-2965f5416c5b",
+      "log_file": "2026/09/09/rollout-2026-09-09T09-43-28-01a0851f-2d77-7e62-826f-2965f5416c5b.jsonl",
+      "included_bytes": 1642890,
+      "included_records": 144,
+      "sha256": "0b3c893d5917ce081636eb2c8d84b84669eddbd086a7d5a22e30a73d95730df2"
+    },
+    {
+      "thread_id": "01a08537-ba56-7632-93f5-9a1eb15b8baa",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-10-17-01a08537-ba56-7632-93f5-9a1eb15b8baa.jsonl",
+      "included_bytes": 1274085,
+      "included_records": 188,
+      "sha256": "93d19884165c29ad7561cfde1d63ae806a19f8241aacc71090260c41dd04dab7"
+    },
+    {
+      "thread_id": "01a08537-bbea-7552-bb31-8ecf315dcc23",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-10-17-01a08537-bbea-7552-bb31-8ecf315dcc23.jsonl",
+      "included_bytes": 305434,
+      "included_records": 47,
+      "sha256": "c05816ee47630fa5bfd7c283184a3a7a7450ca4957cf257ed79c775239d5c422"
+    },
+    {
+      "thread_id": "01a0853f-36c4-74d0-9a34-ddd5db03d780",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-18-27-01a0853f-36c4-74d0-9a34-ddd5db03d780.jsonl",
+      "included_bytes": 1466925,
+      "included_records": 252,
+      "sha256": "224d44ae8f8b56da857d4aaa7356e03e806ba1b6e244563b3694519a4595c76b"
+    },
+    {
+      "thread_id": "01a08541-809e-7ea0-bdf9-ce220dc622f6",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-20-57-01a08541-809e-7ea0-bdf9-ce220dc622f6.jsonl",
+      "included_bytes": 4323340,
+      "included_records": 239,
+      "sha256": "a065063f82361b29a8fcb7d7e022f8eb1a5d469836ab193bd0d156d3cff3e190"
+    },
+    {
+      "thread_id": "01a08552-e957-79f0-a001-9cc308c0fd05",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-39-58-01a08552-e957-79f0-a001-9cc308c0fd05.jsonl",
+      "included_bytes": 5776203,
+      "included_records": 706,
+      "sha256": "b929d8c72d17f90a9f61129ccdfcfe1d5248c5902f64d4e3b3d767e99a17cdb1"
+    },
+    {
+      "thread_id": "01a08553-7e3e-7290-af6c-a78101b01f6d",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-40-36-01a08553-7e3e-7290-af6c-a78101b01f6d.jsonl",
+      "included_bytes": 3299284,
+      "included_records": 531,
+      "sha256": "2e759a1604a848f6c20f79fcda0f1dff4f73ca5f7ece5cb491a0e72dcc3af146"
+    },
+    {
+      "thread_id": "01a08553-ddd2-70b0-ac68-568952187d34",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-41-01-01a08553-ddd2-70b0-ac68-568952187d34.jsonl",
+      "included_bytes": 5100672,
+      "included_records": 425,
+      "sha256": "0b3bea7e46a92eabf4abd929382facc2c0b08443c73905d955fa89fc28a783ec"
+    },
+    {
+      "thread_id": "01a08554-67a3-7d33-8a50-c47508aba2d4",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-41-36-01a08554-67a3-7d33-8a50-c47508aba2d4.jsonl",
+      "included_bytes": 1273313,
+      "included_records": 117,
+      "sha256": "73e710d62eefb42488a36322d4c6b31285fecff2427a6e60e47a27632001fabc"
+    },
+    {
+      "thread_id": "01a08560-7e1a-7d32-a8be-6b80cd048145",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-54-49-01a08560-7e1a-7d32-a8be-6b80cd048145.jsonl",
+      "included_bytes": 3802211,
+      "included_records": 385,
+      "sha256": "d6bd43f17209628b4bcd15338f53828b312f1d2ffd75ad6428dd28e3dc361ec5"
+    },
+    {
+      "thread_id": "01a08561-71f5-7d62-8629-8953e81f846d",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-55-51-01a08561-71f5-7d62-8629-8953e81f846d.jsonl",
+      "included_bytes": 527748,
+      "included_records": 59,
+      "sha256": "8815ee344c25748a3346c0e63411d10f0088650a09a75884e93ede6967b94122"
+    },
+    {
+      "thread_id": "01a08561-9500-7243-a7b2-c0d13d6a6332",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-56-00-01a08561-9500-7243-a7b2-c0d13d6a6332.jsonl",
+      "included_bytes": 397126,
+      "included_records": 47,
+      "sha256": "72a3e965c715a08eb666b715475490d8294eedb1a4e43d6032e43625bd105d19"
+    },
+    {
+      "thread_id": "01a08561-ba63-7c73-8081-6c49753ab914",
+      "log_file": "2026/09/09/rollout-2026-09-09T10-56-09-01a08561-ba63-7c73-8081-6c49753ab914.jsonl",
+      "included_bytes": 297856,
+      "included_records": 26,
+      "sha256": "0a022f8a1bbadc3e53a88d112bd0ba04c812ca86788d9e3362219b1630afd2f1"
+    },
+    {
+      "thread_id": "01a08569-911f-7822-a2dd-48ed552da3b6",
+      "log_file": "2026/09/09/rollout-2026-09-09T11-04-43-01a08569-911f-7822-a2dd-48ed552da3b6.jsonl",
+      "included_bytes": 595511,
+      "included_records": 73,
+      "sha256": "5afef7b9208d8ceb179e691ff356134d84ce1038d8c22ecf83d545619f6cc6e2"
+    },
+    {
+      "thread_id": "01a08569-934a-7273-ba61-761d90492d25",
+      "log_file": "2026/09/09/rollout-2026-09-09T11-04-44-01a08569-934a-7273-ba61-761d90492d25.jsonl",
+      "included_bytes": 193855,
+      "included_records": 48,
+      "sha256": "56cdde937be532a784c11529de80c6c0bafb84274ed6fac437436655e2c20823"
+    },
+    {
+      "thread_id": "01a0856a-573b-7bf0-b909-22dba1dc1d7d",
+      "log_file": "2026/09/09/rollout-2026-09-09T11-05-34-01a0856a-573b-7bf0-b909-22dba1dc1d7d.jsonl",
+      "included_bytes": 5910253,
+      "included_records": 576,
+      "sha256": "8320d2b8ffd522d0c9350d4fa12b0a9c9a893ea1c7a32610512ad6c53a5c03d1"
+    },
+    {
+      "thread_id": "01a0856a-a867-74d0-954e-1ba14349548c",
+      "log_file": "2026/09/09/rollout-2026-09-09T11-05-55-01a0856a-a867-74d0-954e-1ba14349548c.jsonl",
+      "included_bytes": 5946432,
+      "included_records": 564,
+      "sha256": "eb19c19a6b5c6f9f3c312cea9d1fd5aca7b76c328c6f34974bcd9d0076684b18"
+    },
+    {
+      "thread_id": "01a0856a-ef7b-7013-861e-6918b7bd0e20",
+      "log_file": "2026/09/09/rollout-2026-09-09T11-06-13-01a0856a-ef7b-7013-861e-6918b7bd0e20.jsonl",
+      "included_bytes": 4003024,
+      "included_records": 451,
+      "sha256": "8663a51deb96cfe3d26d2c5c00db921320b0c83bc982555a1265e569d78e3bf0"
+    },
+    {
+      "thread_id": "01a08593-c7ca-76c3-9312-fac6e5d2503d",
+      "log_file": "2026/09/09/rollout-2026-09-09T11-50-49-01a08593-c7ca-76c3-9312-fac6e5d2503d.jsonl",
+      "included_bytes": 3434651,
+      "included_records": 293,
+      "sha256": "d62f092f2b8052c8c208d820f5af96786424f1b32802c561ee097f8fb1dbd3f0"
+    },
+    {
+      "thread_id": "01a0859c-7096-7613-80fd-15cb2e8ffe13",
+      "log_file": "2026/09/09/rollout-2026-09-09T12-00-17-01a0859c-7096-7613-80fd-15cb2e8ffe13.jsonl",
+      "included_bytes": 2715348,
+      "included_records": 391,
+      "sha256": "5e5c620149387eadc15b10869c833234ac96589af84be32c2b277e45c2570a30"
+    },
+    {
+      "thread_id": "01a085a2-7109-7693-ad44-4d1d2afdcd57",
+      "log_file": "2026/09/09/rollout-2026-09-09T12-06-50-01a085a2-7109-7693-ad44-4d1d2afdcd57.jsonl",
+      "included_bytes": 3049795,
+      "included_records": 196,
+      "sha256": "a28fe4e3a8437036f165461d531512272e91393e832b62536d5c68c963821734"
+    },
+    {
+      "thread_id": "01a085af-4395-7b82-9d99-8de8c17f26a0",
+      "log_file": "2026/09/09/rollout-2026-09-09T12-20-51-01a085af-4395-7b82-9d99-8de8c17f26a0.jsonl",
+      "included_bytes": 3741157,
+      "included_records": 486,
+      "sha256": "2ae984e6f231578f34b34e22e28e0987fc0140e6757c46cda912bb90a1558e21"
+    },
+    {
+      "thread_id": "01a085af-4503-7143-8e3d-4adf97408519",
+      "log_file": "2026/09/09/rollout-2026-09-09T12-20-51-01a085af-4503-7143-8e3d-4adf97408519.jsonl",
+      "included_bytes": 355308,
+      "included_records": 35,
+      "sha256": "30197ab334ba4bc51e9df3120eed832b6a307e734c0a07012d22b4137b0c9555"
+    },
+    {
+      "thread_id": "01a085b6-ea57-7ea0-ad70-709a1dc06440",
+      "log_file": "2026/09/09/rollout-2026-09-09T12-29-12-01a085b6-ea57-7ea0-ad70-709a1dc06440.jsonl",
+      "included_bytes": 3340449,
+      "included_records": 314,
+      "sha256": "8949ee0be11af09282f817e6ca98ea4e56aa597a48263856dcfa399189419e30"
+    },
+    {
+      "thread_id": "01a085d3-55c7-7273-ac46-a3bc2332cd5f",
+      "log_file": "2026/09/09/rollout-2026-09-09T13-00-15-01a085d3-55c7-7273-ac46-a3bc2332cd5f.jsonl",
+      "included_bytes": 4947369,
+      "included_records": 492,
+      "sha256": "e7a79f3c9594fb232ccee9a58ec296da6a874df0998f237dca2716458001b5a1"
+    },
+    {
+      "thread_id": "01a085e9-b092-7603-8a43-ae3a78b246d9",
+      "log_file": "2026/09/09/rollout-2026-09-09T13-24-40-01a085e9-b092-7603-8a43-ae3a78b246d9.jsonl",
+      "included_bytes": 1765701,
+      "included_records": 115,
+      "sha256": "d9f2c583edd7a23bda9c74e6785b9bbefed37a860414d4ad5c6408c4fd79773e"
+    },
+    {
+      "thread_id": "01a085ef-cf3e-70c3-92b6-a783add99884",
+      "log_file": "2026/09/09/rollout-2026-09-09T13-31-21-01a085ef-cf3e-70c3-92b6-a783add99884.jsonl",
+      "included_bytes": 3280433,
+      "included_records": 256,
+      "sha256": "d1415b1140e53806754a2e8e9fabaa442a7d19a3a4f32562c7caad4aaa9cef8e"
+    },
+    {
+      "thread_id": "01a085fe-acf0-7ab3-8fb0-9f71ff83b31f",
+      "log_file": "2026/09/09/rollout-2026-09-09T13-47-35-01a085fe-acf0-7ab3-8fb0-9f71ff83b31f.jsonl",
+      "included_bytes": 624612,
+      "included_records": 95,
+      "sha256": "ac17f6631ee7e60b72698293846f57c91e68114853ad29254c88c3e2ed830256"
+    },
+    {
+      "thread_id": "01a085fe-aea5-7723-a7cb-b950df585d22",
+      "log_file": "2026/09/09/rollout-2026-09-09T13-47-36-01a085fe-aea5-7723-a7cb-b950df585d22.jsonl",
+      "included_bytes": 184833,
+      "included_records": 14,
+      "sha256": "4691d6f76bde541f00ea211a9f87daf5d7d59e4d00c7a3e05f8edfbbf02b2bc5"
+    },
+    {
+      "thread_id": "01a08602-4419-73f3-832f-db96f06a8b78",
+      "log_file": "2026/09/09/rollout-2026-09-09T13-51-30-01a08602-4419-73f3-832f-db96f06a8b78.jsonl",
+      "included_bytes": 1723637,
+      "included_records": 200,
+      "sha256": "c0cb825d41af5d04616ce78a7500b5af14dd72e5f91585b1daec9c2695956258"
+    },
+    {
+      "thread_id": "01a0860c-d1d7-76e1-8209-85480c7e4371",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-03-02-01a0860c-d1d7-76e1-8209-85480c7e4371.jsonl",
+      "included_bytes": 711582,
+      "included_records": 98,
+      "sha256": "05bdcd3eb4a87d18e3d3bd21ba9423ec8927c0f6478012c55bc6919b75c01ba5"
+    },
+    {
+      "thread_id": "01a0860c-d2e0-7b22-a5e8-f1bddda73d31",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-03-02-01a0860c-d2e0-7b22-a5e8-f1bddda73d31.jsonl",
+      "included_bytes": 245006,
+      "included_records": 68,
+      "sha256": "d5d46600fbdef4e6cba0b8972cc42eb315b2f90db59bd27315ec2b5aedf017ab"
+    },
+    {
+      "thread_id": "01a08614-94ff-7d61-8d30-46d213493a2d",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-11-31-01a08614-94ff-7d61-8d30-46d213493a2d.jsonl",
+      "included_bytes": 3627673,
+      "included_records": 337,
+      "sha256": "e8474ea2300e6aedd18311921a63e7d206708f757dccb2438403c933c5efad86"
+    },
+    {
+      "thread_id": "01a08614-9692-7cf2-8c12-2df179b5edce",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-11-31-01a08614-9692-7cf2-8c12-2df179b5edce.jsonl",
+      "included_bytes": 335117,
+      "included_records": 48,
+      "sha256": "1f6e01c956d673e46e2dd58f238173bbce8fc4d0a4e13d5b4b607b686816fde7"
+    },
+    {
+      "thread_id": "01a08615-1c79-78f3-9461-68269deab06e",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-12-05-01a08615-1c79-78f3-9461-68269deab06e.jsonl",
+      "included_bytes": 5695879,
+      "included_records": 725,
+      "sha256": "0c3893396717f70e96668b68f5061aa163f520afabb0324594653631403886c9"
+    },
+    {
+      "thread_id": "01a08615-1dab-7ed2-be56-5c317c526a77",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-12-06-01a08615-1dab-7ed2-be56-5c317c526a77.jsonl",
+      "included_bytes": 601350,
+      "included_records": 103,
+      "sha256": "6b548a647f3c5c8031aca37114d7e12184d167b1ccccad3c43c5b28cb99444da"
+    },
+    {
+      "thread_id": "01a0861a-0660-7763-a88e-4a1632ee0c11",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-17-27-01a0861a-0660-7763-a88e-4a1632ee0c11.jsonl",
+      "included_bytes": 4037894,
+      "included_records": 407,
+      "sha256": "98d08b1934af44336a7e13e6d2c4c12d1784acca2e86125f34176f2c2a781ccb"
+    },
+    {
+      "thread_id": "01a0861f-f163-78e1-bb88-6e926d96c8f8",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-23-55-01a0861f-f163-78e1-bb88-6e926d96c8f8.jsonl",
+      "included_bytes": 7544052,
+      "included_records": 547,
+      "sha256": "d0732ad4e6b6c2d298ab93837df9e58ad203f412cf9852b2b9f03648093f15b2"
+    },
+    {
+      "thread_id": "01a08633-dc6a-7f61-ad67-423fd51b7a0e",
+      "log_file": "2026/09/09/rollout-2026-09-09T14-45-40-01a08633-dc6a-7f61-ad67-423fd51b7a0e.jsonl",
+      "included_bytes": 2965692,
+      "included_records": 238,
+      "sha256": "23ba87b744c24fd356d0f681c2b55209064456f3b2a1fc73242a463f048f4b27"
+    },
+    {
+      "thread_id": "01a08646-55c9-7ee3-881c-8278e575feae",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-05-51-01a08646-55c9-7ee3-881c-8278e575feae.jsonl",
+      "included_bytes": 2752544,
+      "included_records": 420,
+      "sha256": "e45b2914fa1548681d1134232f7a87b76c2b67c82444b31a697c3087145616aa"
+    },
+    {
+      "thread_id": "01a08646-5722-7142-bd4d-0939c7608f5b",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-05-52-01a08646-5722-7142-bd4d-0939c7608f5b.jsonl",
+      "included_bytes": 398056,
+      "included_records": 47,
+      "sha256": "a6096cad59bcbebb9de6a51dcd497cd0e98765e219a9bfa974a4fcb5e7e3b1f6"
+    },
+    {
+      "thread_id": "01a0864c-d576-7f32-9ae3-812400ef7bb1",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-12-57-01a0864c-d576-7f32-9ae3-812400ef7bb1.jsonl",
+      "included_bytes": 3423779,
+      "included_records": 340,
+      "sha256": "2e4b488fd7fb7c1af6b7138a1d3420c35dd20142a91e1f54d7e367e5be7c118d"
+    },
+    {
+      "thread_id": "01a0864d-7271-7a42-94df-e4fddfe85ced",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-13-37-01a0864d-7271-7a42-94df-e4fddfe85ced.jsonl",
+      "included_bytes": 4198848,
+      "included_records": 246,
+      "sha256": "4c967e6eddb26d5bc08080944afa92e0be1e089edb195c5b751c7b52ade030c9"
+    },
+    {
+      "thread_id": "01a0865d-c77a-7ef2-b73e-babfb5261455",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-31-28-01a0865d-c77a-7ef2-b73e-babfb5261455.jsonl",
+      "included_bytes": 4338899,
+      "included_records": 546,
+      "sha256": "def893834bb0d8efe16e5d77104dfef8ba533ffcec0ae33f76b9dcc6dd1daf91"
+    },
+    {
+      "thread_id": "01a0865d-c90d-74e2-ac5a-264978d2fc16",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-31-28-01a0865d-c90d-74e2-ac5a-264978d2fc16.jsonl",
+      "included_bytes": 341546,
+      "included_records": 36,
+      "sha256": "96b9adeb5192f46aee2de2104f5099454ce4ad97933164fd241b84789e31a7ca"
+    },
+    {
+      "thread_id": "01a08668-0fca-7430-bfcb-3d271159c1cd",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-42-42-01a08668-0fca-7430-bfcb-3d271159c1cd.jsonl",
+      "included_bytes": 4133910,
+      "included_records": 309,
+      "sha256": "8c709f1baae29d16b4d25b719f1a7989b480cb04666cee6f0df89e6d2e8a0e49"
+    },
+    {
+      "thread_id": "01a08668-e694-78f3-a7b0-bb2866d5b1b5",
+      "log_file": "2026/09/09/rollout-2026-09-09T15-43-36-01a08668-e694-78f3-a7b0-bb2866d5b1b5.jsonl",
+      "included_bytes": 4688556,
+      "included_records": 370,
+      "sha256": "a45f01c38ac2fdee37f18e1819b56d921fcd07cc86c216711dc9f052ef0264ca"
+    },
+    {
+      "thread_id": "01a08679-1310-7423-94dc-a936e9173ae5",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-01-16-01a08679-1310-7423-94dc-a936e9173ae5.jsonl",
+      "included_bytes": 2682260,
+      "included_records": 178,
+      "sha256": "6224d03e06bec0eaa692bb855f3bb173687e82ec247cafc959d3382010543dcc"
+    },
+    {
+      "thread_id": "01a08684-7247-7403-993f-420da1246a3e",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-13-42-01a08684-7247-7403-993f-420da1246a3e.jsonl",
+      "included_bytes": 1493589,
+      "included_records": 141,
+      "sha256": "e2222bdb241d678ca3c10ca9c4aa47215da0455e424e8765c503f4e834c7c08a"
+    },
+    {
+      "thread_id": "01a08684-73bd-7192-a601-c86c445fdcac",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-13-42-01a08684-73bd-7192-a601-c86c445fdcac.jsonl",
+      "included_bytes": 210637,
+      "included_records": 26,
+      "sha256": "89700984dd680894d0b60de43a4ab48fdd47da90aae43fbc45749a8ff363a23f"
+    },
+    {
+      "thread_id": "01a08688-c4c6-7881-a27a-208cf6d88dda",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-18-25-01a08688-c4c6-7881-a27a-208cf6d88dda.jsonl",
+      "included_bytes": 2018478,
+      "included_records": 171,
+      "sha256": "b14257789d3347d4e8f9ca1c3706bcdc39f35553b0e0e3b532d1d9e5f907e2ee"
+    },
+    {
+      "thread_id": "01a08691-b1f9-7ec3-b0d0-e840753c1f0a",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-28-10-01a08691-b1f9-7ec3-b0d0-e840753c1f0a.jsonl",
+      "included_bytes": 4405482,
+      "included_records": 382,
+      "sha256": "33f2f7a820414bed75a3df05f6e2cf189094394b21ad14b2cea1f4c11876fc5a"
+    },
+    {
+      "thread_id": "01a086a1-772e-72d0-9ad4-802aba503304",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-45-24-01a086a1-772e-72d0-9ad4-802aba503304.jsonl",
+      "included_bytes": 2258512,
+      "included_records": 202,
+      "sha256": "13a21db6b45b264be847f065d259966ca442786937e9d5ab94241c204652bc2b"
+    },
+    {
+      "thread_id": "01a086ad-8f99-7b43-ac7c-316665d6de62",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-58-36-01a086ad-8f99-7b43-ac7c-316665d6de62.jsonl",
+      "included_bytes": 970951,
+      "included_records": 258,
+      "sha256": "99e235461e9ed01ea353177953b31c77a7d6caab91453fceab81efa4da8af44a"
+    },
+    {
+      "thread_id": "01a086ad-910f-7301-9f33-547f8eac28a4",
+      "log_file": "2026/09/09/rollout-2026-09-09T16-58-37-01a086ad-910f-7301-9f33-547f8eac28a4.jsonl",
+      "included_bytes": 201330,
+      "included_records": 26,
+      "sha256": "0a086c7e75c29bc9b9286c6170d3d5da8f65112e35f9c147087810c8273b5b0c"
+    },
+    {
+      "thread_id": "01a086b3-5bc9-7fc1-9d69-9210afd3d4ba",
+      "log_file": "2026/09/09/rollout-2026-09-09T17-04-56-01a086b3-5bc9-7fc1-9d69-9210afd3d4ba.jsonl",
+      "included_bytes": 861947,
+      "included_records": 85,
+      "sha256": "cd7f1a37267416ad31261a90b7d339f6ec6ba9d1a0112ff4c0d66635c8d4fcb4"
+    },
+    {
+      "thread_id": "01a086b9-ac78-7c63-b269-dbd11e5e5442",
+      "log_file": "2026/09/09/rollout-2026-09-09T17-11-50-01a086b9-ac78-7c63-b269-dbd11e5e5442.jsonl",
+      "included_bytes": 4732314,
+      "included_records": 437,
+      "sha256": "26f910cbc9f483399fe59a3f25771089094d63b1085526216b3d1366c5527675"
+    },
+    {
+      "thread_id": "01a086cb-6fee-7cc3-93ec-7800b9ca694b",
+      "log_file": "2026/09/09/rollout-2026-09-09T17-31-14-01a086cb-6fee-7cc3-93ec-7800b9ca694b.jsonl",
+      "included_bytes": 470100,
+      "included_records": 56,
+      "sha256": "2d14cd96b53bda2c1ece8a976d06d21ca01863e3738d2fd15b7d85231af3586e"
+    },
+    {
+      "thread_id": "01a086cb-7130-71b0-bb73-b6a7f6d51dd3",
+      "log_file": "2026/09/09/rollout-2026-09-09T17-31-15-01a086cb-7130-71b0-bb73-b6a7f6d51dd3.jsonl",
+      "included_bytes": 129594,
+      "included_records": 14,
+      "sha256": "48b8ecad00ffb05734da5135e5c92e4fd64da7fe9694ab61a56c324442e8e3f8"
+    },
+    {
+      "thread_id": "01a086cc-79bc-7bc2-beab-46f108342ab8",
+      "log_file": "2026/09/09/rollout-2026-09-09T17-32-22-01a086cc-79bc-7bc2-beab-46f108342ab8.jsonl",
+      "included_bytes": 410596,
+      "included_records": 54,
+      "sha256": "4fcfd37b6e702094df2d33ca1708239c0f37b7e43a0cf520bbd16dd74737b0ca"
+    },
+    {
+      "thread_id": "01a086cf-4a36-7523-9996-2766cdaf67fb",
+      "log_file": "2026/09/09/rollout-2026-09-09T17-35-27-01a086cf-4a36-7523-9996-2766cdaf67fb.jsonl",
+      "included_bytes": 7657282,
+      "included_records": 620,
+      "sha256": "f6241a5c866213f67a979356ebf891c091cc3b706d786e81ec09fcc20d46e5e5"
+    },
+    {
+      "thread_id": "01a086ea-4f09-7ce2-8224-09f41e02198e",
+      "log_file": "2026/09/09/rollout-2026-09-09T18-04-57-01a086ea-4f09-7ce2-8224-09f41e02198e.jsonl",
+      "included_bytes": 1255826,
+      "included_records": 227,
+      "sha256": "a48fb7cc6091f65c79707bd054c0d90a5f6931d73e9d507cfbc5a3a666914d27"
+    },
+    {
+      "thread_id": "01a086ea-5076-7143-88ef-e76c5f9ac243",
+      "log_file": "2026/09/09/rollout-2026-09-09T18-04-58-01a086ea-5076-7143-88ef-e76c5f9ac243.jsonl",
+      "included_bytes": 515311,
+      "included_records": 201,
+      "sha256": "45248319dc20189bef8bab2af62b5de04bd565eb9888599c9e99200918a43fb2"
+    },
+    {
+      "thread_id": "01a08717-dcb9-7ed1-b8c5-291112958704",
+      "log_file": "2026/09/09/rollout-2026-09-09T18-54-43-01a08717-dcb9-7ed1-b8c5-291112958704.jsonl",
+      "included_bytes": 2696679,
+      "included_records": 356,
+      "sha256": "19419bf4614534555c1ceca5a98a78df175301daed9f05d325f93a7c724ecd94"
+    },
+    {
+      "thread_id": "01a08747-7e90-7270-b552-fbae7a334a6d",
+      "log_file": "2026/09/09/rollout-2026-09-09T19-46-44-01a08747-7e90-7270-b552-fbae7a334a6d.jsonl",
+      "included_bytes": 4342563,
+      "included_records": 268,
+      "sha256": "88b6ef0314f7bf976c8376a92ae0b0eff9758c98e01ef06f4494f6d104682059"
+    },
+    {
+      "thread_id": "01a08754-b455-7ba0-b2dd-25c491e5a11a",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-01-10-01a08754-b455-7ba0-b2dd-25c491e5a11a.jsonl",
+      "included_bytes": 781954,
+      "included_records": 100,
+      "sha256": "eba960f4e7a369d43dab50bed4843d5d1a24655f81f20c0a651da39e6481f634"
+    },
+    {
+      "thread_id": "01a08754-b5de-7470-81e9-996a9a907997",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-01-11-01a08754-b5de-7470-81e9-996a9a907997.jsonl",
+      "included_bytes": 186250,
+      "included_records": 14,
+      "sha256": "781fb9bfa3c6f1f6978cab5f81f039e117bbc79d58f015bfe26354a54ddb186d"
+    },
+    {
+      "thread_id": "01a08757-38fb-7053-a9e3-b2aa3cca2c45",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-03-55-01a08757-38fb-7053-a9e3-b2aa3cca2c45.jsonl",
+      "included_bytes": 764119,
+      "included_records": 61,
+      "sha256": "278507286b4e877fb67a2ca235a709cb15b327c1b4755411720b9e48f55507f9"
+    },
+    {
+      "thread_id": "01a0875c-6dd0-78f3-8be5-96ef0e0f14ea",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-09-36-01a0875c-6dd0-78f3-8be5-96ef0e0f14ea.jsonl",
+      "included_bytes": 274762,
+      "included_records": 93,
+      "sha256": "91fb65ce983a2485c834adc6f2d1ac05bdef58bd0e2cced945c1ede82ab1f756"
+    },
+    {
+      "thread_id": "01a0875c-6f36-7592-8159-7408fda79cd0",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-09-37-01a0875c-6f36-7592-8159-7408fda79cd0.jsonl",
+      "included_bytes": 141208,
+      "included_records": 14,
+      "sha256": "c1a890224be90b77276140159af7b5a1ffba63cebe51fdc584aedb58ee6ac240"
+    },
+    {
+      "thread_id": "01a08761-7ac4-72a2-8a51-96c1a661d63d",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-15-07-01a08761-7ac4-72a2-8a51-96c1a661d63d.jsonl",
+      "included_bytes": 182722,
+      "included_records": 54,
+      "sha256": "897f3f2598650aab7de522f8bc702de4c7912067f4741f268b769c783243c5ed"
+    },
+    {
+      "thread_id": "01a0876b-408d-7171-8015-3fedb85f8056",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-25-48-01a0876b-408d-7171-8015-3fedb85f8056.jsonl",
+      "included_bytes": 1802268,
+      "included_records": 217,
+      "sha256": "ed34644ed1a964f36e1ae991e76d96f1b9823bd56df68673bd3150d5af5f74ee"
+    },
+    {
+      "thread_id": "01a08780-5d09-7042-9f93-16139c6ce776",
+      "log_file": "2026/09/09/rollout-2026-09-09T20-48-51-01a08780-5d09-7042-9f93-16139c6ce776.jsonl",
+      "included_bytes": 216081,
+      "included_records": 28,
+      "sha256": "046ea26c91261712ae3bee8417ffac40ff5841e9a6e4ab4b5171b4f0a17f9537"
+    }
+  ]
+}

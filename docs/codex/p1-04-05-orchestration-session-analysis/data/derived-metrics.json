@@ -1,0 +1,204 @@
+{
+  "git": {
+    "complete_session_range": {
+      "deletions": 956,
+      "files": 43,
+      "insertions": 13521
+    },
+    "first_parent_commits": 11,
+    "integrated_main_range": {
+      "deletions": 943,
+      "files": 41,
+      "insertions": 9943
+    },
+    "p1_04_draft_pr_range": {
+      "deletions": 79,
+      "files": 13,
+      "insertions": 3644
+    }
+  },
+  "root": {
+    "root_operational_command_counts": {
+      "capsule_hook_execs": 241,
+      "manifest_builder_execs": 246,
+      "nested_apply_patch_mentions": 587,
+      "recovery_snapshot_execs": 13,
+      "resource_snapshot_execs": 128
+    },
+    "wait_agent": {
+      "after_owner_adjustment": {
+        "actual_wait_seconds": 8818.887,
+        "completed_calls": 40,
+        "early_return_calls": 25,
+        "median_actual_wait_seconds": 226.233,
+        "median_requested_timeout_seconds": 300.0,
+        "requested_timeout_distribution_seconds": {
+          "10": 1,
+          "300": 20,
+          "600": 19
+        },
+        "timed_out_calls": 15
+      },
+      "all": {
+        "actual_wait_seconds": 70929.19,
+        "completed_calls": 1103,
+        "early_return_calls": 278,
+        "median_actual_wait_seconds": 60.038,
+        "median_requested_timeout_seconds": 60.0,
+        "requested_timeout_distribution_seconds": {
+          "0": 1,
+          "10": 11,
+          "120": 51,
+          "180": 61,
+          "240": 27,
+          "30": 167,
+          "300": 20,
+          "40": 3,
+          "50": 117,
+          "60": 624,
+          "600": 19
+        },
+        "timed_out_calls": 825
+      },
+      "before_owner_adjustment": {
+        "actual_wait_seconds": 62110.303,
+        "completed_calls": 1063,
+        "early_return_calls": 253,
+        "median_actual_wait_seconds": 60.037,
+        "median_requested_timeout_seconds": 60.0,
+        "requested_timeout_distribution_seconds": {
+          "0": 1,
+          "10": 10,
+          "120": 51,
+          "180": 61,
+          "240": 27,
+          "30": 167,
+          "40": 3,
+          "50": 117,
+          "60": 624
+        },
+        "timed_out_calls": 810
+      },
+      "owner_adjustment_at": "2026-09-09T14:39:08.922000Z",
+      "pure_wait_responses": 1103,
+      "responses_with_wait_action": 1104,
+      "usage_attribution_note": "Usage is the cumulative-counter delta for responses containing a wait action; mixed-action responses are included in the broad total and excluded from pure-wait totals.",
+      "usage_for_pure_wait_responses": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 152830208,
+        "input_tokens": 155009704,
+        "output_tokens": 62801,
+        "reasoning_output_tokens": 16757,
+        "total_tokens": 155072505
+      },
+      "usage_for_responses_with_wait_action": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 152959232,
+        "input_tokens": 155142379,
+        "output_tokens": 62962,
+        "reasoning_output_tokens": 16840,
+        "total_tokens": 155205341
+      }
+    }
+  },
+  "schema_version": 1,
+  "session_boundary": {
+    "base_commit": "fa170211b74e71c23d149be4f867752f86836f64",
+    "final_commit": "d64701668668584ef306dfbaf45972fcada45290"
+  },
+  "source_analysis_generated_at": "2026-09-09T20:25:47.4071191Z",
+  "subagents": {
+    "by_role": {
+      "architecture": {
+        "active_seconds": 9674.525,
+        "api_cost_equivalent_usd": 36.656585,
+        "threads": 9,
+        "total_tokens": 31408229,
+        "turns": 17
+      },
+      "diagnosis": {
+        "active_seconds": 13128.638,
+        "api_cost_equivalent_usd": 34.686062,
+        "threads": 23,
+        "total_tokens": 45761780,
+        "turns": 24
+      },
+      "other": {
+        "active_seconds": 8970.545,
+        "api_cost_equivalent_usd": 23.6498,
+        "threads": 12,
+        "total_tokens": 46240953,
+        "turns": 18
+      },
+      "review-or-specification": {
+        "active_seconds": 43451.815,
+        "api_cost_equivalent_usd": 121.859556,
+        "threads": 43,
+        "total_tokens": 181757368,
+        "turns": 74
+      },
+      "validation-or-ci": {
+        "active_seconds": 4972.932,
+        "api_cost_equivalent_usd": 1.435659,
+        "threads": 21,
+        "total_tokens": 15311375,
+        "turns": 31
+      },
+      "writer": {
+        "active_seconds": 24350.434,
+        "api_cost_equivalent_usd": 60.524919,
+        "threads": 38,
+        "total_tokens": 171755003,
+        "turns": 99
+      }
+    },
+    "by_task_group": {
+      "P1-04 C3": {
+        "active_seconds": 51905.595,
+        "api_cost_equivalent_usd": 150.346417,
+        "threads": 59,
+        "turns": 113
+      },
+      "P1-05": {
+        "active_seconds": 9716.102,
+        "api_cost_equivalent_usd": 25.169535,
+        "threads": 14,
+        "turns": 28
+      },
+      "cross-cutting": {
+        "active_seconds": 186.931,
+        "api_cost_equivalent_usd": 0.01687,
+        "threads": 1,
+        "turns": 1
+      },
+      "shared C1": {
+        "active_seconds": 4679.04,
+        "api_cost_equivalent_usd": 11.520884,
+        "threads": 5,
+        "turns": 8
+      },
+      "shared C2": {
+        "active_seconds": 23437.516,
+        "api_cost_equivalent_usd": 57.529607,
+        "threads": 47,
+        "turns": 82
+      },
+      "shared foundation": {
+        "active_seconds": 10350.045,
+        "api_cost_equivalent_usd": 27.082137,
+        "threads": 11,
+        "turns": 17
+      },
+      "shared recovery contracts": {
+        "active_seconds": 4273.66,
+        "api_cost_equivalent_usd": 7.147131,
+        "threads": 9,
+        "turns": 14
+      }
+    },
+    "followup_turns": 117,
+    "maximum_turns_on_one_thread": 9,
+    "multi_turn_threads": 56,
+    "threads_over_four_turns": 6
+  }
+}
