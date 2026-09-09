@@ -120,6 +120,39 @@ public class BundesligaContextSourceHealthContractTests
     }
 
     [Test]
+    public async Task Authoritative_prior_selection_uses_the_prior_observation_receipt_dates_and_derived_conditions()
+    {
+        var identity = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 22);
+        var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
+        var bundle = new string('b', 64);
+        var outer = new BundesligaContextSourceOuterCycle(identity, now, now, BundesligaContextSourceContract.ProductionConsumers[0], BundesligaContextSourceContract.ProductionConsumers, [BundesligaContextSource.Rosters], BundesligaContextSourceCycleStatus.Complete, bundle, $"bundesliga-context-source-bundle-{identity.StorageId}", null, now);
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), now, BundesligaContextSourceDisposition.Rejected, RosterDescriptor("SourceDateRejected"), null, ["UNKNOWN_SOURCE_DATE"]);
+        var claim = new BundesligaContextSourceCycleClaim(identity, BundesligaContextSource.Rosters, observation.AttemptId, BundesligaContextSourceSourceStatus.Complete, "11111111-1111-4111-8111-111111111111", now, now.AddMinutes(10), now, observation.ObservationDigest, observation, null, BundesligaContextSourceContract.ProductionConsumers, now);
+        var receipts = BundesligaContextSourceContract.ProductionConsumers.Select(lane => new BundesligaContextSourceReceipt(Receipt(
+            BundesligaContextSource.Rosters, new BundesligaContextSourceDates(null, null, new DateOnly(2026, 8, 1), null),
+            new string('a', 40), BundesligaContextSourceHealth.OrderConditions([
+                BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown,
+                BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days,
+                BundesligaContextSourceHealthCondition.RosterMembershipStaleGt30Days]),
+            BundesligaContextSourceSelectionDisposition.CandidateRejected, BundesligaContextSourceSelectedOrigin.FallbackSeed,
+            identity, lane, observation.ObservationDigest, bundle), now)).ToArray();
+        var health = BundesligaContextSourceHealthReducer.ReduceCompleted(null, outer, claim, receipts);
+        var receipt = receipts[0]; var selection = health.CommunitySelections.Single(value => value.ConsumerLaneId == receipt.Request.ConsumerLaneId);
+
+        BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+            health, selection, receipt, observation, outer, DateOnly.FromDateTime(now.UtcDateTime));
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+            health, selection with { SelectedOrigin = BundesligaContextSourceSelectedOrigin.LastKnownGood }, receipt, observation, outer, DateOnly.FromDateTime(now.UtcDateTime)))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+            health, selection with { Conditions = [] }, receipt, observation, outer, DateOnly.FromDateTime(now.UtcDateTime)))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+            health, selection, new BundesligaContextSourceReceipt(receipt.Request with { BundleDigest = new string('f', 64) }, receipt.RecordedAtUtc), observation, outer, DateOnly.FromDateTime(now.UtcDateTime)))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
     [Arguments("SourceDateRejected")]
     [Arguments("SeasonRejected")]
     [Arguments("IdentityRejected")]
@@ -129,7 +162,14 @@ public class BundesligaContextSourceHealthContractTests
         var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
         var bundle = new string('b', 64);
         var outer = new BundesligaContextSourceOuterCycle(identity, now, now, "pes-squad-context", BundesligaContextSourceContract.ProductionConsumers, [BundesligaContextSource.Rosters], BundesligaContextSourceCycleStatus.HandoffReady, bundle, $"bundesliga-context-source-bundle-{identity.StorageId}");
-        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), now, BundesligaContextSourceDisposition.Rejected, RosterDescriptor(evaluation), null, [evaluation]);
+        var diagnostic = evaluation switch
+        {
+            "SourceDateRejected" => "UNKNOWN_SOURCE_DATE",
+            "SeasonRejected" => "NO_ELIGIBLE_2026_MEMBERSHIP",
+            "IdentityRejected" => "ROSTER_IDENTITY_REJECTED",
+            _ => throw new ArgumentOutOfRangeException(nameof(evaluation))
+        };
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), now, BundesligaContextSourceDisposition.Rejected, RosterDescriptor(evaluation), null, [diagnostic]);
         var claim = new BundesligaContextSourceCycleClaim(identity, BundesligaContextSource.Rosters, observation.AttemptId, BundesligaContextSourceSourceStatus.Complete, "11111111-1111-4111-8111-111111111111", now, now.AddMinutes(10), now, observation.ObservationDigest, observation, null, BundesligaContextSourceContract.ProductionConsumers, now);
         var receipts = BundesligaContextSourceContract.ProductionConsumers.Select(lane => new BundesligaContextSourceReceipt(Receipt(BundesligaContextSource.Rosters, new BundesligaContextSourceDates(null, null, new DateOnly(2026, 9, 1), null), new string('a', 40), [BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown], BundesligaContextSourceSelectionDisposition.CandidateRejected, BundesligaContextSourceSelectedOrigin.FallbackSeed, identity, lane, observation.ObservationDigest, bundle), now)).ToArray();
 
@@ -451,7 +491,7 @@ public class BundesligaContextSourceHealthContractTests
         {
             DescriptorJson = metadata.DescriptorJson
                 .Replace("\"retainedEvaluation\":\"Eligible\"", "\"retainedEvaluation\":\"SourceDateRejected\"", StringComparison.Ordinal)
-                .Replace("\"retainedDiagnostics\":[]", "\"retainedDiagnostics\":[\"ROSTER_ENRICHMENT_REJECTED\",\"UNKNOWN_SOURCE_DATE\"]", StringComparison.Ordinal)
+                .Replace("\"retainedDiagnostics\":[]", "\"retainedDiagnostics\":[\"UNKNOWN_SOURCE_DATE\",\"ROSTER_ENRICHMENT_REJECTED\"]", StringComparison.Ordinal)
         };
         metadata.Validate();
         var retainedConditions = BundesligaContextSourceHealth.OrderConditions([
@@ -632,8 +672,8 @@ public class BundesligaContextSourceHealthContractTests
 
     private static string RosterDescriptor(string evaluation)
     {
-        if (evaluation == "MetadataUnchanged") return $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"AcceptedRevisionUnchanged\",\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":\"{new string('e', 64)}\",\"retainedEvaluation\":\"Eligible\",\"retainedDiagnostics\":[],\"evaluation\":\"MetadataUnchanged\"}}";
+        if (evaluation == "MetadataUnchanged") return $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"AcceptedRevisionUnchanged\",\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":\"{new string('e', 64)}\",\"retainedEvaluation\":\"Eligible\",\"retainedDiagnostics\":[],\"evaluation\":\"MetadataUnchanged\"}}";
         var dates = evaluation is "Eligible" or "SeasonRejected" or "IdentityRejected" ? "\"2026-09-01\"" : "null";
-        return $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":{dates},\"membershipEffectiveDate\":{dates},\"enrichmentCaptureDate\":{dates},\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"{evaluation}\"}}";
+        return $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":{dates},\"membershipEffectiveDate\":{dates},\"enrichmentCaptureDate\":{dates},\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"{evaluation}\"}}";
     }
 }

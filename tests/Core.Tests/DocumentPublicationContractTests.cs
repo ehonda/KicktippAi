@@ -10,6 +10,27 @@ public class DocumentPublicationContractTests
     private const string SnapshotC = "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc";
 
     [Test]
+    public async Task Source_publication_guard_is_optional_and_must_match_the_publication_scope()
+    {
+        var guard = new ContextSourcePublicationGuard(
+            CompetitionIds.Bundesliga2026_27, BundesligaContextSourceScope.ProductionLive, "gha:1:1",
+            BundesligaContextSource.ClubElo, "pes-squad-context", "pes-squad", BundesligaDocumentPublication.ClubEloPublicationSet,
+            SnapshotA, SnapshotB, 1, "gha:1:1");
+        var commit = new ContextSourcePublicationCommitRequest(guard,
+            new ContextSourcePublicationReceiptTemplate(
+                BundesligaContextSourceSelectionDisposition.NetworkAccepted,
+                BundesligaContextSourceSelectedOrigin.NetworkCandidate,
+                new BundesligaContextSourceDates(new DateOnly(2026, 9, 1), null, null, null), null,
+                new BundesligaContextSourceCarriedFields(0, 0, 0, null), []));
+        guard.Validate();
+        (guard with { Source = BundesligaContextSource.Rosters, PublicationSet = BundesligaDocumentPublication.RosterPublicationSet }).Validate();
+        await Assert.That(() => (guard with { PublicationSet = "other" }).Validate())
+            .Throws<InvalidDataException>();
+        await Assert.That(() => (guard with { Source = BundesligaContextSource.Rosters }).Validate())
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
     public async Task Bundesliga_definitions_are_canonical_and_reserved_names_cannot_be_redefined()
     {
         await Assert.That(BundesligaDocumentPublication.Rosters.RequiredDocuments.Length).IsEqualTo(20);
@@ -180,6 +201,16 @@ public class DocumentPublicationContractTests
             .IsEqualTo(DocumentPublicationDisposition.Reactivated);
         await Assert.That(DocumentPublicationContract.DecideTransition(scope, SnapshotA, SnapshotA, SnapshotB, false))
             .IsEqualTo(DocumentPublicationDisposition.Published);
+    }
+
+    [Test]
+    public async Task Retry_boundary_requires_the_caller_document_order_to_already_be_canonical()
+    {
+        var canonical = CreateDocuments().OrderBy(document => document.Kind).ThenBy(document => document.Name, StringComparer.Ordinal).ToArray();
+        await Assert.That(DocumentPublicationContract.ValidateCanonicalOrder(canonical).SequenceEqual(canonical))
+            .IsTrue();
+        await Assert.That(() => DocumentPublicationContract.ValidateCanonicalOrder(canonical.Reverse()))
+            .Throws<ArgumentException>();
     }
 
     [Test]

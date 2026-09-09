@@ -74,12 +74,14 @@ public sealed record DocumentPublicationRequest
         string communityContext,
         string? expectedPreviousSnapshotId,
         IEnumerable<DocumentPublicationPayload> documents,
-        string metadataJson = "{}")
+        string metadataJson = "{}",
+        ContextSourcePublicationCommitRequest? sourcePublicationCommit = null)
     {
         CommunityContext = communityContext;
         ExpectedPreviousSnapshotId = expectedPreviousSnapshotId;
         Documents = documents?.ToImmutableArray() ?? throw new ArgumentNullException(nameof(documents));
         MetadataJson = metadataJson;
+        SourcePublicationCommit = sourcePublicationCommit;
     }
 
     public string CommunityContext { get; }
@@ -89,6 +91,103 @@ public sealed record DocumentPublicationRequest
     public ImmutableArray<DocumentPublicationPayload> Documents { get; }
 
     public string MetadataJson { get; }
+
+    /// <summary>
+    /// Optional source-cycle fence. A null value is deliberately the legacy publication path
+    /// and must not cause a source-cycle read.
+    /// </summary>
+    public ContextSourcePublicationCommitRequest? SourcePublicationCommit { get; }
+}
+
+/// <summary>Exact source-cycle identity that authorizes one source-backed publication.</summary>
+public sealed record ContextSourcePublicationGuard(
+    string Competition,
+    BundesligaContextSourceScope Scope,
+    string CycleId,
+    BundesligaContextSource Source,
+    string ConsumerLaneId,
+    string CommunityContext,
+    string PublicationSet,
+    string BundleDigest,
+    string ObservationDigest,
+    long WatermarkSequence,
+    string WatermarkCycleId)
+{
+    public BundesligaContextSourceCycleIdentity Identity =>
+        BundesligaContextSourceCycleIdentity.Create(Competition, Scope, CycleId, WatermarkSequence);
+
+    public void Validate()
+    {
+        if (!Enum.IsDefined(Scope) || !Enum.IsDefined(Source)
+            || string.IsNullOrWhiteSpace(Competition)
+            || string.IsNullOrWhiteSpace(ConsumerLaneId)
+            || string.IsNullOrWhiteSpace(CommunityContext)
+            || string.IsNullOrWhiteSpace(PublicationSet)
+            || WatermarkCycleId != CycleId)
+            throw new InvalidDataException("Context-source publication guard identity is invalid.");
+        _ = Identity;
+        BundesligaContextSourceHashing.ValidateSha(BundleDigest);
+        BundesligaContextSourceHashing.ValidateSha(ObservationDigest);
+        BundesligaContextSourceContract.ValidateConsumerAuthority(Scope, ConsumerLaneId, CommunityContext);
+        var expectedPublicationSet = Source switch
+        {
+            BundesligaContextSource.ClubElo => BundesligaDocumentPublication.ClubEloPublicationSet,
+            BundesligaContextSource.Rosters => BundesligaDocumentPublication.RosterPublicationSet,
+            _ => throw new InvalidDataException("Context-source publication guard source is invalid.")
+        };
+        if (!string.Equals(PublicationSet, expectedPublicationSet, StringComparison.Ordinal))
+            throw new InvalidDataException("Context-source publication guard source/publication set mapping is invalid.");
+    }
+}
+
+/// <summary>
+/// Caller-supplied receipt semantics. The repository supplies the selected snapshot and the
+/// original publication disposition in its single transaction.
+/// </summary>
+public sealed record ContextSourcePublicationReceiptTemplate(
+    BundesligaContextSourceSelectionDisposition SelectionDisposition,
+    BundesligaContextSourceSelectedOrigin SelectedOrigin,
+    BundesligaContextSourceDates SourceDates,
+    string? RosterRevision,
+    BundesligaContextSourceCarriedFields CarriedFields,
+    IReadOnlyList<BundesligaContextSourceHealthCondition> ActiveConditions)
+{
+    public void Validate(ContextSourcePublicationGuard guard)
+    {
+        ArgumentNullException.ThrowIfNull(guard);
+        var placeholderDisposition = SelectionDisposition == BundesligaContextSourceSelectionDisposition.MetadataUnchanged
+            ? BundesligaContextSourcePublicationDisposition.Unchanged
+            : SelectionDisposition == BundesligaContextSourceSelectionDisposition.CandidateRejected
+                && SelectedOrigin == BundesligaContextSourceSelectedOrigin.LastKnownGood
+                ? BundesligaContextSourcePublicationDisposition.NotAttempted
+                : BundesligaContextSourcePublicationDisposition.Published;
+        var request = new BundesligaContextSourceReceiptRequest(
+            guard.Identity, guard.Source, guard.ConsumerLaneId, guard.CommunityContext,
+            guard.ObservationDigest, guard.BundleDigest, SelectionDisposition,
+            new string('0', DocumentPublicationContract.Sha256HexLength), SelectedOrigin,
+            placeholderDisposition, SourceDates,
+            RosterRevision, CarriedFields, ActiveConditions);
+        // The placeholder only validates fields common to every receipt. The source-specific
+        // publication disposition is checked once the transaction has selected it.
+        request.Validate();
+    }
+}
+
+public sealed record ContextSourcePublicationCommitRequest(
+    ContextSourcePublicationGuard Guard,
+    ContextSourcePublicationReceiptTemplate ReceiptTemplate)
+{
+    public void Validate(DocumentPublicationScope scope)
+    {
+        ArgumentNullException.ThrowIfNull(Guard);
+        ArgumentNullException.ThrowIfNull(ReceiptTemplate);
+        Guard.Validate();
+        if (Guard.Competition != scope.Competition
+            || Guard.CommunityContext != scope.CommunityContext
+            || Guard.PublicationSet != scope.PublicationSet)
+            throw new InvalidDataException("Context-source publication guard does not match the publication scope.");
+        ReceiptTemplate.Validate(Guard);
+    }
 }
 
 public sealed record DocumentPublicationSnapshot
@@ -254,6 +353,21 @@ public static class DocumentPublicationContract
         return byKey.Values.OrderBy(document => document.Kind).ThenBy(document => document.Name, StringComparer.Ordinal).ToImmutableArray();
     }
 
+    /// <summary>
+    /// Publication retries retain the caller's supplied order as evidence.  The Firebase
+    /// boundary must therefore reject a non-canonical sequence rather than silently sorting it.
+    /// </summary>
+    public static ImmutableArray<DocumentPublicationPayload> ValidateCanonicalOrder(
+        IEnumerable<DocumentPublicationPayload> documents)
+    {
+        ArgumentNullException.ThrowIfNull(documents);
+        var supplied = documents.ToImmutableArray();
+        var ordered = ValidateAndOrder(supplied);
+        if (!supplied.SequenceEqual(ordered))
+            throw new ArgumentException("Publication documents must already be in canonical order.", nameof(documents));
+        return ordered;
+    }
+
     public static ImmutableArray<DocumentPublicationKey> ValidateAndOrderKeys(
         IEnumerable<DocumentPublicationKey> documents)
     {
@@ -382,6 +496,8 @@ public static class DocumentPublicationContract
         }
 
         ValidateMetadataJson(request.MetadataJson);
+        request.SourcePublicationCommit?.Validate(new DocumentPublicationScope(
+            competition, request.CommunityContext, definition.PublicationSet));
     }
 
     public static void ValidateLoaded(

@@ -300,10 +300,12 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     [Test]
     [Arguments("mixed-membership")]
     [Arguments("receipt-enrichment")]
+    [Arguments("prior-bundle-digest-corruption")]
     public async Task Eligible_to_metadata_unchanged_repeats_every_lane_outcome_and_recomputes_freshness(string outcome)
     {
         var mixedMembership = outcome == "mixed-membership";
-        var firstRunId = mixedMembership ? 510L : 520L;
+        var corruptPriorBundleDigest = outcome == "prior-bundle-digest-corruption";
+        var firstRunId = mixedMembership ? 510L : corruptPriorBundleDigest ? 530L : 520L;
         var repository = CreateRepository();
         var eligibleCycle = ProductionCycle(firstRunId);
         await repository.CreateOrResumeCycleAsync(eligibleCycle);
@@ -331,6 +333,13 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
             }
             priorRequests.Add(lane, prior);
             await repository.RecordReceiptAsync(prior);
+        }
+        if (corruptPriorBundleDigest)
+        {
+            var priorLane = BundesligaContextSourceContract.ProductionConsumers[0];
+            await fixture.Db.Collection(Receipts)
+                .Document(BundesligaContextSourceHashing.ReceiptStorageId(eligibleCycle.Identity, BundesligaContextSource.Rosters, priorLane))
+                .UpdateAsync("bundleDigest", new string('d', 64));
         }
 
         var metadataAt = Now().AddDays(16);
@@ -367,6 +376,14 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
             {
                 var withoutPriorOutcome = current with { ActiveConditions = metadataConditions.Where(condition => condition != (mixedMembership ? BundesligaContextSourceHealthCondition.RosterMembershipRejected : BundesligaContextSourceHealthCondition.RosterEnrichmentRejected)).ToArray() };
                 await Assert.That(() => metadataRepository.RecordReceiptAsync(withoutPriorOutcome)).Throws<InvalidDataException>();
+                if (corruptPriorBundleDigest)
+                {
+                    var before = (await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Count;
+                    await Assert.That(() => metadataRepository.RecordReceiptAsync(current)).Throws<InvalidDataException>();
+                    await Assert.That(await metadataRepository.GetReceiptAsync(metadataCycle.Identity, BundesligaContextSource.Rosters, lane)).IsNull();
+                    await Assert.That((await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Count).IsEqualTo(before);
+                    return;
+                }
             }
             finalReceipt = await metadataRepository.RecordReceiptAsync(current);
         }
@@ -775,7 +792,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         var laterCycle = Cycle("0198f865-1469-7000-8000-000000000052");
         await laterRepository.CreateOrResumeCycleAsync(laterCycle);
         await laterRepository.ClaimSourceAsync(laterCycle.Identity, BundesligaContextSource.Rosters, Token('3'), Now());
-        var laterObservation = Observation(laterCycle.Identity);
+        var laterObservation = Observation(laterCycle.Identity, acquisitionReason: "RemoteIdentityChanged", etag: "y");
         await laterRepository.FinalizeSourceAsync(laterCycle.Identity, BundesligaContextSource.Rosters, Token('3'), laterObservation, Now().AddMinutes(1));
         var laterBundle = new string('d', 64);
         await laterRepository.TransitionCycleAsync(laterCycle.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, laterBundle);
@@ -789,10 +806,17 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         var laterHealth = await laterRepository.GetHealthAsync(laterCycle.Identity.Competition, laterCycle.Identity.Scope, BundesligaContextSource.Rosters);
 
         var replay = await laterRepository.RecordReceiptAsync(metadataRequest);
+        await Assert.That(() => laterRepository.RecordReceiptAsync(metadataRequest with { SelectedSnapshotId = new string('e', 64) })).Throws<InvalidDataException>();
+        var receiptsAfterReplay = await fixture.Db.Collection(Receipts).GetSnapshotAsync();
+        var laterHealthAfterReplay = await laterRepository.GetHealthAsync(laterCycle.Identity.Competition, laterCycle.Identity.Scope, BundesligaContextSource.Rosters);
         await Assert.That(laterReceipt.RecordedAtUtc).IsNotEqualTo(originalReceipt.RecordedAtUtc);
         await Assert.That(laterHealth!.CommunitySelections.Single().SelectedSnapshotId).IsEqualTo(changedSelection.SelectedSnapshotId);
+        await Assert.That(laterHealth.CommunitySelections.Single().SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LastKnownGood);
+        await Assert.That(laterHealthAfterReplay!.CommunitySelections.Single().SelectedSnapshotId).IsEqualTo(changedSelection.SelectedSnapshotId);
+        await Assert.That(laterHealthAfterReplay.CommunitySelections.Single().SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LastKnownGood);
         await Assert.That(replay.RecordedAtUtc).IsEqualTo(originalReceipt.RecordedAtUtc);
         await Assert.That(replay.Request.SelectedSnapshotId).IsEqualTo(metadataRequest.SelectedSnapshotId);
+        await Assert.That(receiptsAfterReplay.Documents.Count).IsEqualTo(3);
         await Assert.That(() => laterRepository.RecordReceiptAsync(metadataRequest with { SelectedSnapshotId = new string('f', 64) })).Throws<InvalidDataException>();
     }
 
@@ -1049,6 +1073,148 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     }
 
     [Test]
+    [Arguments("new", "NewRevision", true)]
+    [Arguments("pending", "PendingRevision", true)]
+    [Arguments("policy", "PolicyChanged", true)]
+    [Arguments("accepted-null", null, true)]
+    [Arguments("wrong", "NewRevision", false)]
+    [Arguments("impossible", "AcceptedRevisionUnchanged", false)]
+    public async Task Unavailable_identity_finalization_enforces_the_deterministic_revision_reason_matrix(string state, string? reason, bool accepted)
+    {
+        var repository = CreateRepository();
+        var cycle = Cycle(state switch
+        {
+            "new" => "0198f865-1469-7000-8000-000000000091",
+            "pending" => "0198f865-1469-7000-8000-000000000092",
+            "policy" => "0198f865-1469-7000-8000-000000000093",
+            "accepted-null" => "0198f865-1469-7000-8000-000000000094",
+            "wrong" => "0198f865-1469-7000-8000-000000000095",
+            "impossible" => "0198f865-1469-7000-8000-000000000096",
+            _ => throw new ArgumentOutOfRangeException(nameof(state))
+        });
+        await repository.CreateOrResumeCycleAsync(cycle);
+        await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.Rosters, Token('1'), Now());
+        if (state != "new") await SetUnavailableIdentityRevisionStateAsync(cycle.Identity, state);
+        var observation = UnavailableIdentityObservation(cycle.Identity, reason);
+        var before = await repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.Rosters);
+
+        if (accepted)
+        {
+            var finalized = await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.Rosters, Token('1'), observation, Now().AddMinutes(1));
+            await Assert.That(finalized.ObservationDigest).IsEqualTo(observation.ObservationDigest);
+        }
+        else
+        {
+            await Assert.That(() => repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.Rosters, Token('1'), observation, Now().AddMinutes(1))).Throws<InvalidDataException>();
+            await Assert.That((await repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.Rosters))!
+                .CreateCanonicalUtf8(cycle.ExpectedConsumers).SequenceEqual(before!.CreateCanonicalUtf8(cycle.ExpectedConsumers))).IsTrue();
+        }
+    }
+
+    [Test]
+    [Arguments("new", "NewRevision", true)]
+    [Arguments("pending", "PendingRevision", true)]
+    [Arguments("policy", "PolicyChanged", true)]
+    [Arguments("accepted-null", null, true)]
+    [Arguments("wrong-at-receipt", "NewRevision", false)]
+    public async Task Unavailable_identity_separate_receipt_enforces_the_deterministic_revision_reason_matrix(string state, string? reason, bool accepted)
+    {
+        var repository = CreateRepository();
+        var cycle = Cycle(state switch
+        {
+            "new" => "0198f865-1469-7000-8000-000000000101",
+            "pending" => "0198f865-1469-7000-8000-000000000102",
+            "policy" => "0198f865-1469-7000-8000-000000000103",
+            "accepted-null" => "0198f865-1469-7000-8000-000000000104",
+            "wrong-at-receipt" => "0198f865-1469-7000-8000-000000000105",
+            _ => throw new ArgumentOutOfRangeException(nameof(state))
+        });
+        await repository.CreateOrResumeCycleAsync(cycle);
+        await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.Rosters, Token('1'), Now());
+        if (state is "pending" or "policy" or "accepted-null") await SetUnavailableIdentityRevisionStateAsync(cycle.Identity, state);
+        var observation = UnavailableIdentityObservation(cycle.Identity, reason);
+        await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.Rosters, Token('1'), observation, Now().AddMinutes(1));
+        var bundle = new string('e', 64);
+        await repository.TransitionCycleAsync(cycle.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(cycle.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        if (!accepted) await SetUnavailableIdentityRevisionStateAsync(cycle.Identity, "accepted-null");
+        var request = Receipt(cycle.Identity, observation, bundle) with
+        {
+            PublicationDisposition = BundesligaContextSourcePublicationDisposition.Published,
+            ActiveConditions = BundesligaContextSourceHealth.OrderConditions([
+                BundesligaContextSourceHealthCondition.AcquisitionFailed,
+                BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown,
+                BundesligaContextSourceHealthCondition.RosterMembershipRejected,
+                BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days])
+        };
+
+        if (accepted)
+        {
+            var recorded = await repository.RecordReceiptAsync(request);
+            await Assert.That(recorded.Request.ObservationDigest).IsEqualTo(observation.ObservationDigest);
+        }
+        else
+        {
+            await Assert.That(() => repository.RecordReceiptAsync(request)).Throws<InvalidDataException>();
+            await Assert.That(await repository.GetReceiptAsync(cycle.Identity, BundesligaContextSource.Rosters, BundesligaContextSourceContract.DevelopmentLane)).IsNull();
+            await Assert.That((await repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.Rosters))!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Finalized);
+        }
+    }
+
+    [Test]
+    public async Task Identical_tuple_new_revision_finalization_is_state_conflict_and_mutation_free()
+    {
+        var repository = CreateRepository();
+        var completed = Cycle("0198f865-1469-7000-8000-000000000043");
+        await CompleteRejectedCycle(repository, completed);
+        var attempted = Cycle("0198f865-1469-7000-8000-000000000044");
+        await repository.CreateOrResumeCycleAsync(attempted);
+        await repository.ClaimSourceAsync(attempted.Identity, BundesligaContextSource.Rosters, Token('2'), Now());
+
+        var beforeSource = await repository.GetSourceCycleAsync(attempted.Identity, BundesligaContextSource.Rosters);
+        var beforeOuter = await repository.GetCycleAsync(attempted.Identity);
+        var beforeHealth = await repository.GetHealthAsync(attempted.Identity.Competition, attempted.Identity.Scope, BundesligaContextSource.Rosters);
+        var beforeReceipts = await fixture.Db.Collection(Receipts).GetSnapshotAsync();
+
+        await Assert.That(() => repository.FinalizeSourceAsync(attempted.Identity, BundesligaContextSource.Rosters, Token('2'), Observation(attempted.Identity), Now().AddMinutes(1))).Throws<InvalidDataException>();
+
+        await Assert.That((await repository.GetSourceCycleAsync(attempted.Identity, BundesligaContextSource.Rosters))!.Status).IsEqualTo(beforeSource!.Status);
+        await Assert.That((await repository.GetCycleAsync(attempted.Identity))!.Status).IsEqualTo(beforeOuter!.Status);
+        await Assert.That(await repository.GetHealthAsync(attempted.Identity.Competition, attempted.Identity.Scope, BundesligaContextSource.Rosters)).IsEquivalentTo(beforeHealth);
+        await Assert.That((await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Documents.Count).IsEqualTo(beforeReceipts.Documents.Count);
+    }
+
+    [Test]
+    public async Task New_receipt_cannot_consume_a_state_conflicting_roster_observation()
+    {
+        var repository = CreateRepository();
+        var first = Cycle("0198f865-1469-7000-8000-000000000045");
+        await CompleteRejectedCycle(repository, first);
+        var candidate = Cycle("0198f865-1469-7000-8000-000000000046");
+        await repository.CreateOrResumeCycleAsync(candidate);
+        await repository.ClaimSourceAsync(candidate.Identity, BundesligaContextSource.Rosters, Token('2'), Now());
+        var observation = Observation(candidate.Identity, acquisitionReason: "RemoteIdentityChanged", etag: "y");
+        await repository.FinalizeSourceAsync(candidate.Identity, BundesligaContextSource.Rosters, Token('2'), observation, Now().AddMinutes(1));
+        var bundle = new string('e', 64);
+        await repository.TransitionCycleAsync(candidate.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(candidate.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        await SetAcceptedRosterStateAsync(candidate.Identity, "y");
+
+        var beforeSource = await repository.GetSourceCycleAsync(candidate.Identity, BundesligaContextSource.Rosters);
+        var beforeOuter = await repository.GetCycleAsync(candidate.Identity);
+        var beforeHealth = await repository.GetHealthAsync(candidate.Identity.Competition, candidate.Identity.Scope, BundesligaContextSource.Rosters);
+        var beforeReceipts = await fixture.Db.Collection(Receipts).GetSnapshotAsync();
+        var request = Receipt(candidate.Identity, observation, bundle);
+
+        await Assert.That(() => repository.RecordReceiptAsync(request)).Throws<InvalidDataException>();
+
+        await Assert.That((await repository.GetSourceCycleAsync(candidate.Identity, BundesligaContextSource.Rosters))!.Status).IsEqualTo(beforeSource!.Status);
+        await Assert.That((await repository.GetCycleAsync(candidate.Identity))!.Status).IsEqualTo(beforeOuter!.Status);
+        await Assert.That(await repository.GetHealthAsync(candidate.Identity.Competition, candidate.Identity.Scope, BundesligaContextSource.Rosters)).IsEquivalentTo(beforeHealth);
+        await Assert.That((await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Documents.Count).IsEqualTo(beforeReceipts.Documents.Count);
+    }
+
+    [Test]
     public async Task Strict_read_rejects_undefined_numeric_enum_text()
     {
         var repository = CreateRepository(); var cycle = ProductionCycle(); await repository.CreateOrResumeCycleAsync(cycle);
@@ -1065,10 +1231,9 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         await healthReference.UpdateAsync("desiredIssueProjection.synchronizationStatus", "999");
         await Assert.That(() => repository.GetHealthAsync(cycle.Identity.Competition, cycle.Identity.Scope, BundesligaContextSource.Rosters)).Throws<InvalidDataException>();
 
-        var observationCycle = Cycle("0198f865-1469-7000-8000-000000000042"); await CompleteRejectedCycle(repository, observationCycle);
-        var observationReference = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(observationCycle.Identity, BundesligaContextSource.Rosters));
+        var observationReference = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(completed.Identity, BundesligaContextSource.Rosters));
         await observationReference.UpdateAsync("observation.disposition", "999");
-        await Assert.That(() => repository.GetSourceCycleAsync(observationCycle.Identity, BundesligaContextSource.Rosters)).Throws<InvalidDataException>();
+        await Assert.That(() => repository.GetSourceCycleAsync(completed.Identity, BundesligaContextSource.Rosters)).Throws<InvalidDataException>();
     }
 
     [Test]
@@ -1383,7 +1548,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
             await repository.RecordReceiptAsync(receipt);
         }
     }
-    private static BundesligaContextSourceObservation Observation(BundesligaContextSourceCycleIdentity identity) => new(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), Now(), BundesligaContextSourceDisposition.Rejected, RosterDescriptor(), null, ["UNKNOWN_SOURCE_DATE"]);
+    private static BundesligaContextSourceObservation Observation(BundesligaContextSourceCycleIdentity identity, string acquisitionReason = "NewRevision", string etag = "x") => new(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), Now(), BundesligaContextSourceDisposition.Rejected, RosterDescriptor(acquisitionReason, etag), null, ["UNKNOWN_SOURCE_DATE"]);
     private static BundesligaContextSourceObservation EligibleRosterObservation(BundesligaContextSourceCycleIdentity identity) => new(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), Now(), BundesligaContextSourceDisposition.ArtifactCaptured, EligibleRosterDescriptor(), new BundesligaContextSourcePayload("rosters/source.duckdb", 1, new string('c', 64)), []);
     private static BundesligaContextSourceObservation EloObservation(BundesligaContextSourceCycleIdentity identity) => new(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.Rejected, "{\"contract\":\"club-elo-direct-csv-descriptor/v1\",\"sourceUrl\":\"https://example.test/elo.csv\",\"rawSha256\":null,\"rawByteLength\":null,\"csvHeader\":null,\"providerRatedAt\":null,\"providerDateEvidence\":null,\"nameMappingContract\":null,\"nameMappingSha256\":null,\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}", null, ["UNKNOWN_SOURCE_DATE"]);
     private static BundesligaContextSourceObservation EligibleEloObservation(BundesligaContextSourceCycleIdentity identity)
@@ -1412,12 +1577,58 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     private static BundesligaContextSourceReceiptRequest ProductionReceipt(BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle, string lane) => new(identity, BundesligaContextSource.Rosters, lane, CommunityForLane(lane), observation.ObservationDigest, bundle, BundesligaContextSourceSelectionDisposition.CandidateRejected, new string('c', 64), BundesligaContextSourceSelectedOrigin.FallbackSeed, BundesligaContextSourcePublicationDisposition.NotAttempted, new BundesligaContextSourceDates(null, null, new DateOnly(2026, 8, 20), null), new string('a', 40), new BundesligaContextSourceCarriedFields(0, 0, 0, null), BundesligaContextSourceHealth.OrderConditions([BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown, BundesligaContextSourceHealthCondition.RosterMembershipRejected, BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days]));
     private static BundesligaContextSourceReceiptRequest EligibleProductionRosterReceipt(BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle, string lane, bool enrichmentRejected) => new(identity, BundesligaContextSource.Rosters, lane, CommunityForLane(lane), observation.ObservationDigest, bundle, BundesligaContextSourceSelectionDisposition.DuckDbAccepted, new string('c', 64), BundesligaContextSourceSelectedOrigin.DuckDb, BundesligaContextSourcePublicationDisposition.Published, new BundesligaContextSourceDates(null, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 1)), new string('a', 40), new BundesligaContextSourceCarriedFields(0, 0, 0, null), enrichmentRejected ? [BundesligaContextSourceHealthCondition.RosterEnrichmentRejected] : []);
     private static string CommunityForLane(string lane) => lane switch { "pes-squad-context" => "pes-squad", "schadensfresse-context" => "schadensfresse", "relaxdays-tippt-context" => "relaxdays-tippt", _ => "ehonda-ai-arena" };
-    private static string RosterDescriptor() => $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"SourceDateRejected\"}}";
-    private static string EligibleRosterDescriptor() => $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":\"2026-09-01\",\"membershipEffectiveDate\":\"2026-09-01\",\"enrichmentCaptureDate\":\"2026-09-01\",\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"Eligible\"}}";
+    private static BundesligaContextSourceObservation UnavailableIdentityObservation(BundesligaContextSourceCycleIdentity identity, string? reason) => new(
+        BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), Now(),
+        BundesligaContextSourceDisposition.Rejected,
+        $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":null,\"acquisitionReason\":{(reason is null ? "null" : $"\"{reason}\"")},\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"RemoteIdentityUnavailable\"}}",
+        null, ["ROSTER_REMOTE_IDENTITY_UNAVAILABLE"]);
+
+    private Task SetUnavailableIdentityRevisionStateAsync(BundesligaContextSourceCycleIdentity identity, string state)
+    {
+        var reference = fixture.Db.Collection(Health).Document(BundesligaContextSourceHashing.HealthStorageId(identity.Competition, identity.ScopeValue, BundesligaContextSource.Rosters));
+        var acceptedPolicy = state == "policy" ? new string('f', 64) : BundesligaContextSourceDescriptorContract.RosterPolicySha256;
+        var map = new Dictionary<string, object?>
+        {
+            ["accepted"] = state == "pending" ? null : new Dictionary<string, object?>
+            {
+                ["revision"] = new string('a', 40),
+                ["remoteIdentity"] = new Dictionary<string, object?> { ["etag"] = "x", ["byteLength"] = 1L },
+                ["policySha256"] = acceptedPolicy,
+                ["descriptorSha256"] = new string('d', 64)
+            },
+            ["pending"] = state == "pending" ? new Dictionary<string, object?>
+            {
+                ["revision"] = new string('a', 40),
+                ["remoteIdentity"] = new Dictionary<string, object?> { ["etag"] = "x", ["byteLength"] = 1L },
+                ["policySha256"] = BundesligaContextSourceDescriptorContract.RosterPolicySha256,
+                ["firstSeenCycleId"] = identity.CycleId,
+                ["lastFailureCode"] = "RevisionRejected"
+            } : null
+        };
+        return reference.UpdateAsync("rosterRevisionState", map);
+    }
+    private static string RosterDescriptor(string acquisitionReason = "NewRevision", string etag = "x") => $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"{etag}\",\"byteLength\":1}},\"acquisitionReason\":\"{acquisitionReason}\",\"remoteIdentityAfter\":{{\"etag\":\"{etag}\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"SourceDateRejected\"}}";
+    private static string EligibleRosterDescriptor() => $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":\"2026-09-01\",\"membershipEffectiveDate\":\"2026-09-01\",\"enrichmentCaptureDate\":\"2026-09-01\",\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"Eligible\"}}";
     private static string MetadataUnchangedDescriptor(string retainedDescriptor, string retainedEvaluation = "SourceDateRejected", IReadOnlyList<string>? diagnostics = null)
     {
         var retainedDiagnostics = System.Text.Json.JsonSerializer.Serialize(diagnostics ?? ["UNKNOWN_SOURCE_DATE"]);
-        return $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"https://example.test/meta\",\"artifactUrl\":\"https://example.test/db\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"AcceptedRevisionUnchanged\",\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":\"{retainedDescriptor}\",\"retainedEvaluation\":\"{retainedEvaluation}\",\"retainedDiagnostics\":{retainedDiagnostics},\"evaluation\":\"MetadataUnchanged\"}}";
+        return $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"AcceptedRevisionUnchanged\",\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":\"{retainedDescriptor}\",\"retainedEvaluation\":\"{retainedEvaluation}\",\"retainedDiagnostics\":{retainedDiagnostics},\"evaluation\":\"MetadataUnchanged\"}}";
+    }
+
+    private Task SetAcceptedRosterStateAsync(BundesligaContextSourceCycleIdentity identity, string etag)
+    {
+        var reference = fixture.Db.Collection(Health).Document(BundesligaContextSourceHashing.HealthStorageId(identity.Competition, identity.ScopeValue, BundesligaContextSource.Rosters));
+        return reference.UpdateAsync("rosterRevisionState", new Dictionary<string, object?>
+        {
+            ["accepted"] = new Dictionary<string, object?>
+            {
+                ["revision"] = new string('a', 40),
+                ["remoteIdentity"] = new Dictionary<string, object?> { ["etag"] = etag, ["byteLength"] = 1L },
+                ["policySha256"] = BundesligaContextSourceDescriptorContract.RosterPolicySha256,
+                ["descriptorSha256"] = new string('d', 64)
+            },
+            ["pending"] = null
+        });
     }
     private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
 }

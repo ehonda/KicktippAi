@@ -50,7 +50,9 @@ public sealed record BundesligaContextSourceReceiptRequest(
         {
             if (SelectionDisposition is not (BundesligaContextSourceSelectionDisposition.DuckDbAccepted or BundesligaContextSourceSelectionDisposition.MixedPerClubSelection or BundesligaContextSourceSelectionDisposition.CandidateRejected or BundesligaContextSourceSelectionDisposition.MetadataUnchanged)) throw new InvalidDataException("Roster receipt selection is invalid.");
             if (SelectedOrigin is not (BundesligaContextSourceSelectedOrigin.DuckDb or BundesligaContextSourceSelectedOrigin.Mixed or BundesligaContextSourceSelectedOrigin.FallbackSeed or BundesligaContextSourceSelectedOrigin.LastKnownGood)) throw new InvalidDataException("Roster receipt origin is invalid.");
-            if (SourceDates.RatedAt is not null || SourceDates.MembershipEffectiveAt is null || string.IsNullOrEmpty(RosterRevision) || RosterRevision.Length != 40 || RosterRevision.Any(c => !char.IsAsciiHexDigit(c) || char.IsUpper(c))) throw new InvalidDataException("Roster source-date/revision matrix is invalid.");
+            if (SourceDates.RatedAt is not null || SourceDates.MembershipEffectiveAt is null
+                || RosterRevision is not null && (RosterRevision.Length != 40 || RosterRevision.Any(c => !char.IsAsciiHexDigit(c) || char.IsUpper(c))))
+                throw new InvalidDataException("Roster source-date/revision matrix is invalid.");
             var unknown = ActiveConditions.Contains(BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown);
             if (SourceDates.EnrichmentCapturedAt is null != unknown) throw new InvalidDataException("Roster enrichment date/unknown condition mismatch.");
             if (SelectedOrigin is BundesligaContextSourceSelectedOrigin.DuckDb or BundesligaContextSourceSelectedOrigin.Mixed
@@ -91,7 +93,7 @@ public static class BundesligaContextSourceReceiptContract
         var evaluation = descriptor.GetProperty("evaluation").GetString();
         var acquisitionFailed = receipt.Source == BundesligaContextSource.ClubElo
             ? observation.Disposition == BundesligaContextSourceDisposition.Rejected
-            : evaluation is "TransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected" or "SchemaRejected";
+            : evaluation is "MetadataUnavailable" or "MetadataMalformed" or "MetadataRevisionRejected" or "RemoteIdentityUnavailable" or "ArtifactTransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected" or "SchemaRejected";
         if (receipt.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.HandoffIncomplete)
             || receipt.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.CycleAborted)
             || receipt.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.AcquisitionFailed) != acquisitionFailed)
@@ -186,6 +188,41 @@ public static class BundesligaContextSourceReceiptContract
             throw new InvalidDataException("Receipt freshness conditions do not match the cycle staleness reference.");
     }
 
+    /// <summary>
+    /// Validates the immutable evidence behind a health selection retained from a completed
+    /// cycle.  Raw receipt conditions are deliberately not compared directly: the selection
+    /// stores the canonical reduction derived from the observation and that cycle's reference.
+    /// </summary>
+    public static void ValidateAuthoritativePriorSelection(
+        BundesligaContextSourceHealth health,
+        BundesligaContextSourceCommunitySelection selection,
+        BundesligaContextSourceReceipt priorReceipt,
+        BundesligaContextSourceObservation priorObservation,
+        BundesligaContextSourceOuterCycle priorOuter,
+        DateOnly priorStalenessReferenceDate)
+    {
+        health.Validate(); priorReceipt.Validate(); priorObservation.Validate(); priorOuter.Validate();
+        if (priorOuter.Status != BundesligaContextSourceCycleStatus.Complete
+            || priorOuter.Identity != priorReceipt.Request.Identity
+            || priorOuter.BundleSha256 != priorReceipt.Request.BundleDigest
+            || health.LastCompletedCycleId != priorReceipt.Request.Identity.CycleId
+            || health.Source != priorReceipt.Request.Source
+            || selection.ConsumerLaneId != priorReceipt.Request.ConsumerLaneId
+            || selection.CommunityContext != priorReceipt.Request.CommunityContext
+            || selection.SelectedSnapshotId != priorReceipt.Request.SelectedSnapshotId
+            || selection.SelectedOrigin != priorReceipt.Request.SelectedOrigin
+            || selection.RatedAt != priorReceipt.Request.SourceDates.RatedAt
+            || selection.MembershipCapturedAt != priorReceipt.Request.SourceDates.MembershipCapturedAt
+            || selection.MembershipEffectiveAt != priorReceipt.Request.SourceDates.MembershipEffectiveAt
+            || selection.EnrichmentCapturedAt != priorReceipt.Request.SourceDates.EnrichmentCapturedAt)
+            throw new InvalidDataException("Health selection does not match its authoritative prior receipt.");
+        ValidateAgainstObservation(priorReceipt.Request, priorObservation);
+        ValidateFreshnessConditions(priorReceipt.Request, priorStalenessReferenceDate);
+        var derived = DeriveHealthConditions(priorReceipt.Request, priorObservation, priorStalenessReferenceDate);
+        if (!selection.Conditions.SequenceEqual(derived, EqualityComparer<BundesligaContextSourceHealthCondition>.Default))
+            throw new InvalidDataException("Health selection conditions do not match the authoritative prior reduction.");
+    }
+
     internal static IReadOnlyList<BundesligaContextSourceHealthCondition> DeriveHealthConditions(
         BundesligaContextSourceReceiptRequest receipt,
         BundesligaContextSourceObservation observation,
@@ -197,7 +234,7 @@ public static class BundesligaContextSourceReceiptContract
         var conditions = new HashSet<BundesligaContextSourceHealthCondition>();
         var acquisitionFailed = receipt.Source == BundesligaContextSource.ClubElo
             ? observation.Disposition == BundesligaContextSourceDisposition.Rejected
-            : evaluation is "TransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected" or "SchemaRejected";
+            : evaluation is "MetadataUnavailable" or "MetadataMalformed" or "MetadataRevisionRejected" or "RemoteIdentityUnavailable" or "ArtifactTransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected" or "SchemaRejected";
         if (acquisitionFailed) conditions.Add(BundesligaContextSourceHealthCondition.AcquisitionFailed);
 
         if (receipt.Source == BundesligaContextSource.ClubElo)
@@ -325,7 +362,11 @@ public sealed record BundesligaContextSourceRetainedRosterDescriptor(
         if (Revision is null || Revision.Length != 40 || Revision.Any(character => !char.IsAsciiHexDigit(character) || char.IsUpper(character))) throw new InvalidDataException("Retained roster revision is invalid.");
         if (RemoteIdentity is null || (RemoteIdentity.Etag is null && RemoteIdentity.ByteLength is null) || (RemoteIdentity.Etag is not null && string.IsNullOrWhiteSpace(RemoteIdentity.Etag)) || RemoteIdentity.ByteLength < 0) throw new InvalidDataException("Retained roster remote identity is invalid.");
         if (Evaluation is not ("Eligible" or "SchemaRejected" or "SourceDateRejected" or "SeasonRejected" or "IdentityRejected")) throw new InvalidDataException("Retained roster evaluation is invalid.");
-        if (Diagnostics is null || Diagnostics.Any(string.IsNullOrWhiteSpace) || !Diagnostics.SequenceEqual(Diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal)) throw new InvalidDataException("Retained roster diagnostics are not canonical.");
+        if (Diagnostics is null) throw new InvalidDataException("Retained roster diagnostics are required.");
+        BundesligaContextSourceDescriptorContract.ValidateRosterEvaluationPrecedence(
+            Evaluation,
+            Evaluation == "Eligible" ? BundesligaContextSourceDisposition.ArtifactCaptured : BundesligaContextSourceDisposition.Rejected,
+            Diagnostics);
     }
 }
 public sealed record BundesligaContextSourceCommunitySelection(string ConsumerLaneId, string CommunityContext, string SelectedSnapshotId, BundesligaContextSourceSelectedOrigin SelectedOrigin, DateOnly? RatedAt, DateOnly? MembershipCapturedAt, DateOnly? MembershipEffectiveAt, DateOnly? EnrichmentCapturedAt, IReadOnlyList<BundesligaContextSourceHealthCondition> Conditions);
@@ -398,7 +439,7 @@ public sealed record BundesligaContextSourceHealth(
             var firstSeen = BundesligaContextSourceCycleIdentity.FromCycleId(Competition, Scope, pending.FirstSeenCycleId);
             if (new BundesligaContextSourceWatermark(firstSeen.Sequence, firstSeen.CycleId).CompareTo(Watermark) > 0)
                 throw new InvalidDataException("Pending revision cannot be first seen after the health watermark.");
-            if (pending.LastFailureCode is not ("TransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected")) throw new InvalidDataException("Pending roster failure is not canonical.");
+            if (pending.LastFailureCode is not ("ArtifactTransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected")) throw new InvalidDataException("Pending roster failure is not canonical.");
         }
         if (RosterRevisionState.Accepted is { } a && RosterRevisionState.Pending is { } p && a.Revision == p.Revision && a.RemoteIdentity == p.RemoteIdentity && a.PolicySha256 == p.PolicySha256) throw new InvalidDataException("Accepted and pending revision tuples cannot match.");
     }
@@ -472,7 +513,7 @@ public static class BundesligaContextSourceIssueProjectionExtensions
 
 public static class BundesligaContextSourceHealthReducer
 {
-    private static readonly HashSet<string> AcquisitionFailures = ["TransportRejected", "SizeRejected", "RemoteDriftRejected", "HashRejected", "RevisionRejected", "SchemaRejected"];
+    private static readonly HashSet<string> AcquisitionFailures = ["MetadataUnavailable", "MetadataMalformed", "MetadataRevisionRejected", "RemoteIdentityUnavailable", "ArtifactTransportRejected", "SizeRejected", "RemoteDriftRejected", "HashRejected", "RevisionRejected", "SchemaRejected"];
 
     public static BundesligaContextSourceHealth ReduceCompleted(BundesligaContextSourceHealth? previous, BundesligaContextSourceOuterCycle cycle, BundesligaContextSourceCycleClaim sourceCycle, IReadOnlyList<BundesligaContextSourceReceipt> receipts)
     {
@@ -482,7 +523,7 @@ public static class BundesligaContextSourceHealthReducer
         if (previous?.LastCompletedCycleId == cycle.Identity.CycleId) return previous;
         if (receipts.Count != cycle.ExpectedConsumers.Count || !receipts.Select(x => x.Request.ConsumerLaneId).SequenceEqual(cycle.ExpectedConsumers, StringComparer.Ordinal)) throw new InvalidDataException("A complete reduction requires all receipts in exact consumer order.");
         var advertisedRevision = sourceCycle.Source == BundesligaContextSource.Rosters ? AdvertisedRevision(sourceCycle.Observation!) : null;
-        foreach (var receipt in receipts) { receipt.Validate(); BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receipt.Request, sourceCycle.Observation!); if (receipt.Request.Identity != cycle.Identity || receipt.Request.Source != sourceCycle.Source || receipt.Request.ObservationDigest != sourceCycle.ObservationDigest || (advertisedRevision is not null && receipt.Request.RosterRevision != advertisedRevision)) throw new InvalidDataException("Receipt identity/digest/revision mismatch."); }
+        foreach (var receipt in receipts) { receipt.Validate(); BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receipt.Request, sourceCycle.Observation!); if (receipt.Request.Identity != cycle.Identity || receipt.Request.Source != sourceCycle.Source || receipt.Request.ObservationDigest != sourceCycle.ObservationDigest || receipt.Request.RosterRevision != advertisedRevision) throw new InvalidDataException("Receipt identity/digest/revision mismatch."); }
         var prior = previous?.ConsecutiveFailures ?? new BundesligaContextSourceFailures(0, 0, 0, 0);
         var evaluation = Evaluation(sourceCycle.Observation!);
         var acquisitionFailed = sourceCycle.Source == BundesligaContextSource.ClubElo ? sourceCycle.Observation!.Disposition == BundesligaContextSourceDisposition.Rejected : AcquisitionFailures.Contains(evaluation);
@@ -515,7 +556,7 @@ public static class BundesligaContextSourceHealthReducer
     }
 
     private static string Evaluation(BundesligaContextSourceObservation observation) { using var doc = JsonDocument.Parse(observation.DescriptorJson); return doc.RootElement.GetProperty("evaluation").GetString()!; }
-    private static string AdvertisedRevision(BundesligaContextSourceObservation observation) { using var doc = JsonDocument.Parse(observation.DescriptorJson); return doc.RootElement.GetProperty("advertisedRevision").GetString()!; }
+    private static string? AdvertisedRevision(BundesligaContextSourceObservation observation) { using var doc = JsonDocument.Parse(observation.DescriptorJson); return doc.RootElement.GetProperty("advertisedRevision").GetString(); }
     private static void ApplyStaleness(BundesligaContextSource source, DateOnly reference, BundesligaContextSourceSuccessfulDates dates, ISet<BundesligaContextSourceHealthCondition> conditions)
     {
         if (source == BundesligaContextSource.ClubElo) { if (dates.RatedAt is not null && reference.DayNumber - dates.RatedAt.Value.DayNumber > 7) conditions.Add(BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days); return; }
@@ -527,8 +568,8 @@ public static class BundesligaContextSourceHealthReducer
     {
         using var doc = JsonDocument.Parse(claim.Observation!.DescriptorJson); var root = doc.RootElement;
         if (evaluation == "MetadataUnchanged") return new BundesligaContextSourceRosterRevisionState(previous?.Accepted, null);
-        var revision = root.GetProperty("advertisedRevision").GetString()!; var policy = root.GetProperty("policySha256").GetString()!; var before = root.GetProperty("remoteIdentityBefore");
-        if (before.ValueKind == JsonValueKind.Null) return previous ?? new BundesligaContextSourceRosterRevisionState(null, null);
+        var revision = root.GetProperty("advertisedRevision").GetString(); var policy = root.GetProperty("policySha256").GetString(); var before = root.GetProperty("remoteIdentityBefore");
+        if (revision is null || policy is null || before.ValueKind == JsonValueKind.Null) return previous ?? new BundesligaContextSourceRosterRevisionState(null, null);
         var remote = new BundesligaContextSourceRemoteIdentity(before.GetProperty("etag").ValueKind == JsonValueKind.Null ? null : before.GetProperty("etag").GetString(), before.GetProperty("byteLength").ValueKind == JsonValueKind.Null ? null : before.GetProperty("byteLength").GetInt64());
         if (evaluation is "Eligible" or "SchemaRejected" or "SourceDateRejected" or "SeasonRejected" or "IdentityRejected") return new BundesligaContextSourceRosterRevisionState(new BundesligaContextSourceAcceptedRevision(revision, remote, policy, claim.Observation.DescriptorSha256), null);
         var first = previous?.Pending is { } pending && pending.Revision == revision && pending.RemoteIdentity == remote && pending.PolicySha256 == policy ? pending.FirstSeenCycleId : cycleId;

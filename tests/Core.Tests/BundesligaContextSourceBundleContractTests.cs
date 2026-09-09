@@ -87,7 +87,7 @@ public class BundesligaContextSourceBundleContractTests
     {
         await Assert.That(BundesligaContextSourceDescriptorContract.RosterPolicySha256)
             .IsEqualTo("56ce2f0543b91a59b63fbec7889f1bf547681e90f58da7c419028fd749285d9b");
-        foreach (var evaluation in new[] { "MetadataUnchanged", "TransportRejected", "SizeRejected", "RemoteDriftRejected", "HashRejected", "RevisionRejected", "SchemaRejected", "SourceDateRejected", "SeasonRejected", "IdentityRejected", "Eligible" })
+        foreach (var evaluation in new[] { "MetadataUnavailable", "MetadataMalformed", "MetadataRevisionRejected", "MetadataUnchanged", "RemoteIdentityUnavailable", "ArtifactTransportRejected", "SizeRejected", "RemoteDriftRejected", "HashRejected", "RevisionRejected", "SchemaRejected", "SourceDateRejected", "SeasonRejected", "IdentityRejected", "Eligible" })
         {
             var disposition = evaluation switch { "MetadataUnchanged" => BundesligaContextSourceDisposition.MetadataUnchanged, "Eligible" => BundesligaContextSourceDisposition.ArtifactCaptured, _ => BundesligaContextSourceDisposition.Rejected };
             BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters, RosterDescriptor(evaluation), disposition);
@@ -96,7 +96,7 @@ public class BundesligaContextSourceBundleContractTests
         var invalid = new[]
         {
             RosterDescriptor("MetadataUnchanged", ("acquisitionReason", Json("NewRevision"))),
-            RosterDescriptor("TransportRejected", ("metadataSha256", Json(Sha('b')))),
+            RosterDescriptor("ArtifactTransportRejected", ("metadataSha256", "null")),
             RosterDescriptor("SizeRejected", ("rawSha256", Json(Sha('c')))),
             RosterDescriptor("RemoteDriftRejected", ("remoteIdentityAfter", Remote("x"))),
             RosterDescriptor("HashRejected", ("expectedRawSha256", Json(Sha('c')))),
@@ -113,6 +113,51 @@ public class BundesligaContextSourceBundleContractTests
 
         await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters, RosterDescriptor("SourceDateRejected", ("remoteIdentityBefore", Remote("")), ("remoteIdentityAfter", Remote(""))), BundesligaContextSourceDisposition.Rejected)).Throws<InvalidDataException>();
         await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters, RosterDescriptor("SourceDateRejected", ("remoteIdentityBefore", Remote(" ")), ("remoteIdentityAfter", Remote(" "))), BundesligaContextSourceDisposition.Rejected)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Roster_descriptor_requires_the_two_ordinal_urls_and_strict_transport_facts()
+    {
+        var valid = RosterDescriptor("Eligible");
+        foreach (var hostile in new[]
+                 {
+                     "http://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb",
+                     "https://PUB-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb",
+                     BundesligaContextSourceDescriptorContract.RosterArtifactUrl + "/",
+                     BundesligaContextSourceDescriptorContract.RosterArtifactUrl + "?x=1",
+                     "https://user@pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb"
+                 })
+            await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters,
+                valid.Replace(BundesligaContextSourceDescriptorContract.RosterArtifactUrl, hostile), BundesligaContextSourceDisposition.ArtifactCaptured)).Throws<InvalidDataException>();
+
+        await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters,
+            RosterDescriptor("SizeRejected", ("rawByteLength", BundesligaContextSourceDescriptorContract.MaximumRosterArtifactBytes.ToString())), BundesligaContextSourceDisposition.Rejected)).Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters,
+            RosterDescriptor("RemoteDriftRejected", ("rawSha256", "null")), BundesligaContextSourceDisposition.Rejected)).Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.Rosters,
+            RosterDescriptor("RemoteIdentityUnavailable", ("acquisitionReason", Json("RemoteIdentityChanged"))), BundesligaContextSourceDisposition.Rejected)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Roster_diagnostics_use_one_nonlexical_evaluation_precedence_for_observed_and_retained_evidence()
+    {
+        var valid = new[] { "ROSTER_DUCKDB_SCHEMA_REJECTED", "UNKNOWN_SOURCE_DATE", "ROSTER_MEMBERSHIP_REJECTED" };
+        BundesligaContextSourceDescriptorContract.ValidateRosterEvaluationPrecedence(
+            "SchemaRejected", BundesligaContextSourceDisposition.Rejected, valid);
+        var retained = new BundesligaContextSourceRetainedRosterDescriptor(
+            Sha('a'), Revision('a'), new BundesligaContextSourceRemoteIdentity("etag", 1), Sha('b'),
+            "SchemaRejected", valid);
+        retained.Validate();
+
+        foreach (var hostile in new[]
+                 {
+                     new[] { "UNKNOWN_SOURCE_DATE", "ROSTER_DUCKDB_SCHEMA_REJECTED" },
+                     new[] { "ROSTER_DUCKDB_SCHEMA_REJECTED", "ROSTER_DUCKDB_SCHEMA_REJECTED" },
+                     new[] { "ROSTER_MEMBERSHIP_REJECTED" },
+                     new[] { "ROSTER_DUCKDB_SCHEMA_REJECTED", "UNKNOWN_CODE" }
+                 })
+            await Assert.That(() => BundesligaContextSourceDescriptorContract.ValidateRosterEvaluationPrecedence(
+                "SchemaRejected", BundesligaContextSourceDisposition.Rejected, hostile)).Throws<InvalidDataException>();
     }
 
     [Test]
@@ -190,7 +235,7 @@ public class BundesligaContextSourceBundleContractTests
     {
         var fields = new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            ["contract"] = Json("transfermarkt-duckdb-observation-descriptor/v1"), ["metadataUrl"] = Json("https://example.test/meta"), ["artifactUrl"] = Json("https://example.test/db"), ["advertisedRevision"] = Json(Revision('a')),
+            ["contract"] = Json("transfermarkt-duckdb-observation-descriptor/v1"), ["metadataUrl"] = Json(BundesligaContextSourceDescriptorContract.RosterMetadataUrl), ["artifactUrl"] = Json(BundesligaContextSourceDescriptorContract.RosterArtifactUrl), ["advertisedRevision"] = Json(Revision('a')),
             ["metadataSha256"] = "null", ["metadataByteLength"] = "null", ["remoteIdentityBefore"] = "null", ["acquisitionReason"] = Json("NewRevision"), ["remoteIdentityAfter"] = "null", ["embeddedRevision"] = "null", ["rawSha256"] = "null", ["expectedRawSha256"] = "null", ["rawByteLength"] = "null", ["artifactCaptureDate"] = "null", ["membershipEffectiveDate"] = "null", ["enrichmentCaptureDate"] = "null", ["policySha256"] = Json(BundesligaContextSourceDescriptorContract.RosterPolicySha256), ["retainedDescriptorSha256"] = "null", ["retainedEvaluation"] = "null", ["retainedDiagnostics"] = "[]", ["evaluation"] = Json(evaluation)
         };
         void Metadata() { fields["metadataSha256"] = Json(Sha('b')); fields["metadataByteLength"] = "1"; fields["remoteIdentityBefore"] = Remote("x"); }
@@ -198,9 +243,12 @@ public class BundesligaContextSourceBundleContractTests
         switch (evaluation)
         {
             case "MetadataUnchanged": Metadata(); fields["acquisitionReason"] = Json("AcceptedRevisionUnchanged"); fields["retainedDescriptorSha256"] = Json(Sha('e')); fields["retainedEvaluation"] = Json("Eligible"); break;
-            case "TransportRejected": break;
+            case "MetadataUnavailable": fields["advertisedRevision"] = "null"; fields["acquisitionReason"] = "null"; break;
+            case "MetadataMalformed": case "MetadataRevisionRejected": fields["advertisedRevision"] = "null"; fields["acquisitionReason"] = "null"; fields["metadataSha256"] = Json(Sha('b')); fields["metadataByteLength"] = "1"; break;
+            case "RemoteIdentityUnavailable": Metadata(); fields["remoteIdentityBefore"] = "null"; fields["acquisitionReason"] = "null"; break;
+            case "ArtifactTransportRejected": Metadata(); break;
             case "SizeRejected": Metadata(); fields["rawByteLength"] = "314572801"; break;
-            case "RemoteDriftRejected": Metadata(); fields["remoteIdentityAfter"] = Remote("y"); break;
+            case "RemoteDriftRejected": Metadata(); fields["remoteIdentityAfter"] = Remote("y"); fields["rawSha256"] = Json(Sha('c')); fields["rawByteLength"] = "7"; break;
             case "HashRejected": Metadata(); fields["remoteIdentityAfter"] = Remote("x"); fields["embeddedRevision"] = Json(Revision('a')); fields["rawSha256"] = Json(Sha('c')); fields["expectedRawSha256"] = Json(Sha('e')); fields["rawByteLength"] = "7"; break;
             case "RevisionRejected": Metadata(); fields["remoteIdentityAfter"] = Remote("x"); fields["embeddedRevision"] = Json(Revision('f')); fields["rawSha256"] = Json(Sha('c')); fields["rawByteLength"] = "7"; break;
             case "SchemaRejected": StableArtifact(false); break;

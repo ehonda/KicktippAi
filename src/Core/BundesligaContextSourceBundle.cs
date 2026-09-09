@@ -55,7 +55,11 @@ public sealed record BundesligaContextSourceObservation(
         BundesligaContextSourceHashing.ValidateSha(AttemptId);
         BundesligaContextSourceContract.FormatUtc(ObservedAtUtc);
         BundesligaContextSourceDescriptorContract.Validate(Source, DescriptorJson, Disposition);
-        if (Diagnostics.Any(string.IsNullOrWhiteSpace) || !Diagnostics.SequenceEqual(Diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal))
+        if (Diagnostics.Any(string.IsNullOrWhiteSpace))
+            throw new InvalidDataException("Diagnostics must be nonempty.");
+        if (Source == BundesligaContextSource.Rosters)
+            BundesligaContextSourceDescriptorContract.ValidateRosterDiagnostics(DescriptorJson, Disposition, Diagnostics);
+        else if (!Diagnostics.SequenceEqual(Diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal))
             throw new InvalidDataException("Diagnostics must be unique and ordinal sorted.");
         if (Disposition == BundesligaContextSourceDisposition.ArtifactCaptured)
         {
@@ -179,6 +183,9 @@ public sealed record BundesligaContextSourceBundle(
 public static class BundesligaContextSourceDescriptorContract
 {
     public const string RosterPolicySha256 = "56ce2f0543b91a59b63fbec7889f1bf547681e90f58da7c419028fd749285d9b";
+    public const string RosterMetadataUrl = "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb.metadata.json";
+    public const string RosterArtifactUrl = "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb";
+    public const long MaximumRosterArtifactBytes = 314572800;
 
     private static readonly string[] EloFields = ["contract", "sourceUrl", "rawSha256", "rawByteLength", "csvHeader", "providerRatedAt", "providerDateEvidence", "nameMappingContract", "nameMappingSha256", "sourceRows", "evaluation"];
     private static readonly string[] RosterFields = ["contract", "metadataUrl", "artifactUrl", "advertisedRevision", "metadataSha256", "metadataByteLength", "remoteIdentityBefore", "acquisitionReason", "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate", "policySha256", "retainedDescriptorSha256", "retainedEvaluation", "retainedDiagnostics", "evaluation"];
@@ -196,6 +203,55 @@ public static class BundesligaContextSourceDescriptorContract
         var canonical = JsonSerializer.SerializeToUtf8Bytes(root);
         if (!utf8.AsSpan().SequenceEqual(canonical)) throw new InvalidDataException("Descriptor JSON must be compact UTF-8 with canonical property order and values.");
         if (source == BundesligaContextSource.ClubElo) ValidateElo(root, disposition); else ValidateRoster(root, disposition);
+    }
+
+    public static void ValidateRosterDiagnostics(string descriptorJson, BundesligaContextSourceDisposition disposition, IReadOnlyList<string> diagnostics)
+    {
+        using var document = JsonDocument.Parse(descriptorJson);
+        var evaluation = document.RootElement.GetProperty("evaluation").GetString()!;
+        ValidateRosterEvaluationPrecedence(evaluation, disposition, diagnostics);
+    }
+
+    /// <summary>One ADR-defined (and intentionally non-lexical) diagnostic order.</summary>
+    public static void ValidateRosterEvaluationPrecedence(
+        string evaluation,
+        BundesligaContextSourceDisposition disposition,
+        IReadOnlyList<string> diagnostics)
+    {
+        var primary = evaluation switch
+        {
+            "MetadataUnavailable" => "ROSTER_METADATA_UNAVAILABLE",
+            "MetadataMalformed" => "ROSTER_METADATA_MALFORMED",
+            "MetadataRevisionRejected" => "ROSTER_ADVERTISED_REVISION_REJECTED",
+            "RemoteIdentityUnavailable" => "ROSTER_REMOTE_IDENTITY_UNAVAILABLE",
+            "ArtifactTransportRejected" => "ROSTER_ARTIFACT_TRANSPORT_REJECTED",
+            "SizeRejected" => "ROSTER_SIZE_REJECTED",
+            "RemoteDriftRejected" => "ROSTER_REMOTE_DRIFT_REJECTED",
+            "HashRejected" => "ROSTER_HASH_REJECTED",
+            "RevisionRejected" => "ROSTER_REVISION_REJECTED",
+            "SchemaRejected" => "ROSTER_DUCKDB_SCHEMA_REJECTED",
+            "SourceDateRejected" => "UNKNOWN_SOURCE_DATE",
+            "SeasonRejected" => "NO_ELIGIBLE_2026_MEMBERSHIP",
+            "IdentityRejected" => "ROSTER_IDENTITY_REJECTED",
+            _ => null
+        };
+        if (primary is null)
+        {
+            if (diagnostics.Count != 0) throw new InvalidDataException("Successful roster observations cannot contain diagnostics.");
+            return;
+        }
+        if (disposition != BundesligaContextSourceDisposition.Rejected || diagnostics.Count == 0 || diagnostics[0] != primary)
+            throw new InvalidDataException("Roster rejection diagnostics do not start with the evaluation primary code.");
+        ValidateRosterDiagnosticOrder(diagnostics);
+    }
+
+    private static void ValidateRosterDiagnosticOrder(IReadOnlyList<string> diagnostics)
+    {
+        var order = new[] { "ROSTER_METADATA_UNAVAILABLE", "ROSTER_METADATA_MALFORMED", "ROSTER_ADVERTISED_REVISION_REJECTED", "ROSTER_REMOTE_IDENTITY_UNAVAILABLE", "ROSTER_ARTIFACT_TRANSPORT_REJECTED", "ROSTER_SIZE_REJECTED", "ROSTER_REMOTE_DRIFT_REJECTED", "ROSTER_HASH_REJECTED", "ROSTER_REVISION_REJECTED", "ROSTER_DUCKDB_SCHEMA_REJECTED", "UNKNOWN_SOURCE_DATE", "NO_ELIGIBLE_2026_MEMBERSHIP", "ROSTER_IDENTITY_REJECTED", "ROSTER_MEMBERSHIP_REJECTED", "ROSTER_ENRICHMENT_REJECTED" };
+        if (diagnostics.Any(value => !order.Contains(value, StringComparer.Ordinal))
+            || !diagnostics.SequenceEqual(diagnostics.Distinct(StringComparer.Ordinal))
+            || !diagnostics.Select(value => Array.IndexOf(order, value)).SequenceEqual(diagnostics.Select(value => Array.IndexOf(order, value)).Order()))
+            throw new InvalidDataException("Roster diagnostics are not unique and evaluation-precedence ordered.");
     }
 
     public static BundesligaContextSourceObservation ParseObservation(string json)
@@ -279,21 +335,30 @@ public static class BundesligaContextSourceDescriptorContract
 
     private static void ValidateRoster(JsonElement root, BundesligaContextSourceDisposition disposition)
     {
-        RequireString(root, "contract", "transfermarkt-duckdb-observation-descriptor/v1"); RequireHttps(root, "metadataUrl"); RequireHttps(root, "artifactUrl");
-        var revision = RequireLowerHex(root, "advertisedRevision", 40);
+        RequireString(root, "contract", "transfermarkt-duckdb-observation-descriptor/v1");
+        RequireString(root, "metadataUrl", RosterMetadataUrl);
+        RequireString(root, "artifactUrl", RosterArtifactUrl);
+        var revision = OptionalLowerHex(root, "advertisedRevision", 40);
         if (RequireSha(root, "policySha256") != RosterPolicySha256)
             throw new InvalidDataException("Roster policy SHA-256 does not match the frozen ADR-0074 policy.");
-        var acquisitionReason = RequireOneOf(root, "acquisitionReason", "NewRevision", "PendingRevision", "RemoteIdentityChanged", "PolicyChanged", "AcceptedRevisionUnchanged");
-        var evaluation = RequireOneOf(root, "evaluation", "Eligible", "MetadataUnchanged", "TransportRejected", "SizeRejected", "RemoteDriftRejected", "HashRejected", "RevisionRejected", "SchemaRejected", "SourceDateRejected", "SeasonRejected", "IdentityRejected");
+        var reasonElement = root.GetProperty("acquisitionReason");
+        if (reasonElement.ValueKind is not (JsonValueKind.Null or JsonValueKind.String)) throw new InvalidDataException("'acquisitionReason' has the wrong type.");
+        var acquisitionReason = reasonElement.ValueKind == JsonValueKind.Null ? null : RequireOneOf(root, "acquisitionReason", "NewRevision", "PendingRevision", "RemoteIdentityChanged", "PolicyChanged", "AcceptedRevisionUnchanged");
+        var evaluation = RequireOneOf(root, "evaluation", "MetadataUnavailable", "MetadataMalformed", "MetadataRevisionRejected", "MetadataUnchanged", "RemoteIdentityUnavailable", "ArtifactTransportRejected", "SizeRejected", "RemoteDriftRejected", "HashRejected", "RevisionRejected", "SchemaRejected", "SourceDateRejected", "SeasonRejected", "IdentityRejected", "Eligible");
         if ((evaluation == "Eligible") != (disposition == BundesligaContextSourceDisposition.ArtifactCaptured) || (evaluation == "MetadataUnchanged") != (disposition == BundesligaContextSourceDisposition.MetadataUnchanged)) throw new InvalidDataException("Roster disposition/evaluation conflict.");
         if (evaluation == "MetadataUnchanged")
         {
-            if (acquisitionReason != "AcceptedRevisionUnchanged") throw new InvalidDataException("MetadataUnchanged requires AcceptedRevisionUnchanged.");
+            if (revision is null || acquisitionReason != "AcceptedRevisionUnchanged") throw new InvalidDataException("MetadataUnchanged requires AcceptedRevisionUnchanged.");
             RequireSha(root, "metadataSha256"); RequireNonnegativeInt64(root, "metadataByteLength"); ValidateRemoteIdentity(root.GetProperty("remoteIdentityBefore"));
             RequireNulls(root, "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate");
             RequireSha(root, "retainedDescriptorSha256");
-            RequireOneOf(root, "retainedEvaluation", "Eligible", "SchemaRejected", "SourceDateRejected", "SeasonRejected", "IdentityRejected");
-            RequireCanonicalStringArray(root, "retainedDiagnostics");
+            var retainedEvaluation = RequireOneOf(root, "retainedEvaluation", "Eligible", "SchemaRejected", "SourceDateRejected", "SeasonRejected", "IdentityRejected");
+            var retainedDiagnostics = RequireStringArray(root, "retainedDiagnostics");
+            // Retained evidence is a prior observation outcome and has exactly the same
+            // evaluation/primary/precedence contract as an observation diagnostic list.
+            ValidateRosterEvaluationPrecedence(retainedEvaluation,
+                retainedEvaluation == "Eligible" ? BundesligaContextSourceDisposition.ArtifactCaptured : BundesligaContextSourceDisposition.Rejected,
+                retainedDiagnostics);
         }
         else
         {
@@ -303,41 +368,67 @@ public static class BundesligaContextSourceDescriptorContract
 
         switch (evaluation)
         {
+            case "MetadataUnavailable":
+                RequireNulls(root, "advertisedRevision", "metadataSha256", "metadataByteLength", "remoteIdentityBefore", "acquisitionReason", "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate");
+                break;
+            case "MetadataMalformed":
+            case "MetadataRevisionRejected":
+                if (revision is not null || acquisitionReason is not null) throw new InvalidDataException("Rejected metadata cannot establish a revision or acquisition reason.");
+                RequireSha(root, "metadataSha256"); RequireNonnegativeInt64(root, "metadataByteLength");
+                RequireNulls(root, "remoteIdentityBefore", "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate");
+                break;
             case "MetadataUnchanged":
                 break;
-            case "TransportRejected":
-                ValidateAllNullOrMetadataObserved(root);
+            case "RemoteIdentityUnavailable":
+                if (revision is null) throw new InvalidDataException("Remote identity evaluation requires an advertised revision.");
+                RequireSha(root, "metadataSha256"); RequireNonnegativeInt64(root, "metadataByteLength");
+                RequireNulls(root, "remoteIdentityBefore", "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate");
+                if (acquisitionReason is not null && acquisitionReason is not ("NewRevision" or "PendingRevision" or "PolicyChanged"))
+                    throw new InvalidDataException("Remote identity unavailable cannot claim an identity-dependent acquisition reason.");
+                break;
+            case "ArtifactTransportRejected":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Artifact transport rejection requires a revision and acquisition reason.");
+                RequireMetadataAndBefore(root);
                 RequireNulls(root, "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate");
                 break;
             case "SizeRejected":
-                RequireMetadataAndBefore(root); RequireNonnegativeInt64(root, "rawByteLength"); OptionalSha(root, "expectedRawSha256");
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Size rejection requires a revision and acquisition reason.");
+                RequireMetadataAndBefore(root);
+                if (RequireNonnegativeInt64(root, "rawByteLength") <= MaximumRosterArtifactBytes) throw new InvalidDataException("SizeRejected requires a raw byte length over 300 MiB.");
+                OptionalSha(root, "expectedRawSha256");
                 RequireNulls(root, "remoteIdentityAfter", "embeddedRevision", "rawSha256", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate");
                 break;
             case "RemoteDriftRejected":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Remote drift rejection requires a revision and acquisition reason.");
                 RequireMetadataAndBefore(root); ValidateRemoteIdentity(root.GetProperty("remoteIdentityAfter"));
                 if (RemoteIdentitiesEqual(root)) throw new InvalidDataException("RemoteDriftRejected requires unequal identities.");
-                ValidateObservedArtifactFacts(root);
+                OptionalLowerHex(root, "embeddedRevision", 40); RequireSha(root, "rawSha256"); OptionalSha(root, "expectedRawSha256"); RequireNonnegativeInt64(root, "rawByteLength"); ValidateObservedDates(root);
                 break;
             case "HashRejected":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Hash rejection requires a revision and acquisition reason.");
                 RequireMetadataAndEqualIdentities(root); OptionalLowerHex(root, "embeddedRevision", 40);
                 var hashActual = RequireSha(root, "rawSha256"); var hashExpected = RequireSha(root, "expectedRawSha256");
                 if (hashActual == hashExpected) throw new InvalidDataException("HashRejected requires unequal actual and expected hashes.");
                 RequireNonnegativeInt64(root, "rawByteLength"); ValidateObservedDates(root);
                 break;
             case "RevisionRejected":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Revision rejection requires a revision and acquisition reason.");
                 RequireMetadataAndEqualIdentities(root); var embedded = OptionalLowerHex(root, "embeddedRevision", 40);
                 if (embedded == revision) throw new InvalidDataException("RevisionRejected requires a missing or unequal embedded revision.");
                 var revisionActual = RequireSha(root, "rawSha256"); RequireExpectedHashPassedOrAbsent(root, revisionActual); RequireNonnegativeInt64(root, "rawByteLength"); ValidateObservedDates(root);
                 break;
             case "SchemaRejected":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Schema rejection requires a revision and acquisition reason.");
                 ValidateIdentifiedArtifact(root, revision, requireAllDates: false); break;
             case "SourceDateRejected":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Source-date rejection requires a revision and acquisition reason.");
                 ValidateIdentifiedArtifact(root, revision, requireAllDates: false);
                 if (new[] { "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate" }.All(name => root.GetProperty(name).ValueKind != JsonValueKind.Null)) throw new InvalidDataException("SourceDateRejected requires at least one unknown source date.");
                 break;
             case "SeasonRejected":
             case "IdentityRejected":
             case "Eligible":
+                if (revision is null || acquisitionReason is null) throw new InvalidDataException("Identified artifact evaluation requires a revision and acquisition reason.");
                 ValidateIdentifiedArtifact(root, revision, requireAllDates: true); break;
         }
     }
@@ -421,7 +512,7 @@ public static class BundesligaContextSourceDescriptorContract
         if (value.GetRawText() != JsonSerializer.Serialize(firestoreValue))
             throw new InvalidDataException("Club Elo numeric values must use their canonical Firestore-roundtrippable spelling.");
     }
-    private static void RequireCanonicalStringArray(JsonElement root, string name) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Array || p.EnumerateArray().Any(x => x.ValueKind != JsonValueKind.String)) throw new InvalidDataException($"'{name}' must be a string array."); var values = p.EnumerateArray().Select(x => x.GetString()!).ToArray(); if (values.Any(string.IsNullOrWhiteSpace) || !values.SequenceEqual(values.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal)) throw new InvalidDataException($"'{name}' must be unique and ordinal sorted."); }
+    private static string[] RequireStringArray(JsonElement root, string name) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Array || p.EnumerateArray().Any(x => x.ValueKind != JsonValueKind.String)) throw new InvalidDataException($"'{name}' must be a string array."); var values = p.EnumerateArray().Select(x => x.GetString()!).ToArray(); if (values.Any(string.IsNullOrWhiteSpace)) throw new InvalidDataException($"'{name}' must contain nonempty strings."); return values; }
     private static void OptionalString(JsonElement root, string name) { var p = root.GetProperty(name); if (p.ValueKind is not (JsonValueKind.Null or JsonValueKind.String)) throw new InvalidDataException($"'{name}' has the wrong type."); }
     private static void OptionalSha(JsonElement root, string name) { var p = root.GetProperty(name); if (p.ValueKind == JsonValueKind.Null) return; RequireSha(root, name); }
     private static void OptionalNonnegativeInt64(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind == JsonValueKind.Null) return; RequireNonnegativeInt64(root, name, requireFirestoreRoundTrip); }

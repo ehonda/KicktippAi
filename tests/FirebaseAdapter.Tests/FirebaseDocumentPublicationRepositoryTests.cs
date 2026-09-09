@@ -8,7 +8,7 @@ using TUnit.Core;
 namespace FirebaseAdapter.Tests;
 
 [ClassDataSource<FirestoreFixture>(Shared = SharedType.Keyed, Key = FirestoreFixture.SharedKey)]
-[NotInParallel(FirestoreFixture.PublicationPayloadsParallelKey)]
+[NotInParallel(new[] { FirestoreFixture.PublicationPayloadsParallelKey, "context-source-cycle-repository" })]
 public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture fixture)
 {
     private string Community { get; } = $"publication-{Guid.NewGuid():N}";
@@ -20,7 +20,23 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         ]);
 
     [Before(Test)]
-    public async Task ClearAsync() => await fixture.ClearDocumentPublicationsAsync();
+    public async Task ClearAsync()
+    {
+        await Task.WhenAll(
+            fixture.ClearDocumentPublicationsAsync(),
+            fixture.ClearContextDocumentsAsync(),
+            fixture.ClearKpiDocumentsAsync());
+    }
+
+    // The class holds both publication-payload and source-cycle locks while clearing shared fixture state.
+    private async Task ClearContextSourceStateForGuardedTestAsync()
+    {
+        foreach (var collection in new[] { "context-source-cycles", "context-source-cycle-observations", "context-source-cycle-receipts", "context-source-health" })
+        {
+            var snapshot = await fixture.Db.Collection(collection).GetSnapshotAsync();
+            foreach (var document in snapshot.Documents) await document.Reference.DeleteAsync();
+        }
+    }
 
     [Test]
     public async Task Initial_mixed_publish_creates_one_headed_snapshot_and_exact_read()
@@ -48,6 +64,373 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
 
         await Assert.That(unchanged.Disposition).IsEqualTo(DocumentPublicationDisposition.Unchanged);
         await Assert.That(unchanged.Snapshot.SnapshotId).IsEqualTo(first.Snapshot.SnapshotId);
+    }
+
+    [Test]
+    public async Task Retriable_publication_boundary_rejects_noncanonical_caller_order_before_any_write()
+    {
+        var repository = CreateRepository();
+        var ordered = Request("context", "kpi");
+        var hostile = new DocumentPublicationRequest(Community, null, ordered.Documents.Reverse(), "{\"fixture\":true}");
+
+        await Assert.That(() => repository.PublishAsync(Definition, hostile)).Throws<ArgumentException>();
+        await Assert.That(await repository.GetLastKnownGoodAsync(Definition, Community)).IsNull();
+    }
+
+    [Test]
+    public async Task Guarded_publication_is_atomic_replays_the_original_receipt_after_head_movement_and_rejects_semantic_or_byte_drift()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync();
+        var request = RosterRequest(prepared.Commit, expected: null, contentTag: "first");
+
+        var published = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, request);
+        var receipt = await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, BundesligaContextSource.Rosters, prepared.Guard.ConsumerLaneId);
+        var health = await prepared.Cycles.GetHealthAsync(prepared.Guard.Competition, prepared.Guard.Scope, prepared.Guard.Source);
+        await Assert.That(published.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(receipt!.Request.PublicationDisposition).IsEqualTo(BundesligaContextSourcePublicationDisposition.Published);
+        await Assert.That(health!.LastCompletedCycleId).IsEqualTo(prepared.Guard.CycleId);
+
+        var moved = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(commit: null, expected: published.Snapshot.SnapshotId, contentTag: "moved"));
+        var replay = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, request);
+        await Assert.That(replay.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(published.Snapshot.SnapshotId);
+        await Assert.That((await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId))!.RecordedAtUtc)
+            .IsEqualTo(receipt.RecordedAtUtc);
+
+        var semanticMismatch = new DocumentPublicationRequest(request.CommunityContext, request.ExpectedPreviousSnapshotId,
+            request.Documents, request.MetadataJson, new ContextSourcePublicationCommitRequest(prepared.Guard,
+                prepared.Commit.ReceiptTemplate with { ActiveConditions = [] }));
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters, semanticMismatch)).Throws<InvalidDataException>();
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(prepared.Commit, null, "different-bytes"))).Throws<InvalidDataException>();
+        await Assert.That((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, BundesligaContextSourceContract.DevelopmentCommunity))!.Snapshot.SnapshotId)
+            .IsEqualTo(moved.Snapshot.SnapshotId);
+    }
+
+    [Test]
+    public async Task Guarded_absent_receipt_allows_only_exact_head_unchanged_and_rejects_misleading_current_target_shapes()
+    {
+        var publication = CreateRepository();
+        var unchangedPrepared = await PrepareGuardedRosterCycleAsync(eligibleRoster: true);
+        var legacy = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(null, null, "unchanged"));
+        var persistedLegacy = await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters,
+            BundesligaContextSourceContract.DevelopmentCommunity);
+        await Assert.That(persistedLegacy).IsNotNull();
+        var unchanged = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(unchangedPrepared.Commit, legacy.Snapshot.SnapshotId, "unchanged"));
+        await Assert.That(unchanged.Disposition).IsEqualTo(DocumentPublicationDisposition.Unchanged);
+        await Assert.That(unchanged.Snapshot.CreatedAt).IsEqualTo(persistedLegacy!.Snapshot.CreatedAt);
+        await Assert.That(unchanged.Snapshot.Documents).IsEquivalentTo(legacy.Snapshot.Documents);
+        await Assert.That((await unchangedPrepared.Cycles.GetReceiptAsync(unchangedPrepared.Guard.Identity, unchangedPrepared.Guard.Source, unchangedPrepared.Guard.ConsumerLaneId))!.Request.PublicationDisposition)
+            .IsEqualTo(BundesligaContextSourcePublicationDisposition.Unchanged);
+
+        var mismatchPrepared = await PrepareGuardedRosterCycleAsync();
+        var a = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, unchanged.Snapshot.SnapshotId, "a"));
+        var target = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, a.Snapshot.SnapshotId, "target"));
+        var b = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, target.Snapshot.SnapshotId, "b"));
+        var reactivatedTarget = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, b.Snapshot.SnapshotId, "target"));
+        await Assert.That(reactivatedTarget.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(mismatchPrepared.Commit, a.Snapshot.SnapshotId, "target"))).Throws<DocumentPublicationConcurrencyException>();
+        await Assert.That(await mismatchPrepared.Cycles.GetReceiptAsync(mismatchPrepared.Guard.Identity, mismatchPrepared.Guard.Source, mismatchPrepared.Guard.ConsumerLaneId)).IsNull();
+        await Assert.That((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, BundesligaContextSourceContract.DevelopmentCommunity))!.Snapshot.SnapshotId)
+            .IsEqualTo(target.Snapshot.SnapshotId);
+    }
+
+    [Test]
+    public async Task Guarded_historical_reactivation_commits_the_real_source_cycle_once()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync();
+        var first = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, null, "first"));
+        var historical = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, first.Snapshot.SnapshotId, "historical"));
+        var current = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(null, historical.Snapshot.SnapshotId, "current"));
+
+        var reactivated = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(prepared.Commit, current.Snapshot.SnapshotId, "historical"));
+        var receipt = await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId);
+        var source = await prepared.Cycles.GetSourceCycleAsync(prepared.Guard.Identity, prepared.Guard.Source);
+        var health = await prepared.Cycles.GetHealthAsync(prepared.Guard.Competition, prepared.Guard.Scope, prepared.Guard.Source);
+
+        await Assert.That(reactivated.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
+        await Assert.That(reactivated.Snapshot.SnapshotId).IsEqualTo(historical.Snapshot.SnapshotId);
+        await Assert.That(receipt!.Request.PublicationDisposition).IsEqualTo(BundesligaContextSourcePublicationDisposition.Reactivated);
+        await Assert.That(source!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Complete);
+        await Assert.That(health!.LastCompletedCycleId).IsEqualTo(prepared.Guard.CycleId);
+        var replay = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(prepared.Commit, current.Snapshot.SnapshotId, "historical"));
+        await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(historical.Snapshot.SnapshotId);
+        await Assert.That((await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId))!.RecordedAtUtc)
+            .IsEqualTo(receipt.RecordedAtUtc);
+    }
+
+    [Test]
+    public async Task Guarded_publication_freezes_mutable_template_conditions_before_the_transaction_can_observe_them()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync();
+        var mutableConditions = prepared.Commit.ReceiptTemplate.ActiveConditions.ToList();
+        var commit = new ContextSourcePublicationCommitRequest(prepared.Guard,
+            prepared.Commit.ReceiptTemplate with { ActiveConditions = mutableConditions });
+        var publish = publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(commit, null, "frozen"));
+        mutableConditions.Clear();
+
+        await publish;
+        var receipt = await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId);
+        await Assert.That(receipt!.Request.ActiveConditions).IsEquivalentTo(prepared.Commit.ReceiptTemplate.ActiveConditions);
+    }
+
+    [Test]
+    public async Task Guard_and_prefix_validation_precede_head_comparison_and_are_mutation_free()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync();
+        var badGuard = prepared.Guard with { BundleDigest = new string('f', 64) };
+        var badCommit = new ContextSourcePublicationCommitRequest(badGuard, prepared.Commit.ReceiptTemplate);
+
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(badCommit, new string('a', 64), "guard-failure"))).Throws<InvalidDataException>();
+        await Assert.That(await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId)).IsNull();
+        await Assert.That(await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, BundesligaContextSourceContract.DevelopmentCommunity)).IsNull();
+    }
+
+    [Test]
+    public async Task Guarded_boundary_accepts_a_deterministic_unavailable_identity_reason()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync(unavailableIdentity: true);
+
+        var published = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(prepared.Commit, null, "identity-unavailable"));
+        await Assert.That(published.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That((await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId))!.Request.ActiveConditions)
+            .Contains(BundesligaContextSourceHealthCondition.AcquisitionFailed);
+    }
+
+    [Test]
+    [Arguments("new")]
+    [Arguments("pending")]
+    [Arguments("policy")]
+    [Arguments("accepted-null")]
+    public async Task Guarded_boundary_accepts_each_valid_unavailable_identity_reason(string state)
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync(unavailableIdentity: true, unavailableIdentityState: state);
+        var result = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(prepared.Commit, null, $"identity-{state}"));
+        await Assert.That(result.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That((await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId))!
+            .Request.ActiveConditions).Contains(BundesligaContextSourceHealthCondition.AcquisitionFailed);
+    }
+
+    [Test]
+    public async Task Guarded_production_lanes_write_each_receipt_but_reduce_only_with_the_final_lane_and_exact_replay()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedProductionRosterCycleAsync();
+        var commits = BundesligaContextSourceContract.ProductionConsumers
+            .Select(lane => ProductionGuardedCommit(prepared, lane)).ToArray();
+        var initialHealth = (await prepared.Cycles.GetHealthAsync(prepared.Outer.Identity.Competition, prepared.Outer.Identity.Scope, BundesligaContextSource.Rosters))!;
+        var latestSnapshotIdByCommunity = new Dictionary<string, string?>();
+
+        async Task<(DocumentPublicationRequest Request, DocumentPublicationResult Result)> PublishLaneAsync(ContextSourcePublicationCommitRequest commit, string contentTag)
+        {
+            latestSnapshotIdByCommunity.TryGetValue(commit.Guard.CommunityContext, out var expectedHead);
+            var request = ProductionRosterRequest(commit, expectedHead, contentTag);
+            var result = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, request);
+            latestSnapshotIdByCommunity[commit.Guard.CommunityContext] = result.Snapshot.SnapshotId;
+            return (request, result);
+        }
+
+        var (firstRequest, first) = await PublishLaneAsync(commits[0], "first");
+        var afterFirstSource = await prepared.Cycles.GetSourceCycleAsync(prepared.Outer.Identity, BundesligaContextSource.Rosters);
+        var afterFirstHealth = await prepared.Cycles.GetHealthAsync(prepared.Outer.Identity.Competition, prepared.Outer.Identity.Scope, BundesligaContextSource.Rosters);
+        await Assert.That(afterFirstSource!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Finalized);
+        await Assert.That(afterFirstSource.ReceivedConsumers).IsEquivalentTo([commits[0].Guard.ConsumerLaneId]);
+        await Assert.That(afterFirstHealth).IsEquivalentTo(initialHealth);
+        await Assert.That((await prepared.Cycles.GetCycleAsync(prepared.Outer.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.HandoffReady);
+
+        foreach (var commit in commits.Skip(1).Take(commits.Length - 2))
+            await PublishLaneAsync(commit, commit.Guard.ConsumerLaneId);
+        var beforeFinalHealth = await prepared.Cycles.GetHealthAsync(prepared.Outer.Identity.Competition, prepared.Outer.Identity.Scope, BundesligaContextSource.Rosters);
+        var final = commits[^1];
+        var (finalRequest, completed) = await PublishLaneAsync(final, "final");
+
+        await Assert.That((await prepared.Cycles.GetSourceCycleAsync(prepared.Outer.Identity, BundesligaContextSource.Rosters))!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Complete);
+        await Assert.That((await prepared.Cycles.GetCycleAsync(prepared.Outer.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+        var reduced = (await prepared.Cycles.GetHealthAsync(prepared.Outer.Identity.Competition, prepared.Outer.Identity.Scope, BundesligaContextSource.Rosters))!;
+        await Assert.That(reduced.LastCompletedCycleId).IsEqualTo(prepared.Outer.Identity.CycleId);
+        await Assert.That(reduced).IsNotEquivalentTo(beforeFinalHealth);
+        await Assert.That((await publication.PublishAsync(BundesligaDocumentPublication.Rosters, firstRequest)).Snapshot.SnapshotId)
+            .IsEqualTo(first.Snapshot.SnapshotId);
+        await Assert.That((await publication.PublishAsync(BundesligaDocumentPublication.Rosters, finalRequest)).Snapshot.SnapshotId)
+            .IsEqualTo(completed.Snapshot.SnapshotId);
+        await Assert.That((await prepared.Cycles.GetHealthAsync(prepared.Outer.Identity.Competition, prepared.Outer.Identity.Scope, BundesligaContextSource.Rosters))!)
+            .IsEquivalentTo(reduced);
+    }
+
+    [Test]
+    [Arguments("superseded")]
+    [Arguments("strict-prefix")]
+    [Arguments("observation-digest")]
+    [Arguments("observation-identity")]
+    [Arguments("watermark")]
+    [Arguments("bundle-digest")]
+    public async Task Guarded_validation_failures_precede_head_comparison_and_leave_the_publication_and_cycle_unwritten(string mutation)
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync();
+        var commit = prepared.Commit;
+        if (mutation == "superseded")
+            await fixture.Db.Collection("context-source-cycles").Document(prepared.Guard.Identity.StorageId)
+                .UpdateAsync(new Dictionary<string, object> { ["status"] = "Aborted", ["abortCode"] = "SUPERSEDED_INCOMPLETE_CYCLE" });
+        else if (mutation == "strict-prefix")
+            await fixture.Db.Collection("context-source-cycle-observations").Document(BundesligaContextSourceHashing.SourceCycleStorageId(prepared.Guard.Identity, prepared.Guard.Source))
+                .UpdateAsync("receivedConsumers", new[] { prepared.Guard.ConsumerLaneId });
+        else if (mutation == "observation-digest")
+            commit = new ContextSourcePublicationCommitRequest(prepared.Guard with { ObservationDigest = new string('d', 64) }, prepared.Commit.ReceiptTemplate);
+        else if (mutation == "observation-identity")
+            await fixture.Db.Collection("context-source-cycle-observations").Document(BundesligaContextSourceHashing.SourceCycleStorageId(prepared.Guard.Identity, prepared.Guard.Source))
+                .UpdateAsync("observation.attemptId", "0000000000000000000000000000000000000000000000000000000000000000");
+        else if (mutation == "watermark")
+            commit = new ContextSourcePublicationCommitRequest(prepared.Guard with { WatermarkSequence = prepared.Guard.WatermarkSequence + 1 }, prepared.Commit.ReceiptTemplate);
+        else if (mutation == "bundle-digest")
+            commit = new ContextSourcePublicationCommitRequest(prepared.Guard with { BundleDigest = new string('d', 64) }, prepared.Commit.ReceiptTemplate);
+        else throw new ArgumentOutOfRangeException(nameof(mutation));
+
+        var beforeDocuments = (await fixture.Db.Collection("context-documents").GetSnapshotAsync()).Count;
+        var beforeSnapshots = (await fixture.Db.Collection("document-publication-snapshots").GetSnapshotAsync()).Count;
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(commit, new string('a', 64), mutation))).Throws<InvalidDataException>();
+        await Assert.That(await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, prepared.Guard.CommunityContext)).IsNull();
+        await Assert.That((await fixture.Db.Collection("context-documents").GetSnapshotAsync()).Count).IsEqualTo(beforeDocuments);
+        await Assert.That((await fixture.Db.Collection("document-publication-snapshots").GetSnapshotAsync()).Count).IsEqualTo(beforeSnapshots);
+        await Assert.That(await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId)).IsNull();
+    }
+
+    [Test]
+    [Arguments("valid")]
+    [Arguments("reversed")]
+    [Arguments("duplicate")]
+    [Arguments("invalid-primary")]
+    [Arguments("unknown")]
+    public async Task Guarded_diagnostic_precedence_validates_before_a_stale_head_and_leaves_all_persisted_state_unchanged(string diagnosticCase)
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync(schemaRejectedRoster: true);
+        var sourceReference = fixture.Db.Collection("context-source-cycle-observations")
+            .Document(BundesligaContextSourceHashing.SourceCycleStorageId(prepared.Guard.Identity, prepared.Guard.Source));
+        if (diagnosticCase != "valid")
+        {
+            var diagnostics = diagnosticCase switch
+            {
+                "reversed" => new[] { "ROSTER_DUCKDB_SCHEMA_REJECTED", "ROSTER_MEMBERSHIP_REJECTED", "UNKNOWN_SOURCE_DATE" },
+                "duplicate" => new[] { "ROSTER_DUCKDB_SCHEMA_REJECTED", "ROSTER_DUCKDB_SCHEMA_REJECTED" },
+                "invalid-primary" => new[] { "ROSTER_MEMBERSHIP_REJECTED" },
+                "unknown" => new[] { "ROSTER_DUCKDB_SCHEMA_REJECTED", "UNKNOWN_CODE" },
+                _ => throw new ArgumentOutOfRangeException(nameof(diagnosticCase))
+            };
+            await sourceReference.UpdateAsync("observation.diagnostics", diagnostics);
+        }
+
+        var baseline = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(null, null, $"diagnostic-{diagnosticCase}-baseline"));
+        var beforeHead = await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters,
+            prepared.Guard.CommunityContext);
+        var beforeDocuments = (await fixture.Db.Collection("context-documents").GetSnapshotAsync()).Documents
+            .ToDictionary(document => document.Id, document => document.ToDictionary(), StringComparer.Ordinal);
+        var beforeKpis = (await fixture.Db.Collection("kpi-documents").GetSnapshotAsync()).Documents
+            .ToDictionary(document => document.Id, document => document.ToDictionary(), StringComparer.Ordinal);
+        var beforeSnapshots = (await fixture.Db.Collection("document-publication-snapshots").GetSnapshotAsync()).Documents
+            .ToDictionary(document => document.Id, document => document.ToDictionary(), StringComparer.Ordinal);
+        var beforeSource = (await sourceReference.GetSnapshotAsync()).ToDictionary();
+        var beforeHealth = await prepared.Cycles.GetHealthAsync(prepared.Guard.Competition, prepared.Guard.Scope, prepared.Guard.Source);
+        const string staleExpectedHead = "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+        await Assert.That(beforeHead).IsNotNull();
+        await Assert.That(baseline.Snapshot.SnapshotId).IsNotEqualTo(staleExpectedHead);
+        if (diagnosticCase == "valid")
+            await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+                RosterRequest(prepared.Commit, staleExpectedHead, $"diagnostic-{diagnosticCase}"))).Throws<DocumentPublicationConcurrencyException>();
+        else
+            await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+                RosterRequest(prepared.Commit, staleExpectedHead, $"diagnostic-{diagnosticCase}"))).Throws<InvalidDataException>();
+
+        await Assert.That((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters,
+            prepared.Guard.CommunityContext))!.Snapshot).IsEquivalentTo(beforeHead!.Snapshot);
+        await Assert.That((await fixture.Db.Collection("context-documents").GetSnapshotAsync()).Documents
+            .ToDictionary(document => document.Id, document => document.ToDictionary(), StringComparer.Ordinal)).IsEquivalentTo(beforeDocuments);
+        await Assert.That((await fixture.Db.Collection("kpi-documents").GetSnapshotAsync()).Documents
+            .ToDictionary(document => document.Id, document => document.ToDictionary(), StringComparer.Ordinal)).IsEquivalentTo(beforeKpis);
+        await Assert.That((await fixture.Db.Collection("document-publication-snapshots").GetSnapshotAsync()).Documents
+            .ToDictionary(document => document.Id, document => document.ToDictionary(), StringComparer.Ordinal)).IsEquivalentTo(beforeSnapshots);
+        await Assert.That((await sourceReference.GetSnapshotAsync()).ToDictionary()).IsEquivalentTo(beforeSource);
+        await Assert.That((await prepared.Cycles.GetHealthAsync(prepared.Guard.Competition, prepared.Guard.Scope, prepared.Guard.Source))!)
+            .IsEquivalentTo(beforeHealth);
+        await Assert.That(await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId)).IsNull();
+    }
+
+    [Test]
+    public async Task Guarded_payload_collision_is_atomic_and_a_later_exact_commit_replays()
+    {
+        var publication = CreateRepository();
+        var prepared = await PrepareGuardedRosterCycleAsync();
+        var scope = new DocumentPublicationScope(CompetitionIds.Bundesliga2026_27, prepared.Guard.CommunityContext, BundesligaDocumentPublication.RosterPublicationSet);
+        var key = BundesligaDocumentPublication.Rosters.RequiredDocuments.Single(value => value.Kind == DocumentPublicationKind.Context && value.Name == "roster-b04");
+        var collision = fixture.Db.Collection("context-documents").Document(PublicationPayloadId(scope, key.Name, 0));
+        await collision.SetAsync(new Dictionary<string, object> { ["collision"] = true });
+        try
+        {
+            var beforeSource = await prepared.Cycles.GetSourceCycleAsync(prepared.Guard.Identity, prepared.Guard.Source);
+            var beforeHealth = await prepared.Cycles.GetHealthAsync(prepared.Guard.Competition, prepared.Guard.Scope, prepared.Guard.Source);
+
+            await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(prepared.Commit, null, "collision"))).Throws<Exception>();
+            await Assert.That(await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, prepared.Guard.CommunityContext)).IsNull();
+            await Assert.That(await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId)).IsNull();
+            await Assert.That((await prepared.Cycles.GetSourceCycleAsync(prepared.Guard.Identity, prepared.Guard.Source))!
+                .CreateCanonicalUtf8(BundesligaContextSourceContract.DevelopmentConsumers)
+                .SequenceEqual(beforeSource!.CreateCanonicalUtf8(BundesligaContextSourceContract.DevelopmentConsumers))).IsTrue();
+            await Assert.That((await prepared.Cycles.GetHealthAsync(prepared.Guard.Competition, prepared.Guard.Scope, prepared.Guard.Source))!)
+                .IsEquivalentTo(beforeHealth);
+        }
+        finally
+        {
+            await collision.DeleteAsync();
+        }
+
+        var committed = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(prepared.Commit, null, "collision"));
+        var replay = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, RosterRequest(prepared.Commit, null, "collision"));
+        await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(committed.Snapshot.SnapshotId);
+    }
+
+    [Test]
+    public async Task Guarded_metadata_unchanged_rejects_a_prior_receipt_with_a_different_valid_bundle_digest_before_any_write()
+    {
+        var publication = CreateRepository();
+        var prior = await PrepareGuardedRosterCycleAsync(cycleId: "0198f865-1467-7000-8000-000000000001");
+        var priorRequest = RosterRequest(prior.Commit, null, "authoritative-prior");
+        var published = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, priorRequest);
+        var priorReceiptReference = fixture.Db.Collection("context-source-cycle-receipts")
+            .Document(BundesligaContextSourceHashing.ReceiptStorageId(prior.Guard.Identity, prior.Guard.Source, prior.Guard.ConsumerLaneId));
+        await priorReceiptReference.UpdateAsync("bundleDigest", new string('d', 64));
+
+        var current = await PrepareGuardedRosterCycleAsync(metadataUnchanged: true, clearContextSourceState: false,
+            cycleId: "0198f865-1468-7000-8000-000000000002");
+        var beforeDocuments = (await fixture.Db.Collection("context-documents").GetSnapshotAsync()).Count;
+        var beforeSnapshots = (await fixture.Db.Collection("document-publication-snapshots").GetSnapshotAsync()).Count;
+        var beforeHealth = await current.Cycles.GetHealthAsync(current.Guard.Competition, current.Guard.Scope, current.Guard.Source);
+
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
+            RosterRequest(current.Commit, published.Snapshot.SnapshotId, "authoritative-prior"))).Throws<InvalidDataException>();
+
+        await Assert.That(await current.Cycles.GetReceiptAsync(current.Guard.Identity, current.Guard.Source, current.Guard.ConsumerLaneId)).IsNull();
+        await Assert.That((await fixture.Db.Collection("context-documents").GetSnapshotAsync()).Count).IsEqualTo(beforeDocuments);
+        await Assert.That((await fixture.Db.Collection("document-publication-snapshots").GetSnapshotAsync()).Count).IsEqualTo(beforeSnapshots);
+        await Assert.That((await current.Cycles.GetHealthAsync(current.Guard.Competition, current.Guard.Scope, current.Guard.Source))!)
+            .IsEquivalentTo(beforeHealth);
     }
 
     [Test]
@@ -448,6 +831,207 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
             .Throws<InvalidDataException>();
         await Assert.That(await HeadSnapshotIdAsync(scope)).IsEqualTo(published.Snapshot.SnapshotId);
     }
+
+    private async Task<(FirebaseContextSourceCycleRepository Cycles, ContextSourcePublicationGuard Guard, ContextSourcePublicationCommitRequest Commit)> PrepareGuardedRosterCycleAsync(
+        bool unavailableIdentity = false,
+        string? unavailableIdentityState = null,
+        bool metadataUnchanged = false,
+        bool eligibleRoster = false,
+        bool schemaRejectedRoster = false,
+        bool clearContextSourceState = true,
+        string? cycleId = null)
+    {
+        if (clearContextSourceState) await ClearContextSourceStateForGuardedTestAsync();
+        var cycles = new FirebaseContextSourceCycleRepository(fixture.Db,
+            new FakeLogger<FirebaseContextSourceCycleRepository>(), new FixedTimeProvider(GuardNow.AddMinutes(2)));
+        var identity = BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition,
+            cycleId ?? NextGuardedCycleId());
+        var outer = new BundesligaContextSourceOuterCycle(identity, GuardNow, GuardNow,
+            BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentConsumers,
+            [BundesligaContextSource.Rosters], BundesligaContextSourceCycleStatus.Claiming);
+        await cycles.CreateOrResumeCycleAsync(outer);
+        await cycles.ClaimSourceAsync(identity, BundesligaContextSource.Rosters, GuardToken, GuardNow);
+        if (unavailableIdentityState is not null and not "new") await SetGuardedUnavailableIdentityRevisionStateAsync(identity, unavailableIdentityState);
+        var observation = metadataUnchanged ? GuardedMetadataUnchangedObservation(identity) : eligibleRoster ? EligibleGuardedRosterObservation(identity) : schemaRejectedRoster ? GuardedSchemaRejectedRosterObservation(identity) : unavailableIdentity ? GuardedUnavailableIdentityObservation(identity, UnavailableIdentityReason(unavailableIdentityState)) : GuardedRosterObservation(identity);
+        await cycles.FinalizeSourceAsync(identity, BundesligaContextSource.Rosters, GuardToken, observation, GuardNow.AddMinutes(1));
+        var bundle = new string('e', 64);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.ObservationsFinalized,
+            BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.BundleVerified,
+            BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var guard = new ContextSourcePublicationGuard(identity.Competition, identity.Scope, identity.CycleId,
+            BundesligaContextSource.Rosters, BundesligaContextSourceContract.DevelopmentLane,
+            BundesligaContextSourceContract.DevelopmentCommunity, BundesligaDocumentPublication.RosterPublicationSet,
+            bundle, observation.ObservationDigest, identity.Sequence, identity.CycleId);
+        var template = new ContextSourcePublicationReceiptTemplate(
+            metadataUnchanged ? BundesligaContextSourceSelectionDisposition.MetadataUnchanged : eligibleRoster ? BundesligaContextSourceSelectionDisposition.DuckDbAccepted : BundesligaContextSourceSelectionDisposition.CandidateRejected,
+            eligibleRoster ? BundesligaContextSourceSelectedOrigin.DuckDb : BundesligaContextSourceSelectedOrigin.FallbackSeed,
+            eligibleRoster
+                ? new BundesligaContextSourceDates(null, new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 1), new DateOnly(2026, 9, 1))
+                : new BundesligaContextSourceDates(null, null, new DateOnly(2026, 8, 20), null), new string('a', 40),
+            new BundesligaContextSourceCarriedFields(0, 0, 0, null),
+            BundesligaContextSourceHealth.OrderConditions(eligibleRoster ? [] : unavailableIdentity ? new[]
+            {
+                BundesligaContextSourceHealthCondition.AcquisitionFailed,
+                BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown,
+                BundesligaContextSourceHealthCondition.RosterMembershipRejected,
+                BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days
+            } : new[]
+            {
+                BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown,
+                BundesligaContextSourceHealthCondition.RosterMembershipRejected,
+                BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days
+        }));
+        return (cycles, guard, new ContextSourcePublicationCommitRequest(guard, template));
+    }
+
+    private sealed record PreparedProductionGuardedRosterCycle(
+        FirebaseContextSourceCycleRepository Cycles,
+        BundesligaContextSourceOuterCycle Outer,
+        BundesligaContextSourceObservation Observation,
+        string BundleDigest);
+
+    private async Task<PreparedProductionGuardedRosterCycle> PrepareGuardedProductionRosterCycleAsync()
+    {
+        await ClearContextSourceStateForGuardedTestAsync();
+        var cycles = new FirebaseContextSourceCycleRepository(fixture.Db,
+            new FakeLogger<FirebaseContextSourceCycleRepository>(), new FixedTimeProvider(GuardNow.AddMinutes(2)));
+        var identity = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 321, 9701);
+        var outer = new BundesligaContextSourceOuterCycle(identity, GuardNow, GuardNow,
+            BundesligaContextSourceContract.ProductionConsumers[0], BundesligaContextSourceContract.ProductionConsumers,
+            [BundesligaContextSource.Rosters], BundesligaContextSourceCycleStatus.Claiming);
+        await cycles.CreateOrResumeCycleAsync(outer);
+        await cycles.ClaimSourceAsync(identity, BundesligaContextSource.Rosters, GuardToken, GuardNow);
+        var observation = GuardedRosterObservation(identity);
+        await cycles.FinalizeSourceAsync(identity, BundesligaContextSource.Rosters, GuardToken, observation, GuardNow.AddMinutes(1));
+        var bundle = new string('e', 64);
+        var artifact = $"bundesliga-context-source-bundle-{identity.StorageId}";
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.UploadReserved, bundle, artifact);
+        var handoff = await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.UploadReserved, BundesligaContextSourceCycleStatus.HandoffReady, bundle, artifact);
+        return new PreparedProductionGuardedRosterCycle(cycles, handoff, observation, bundle);
+    }
+
+    private static ContextSourcePublicationCommitRequest ProductionGuardedCommit(PreparedProductionGuardedRosterCycle prepared, string lane)
+    {
+        var community = lane switch
+        {
+            "pes-squad-context" => "pes-squad",
+            "schadensfresse-context" => "schadensfresse",
+            "relaxdays-tippt-context" => "relaxdays-tippt",
+            _ => "ehonda-ai-arena"
+        };
+        var guard = new ContextSourcePublicationGuard(prepared.Outer.Identity.Competition, prepared.Outer.Identity.Scope,
+            prepared.Outer.Identity.CycleId, BundesligaContextSource.Rosters, lane, community,
+            BundesligaDocumentPublication.RosterPublicationSet, prepared.BundleDigest, prepared.Observation.ObservationDigest,
+            prepared.Outer.Identity.Sequence, prepared.Outer.Identity.CycleId);
+        var template = new ContextSourcePublicationReceiptTemplate(
+            BundesligaContextSourceSelectionDisposition.CandidateRejected,
+            BundesligaContextSourceSelectedOrigin.FallbackSeed,
+            new BundesligaContextSourceDates(null, null, new DateOnly(2026, 8, 20), null), new string('a', 40),
+            new BundesligaContextSourceCarriedFields(0, 0, 0, null),
+            BundesligaContextSourceHealth.OrderConditions([
+                BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown,
+                BundesligaContextSourceHealthCondition.RosterMembershipRejected,
+                BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days]));
+        return new ContextSourcePublicationCommitRequest(guard, template);
+    }
+
+    private static DocumentPublicationRequest ProductionRosterRequest(ContextSourcePublicationCommitRequest commit, string? expectedHead, string contentTag) => new(
+        commit.Guard.CommunityContext,
+        expectedHead,
+        BundesligaDocumentPublication.Rosters.RequiredDocuments.Select(key => new DocumentPublicationPayload(
+            key.Kind, key.Name, $"{contentTag}:{key.Name}", key.Kind == DocumentPublicationKind.Kpi ? $"{contentTag} summary" : null)),
+        "{\"guarded\":true}", commit);
+
+    private static DocumentPublicationRequest RosterRequest(
+        ContextSourcePublicationCommitRequest? commit,
+        string? expected,
+        string contentTag) => new(
+        BundesligaContextSourceContract.DevelopmentCommunity,
+        expected,
+        BundesligaDocumentPublication.Rosters.RequiredDocuments.Select(key => new DocumentPublicationPayload(
+            key.Kind, key.Name, $"{contentTag}:{key.Name}", key.Kind == DocumentPublicationKind.Kpi ? $"{contentTag} summary" : null)),
+        "{\"guarded\":true}", commit);
+
+    private static BundesligaContextSourceObservation GuardedRosterObservation(BundesligaContextSourceCycleIdentity identity) => new(
+        BundesligaContextSource.Rosters,
+        BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), GuardNow,
+        BundesligaContextSourceDisposition.Rejected,
+        $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"SourceDateRejected\"}}",
+        null, ["UNKNOWN_SOURCE_DATE"]);
+
+    private static BundesligaContextSourceObservation EligibleGuardedRosterObservation(BundesligaContextSourceCycleIdentity identity) => new(
+        BundesligaContextSource.Rosters,
+        BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), GuardNow,
+        BundesligaContextSourceDisposition.ArtifactCaptured,
+        $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":\"2026-09-01\",\"membershipEffectiveDate\":\"2026-09-01\",\"enrichmentCaptureDate\":\"2026-09-01\",\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"Eligible\"}}",
+        new BundesligaContextSourcePayload("rosters/source.duckdb", 1, new string('c', 64)), []);
+
+    private static BundesligaContextSourceObservation GuardedSchemaRejectedRosterObservation(BundesligaContextSourceCycleIdentity identity)
+    {
+        var observation = GuardedRosterObservation(identity);
+        return observation with
+        {
+            DescriptorJson = observation.DescriptorJson.Replace("\"evaluation\":\"SourceDateRejected\"", "\"evaluation\":\"SchemaRejected\""),
+            Diagnostics = ["ROSTER_DUCKDB_SCHEMA_REJECTED", "UNKNOWN_SOURCE_DATE", "ROSTER_MEMBERSHIP_REJECTED"]
+        };
+    }
+
+    private static BundesligaContextSourceObservation GuardedUnavailableIdentityObservation(BundesligaContextSourceCycleIdentity identity, string? reason = "NewRevision") => new(
+        BundesligaContextSource.Rosters,
+        BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), GuardNow,
+        BundesligaContextSourceDisposition.Rejected,
+        $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":null,\"acquisitionReason\":{(reason is null ? "null" : $"\"{reason}\"")},\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"RemoteIdentityUnavailable\"}}",
+        null, ["ROSTER_REMOTE_IDENTITY_UNAVAILABLE"]);
+
+    private static string? UnavailableIdentityReason(string? state) => state switch
+    {
+        null or "new" => "NewRevision",
+        "pending" => "PendingRevision",
+        "policy" => "PolicyChanged",
+        "accepted-null" => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(state))
+    };
+
+    private Task SetGuardedUnavailableIdentityRevisionStateAsync(BundesligaContextSourceCycleIdentity identity, string state)
+    {
+        var reference = fixture.Db.Collection("context-source-health").Document(BundesligaContextSourceHashing.HealthStorageId(identity.Competition, identity.ScopeValue, BundesligaContextSource.Rosters));
+        var policy = state == "policy" ? new string('f', 64) : BundesligaContextSourceDescriptorContract.RosterPolicySha256;
+        return reference.UpdateAsync("rosterRevisionState", new Dictionary<string, object?>
+        {
+            ["accepted"] = state == "pending" ? null : new Dictionary<string, object?>
+            {
+                ["revision"] = new string('a', 40),
+                ["remoteIdentity"] = new Dictionary<string, object?> { ["etag"] = "x", ["byteLength"] = 1L },
+                ["policySha256"] = policy,
+                ["descriptorSha256"] = new string('d', 64)
+            },
+            ["pending"] = state == "pending" ? new Dictionary<string, object?>
+            {
+                ["revision"] = new string('a', 40),
+                ["remoteIdentity"] = new Dictionary<string, object?> { ["etag"] = "x", ["byteLength"] = 1L },
+                ["policySha256"] = BundesligaContextSourceDescriptorContract.RosterPolicySha256,
+                ["firstSeenCycleId"] = identity.CycleId,
+                ["lastFailureCode"] = "RevisionRejected"
+            } : null
+        });
+    }
+
+    private static BundesligaContextSourceObservation GuardedMetadataUnchangedObservation(BundesligaContextSourceCycleIdentity identity) => new(
+        BundesligaContextSource.Rosters,
+        BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.Rosters), GuardNow,
+        BundesligaContextSourceDisposition.MetadataUnchanged,
+        $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"AcceptedRevisionUnchanged\",\"remoteIdentityAfter\":null,\"embeddedRevision\":null,\"rawSha256\":null,\"expectedRawSha256\":null,\"rawByteLength\":null,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":\"{GuardedRosterDescriptorSha256}\",\"retainedEvaluation\":\"SourceDateRejected\",\"retainedDiagnostics\":[\"UNKNOWN_SOURCE_DATE\"],\"evaluation\":\"MetadataUnchanged\"}}",
+        null, []);
+
+    private static readonly DateTimeOffset GuardNow = new(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
+    private const string GuardToken = "11111111-1111-4111-8111-111111111111";
+    private static int guardedCycleSequence;
+    private static string NextGuardedCycleId() => $"0198f865-1467-7000-8000-{Interlocked.Increment(ref guardedCycleSequence):D12}";
+    private static readonly string GuardedRosterDescriptorSha256 = GuardedRosterObservation(
+        BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000001")).DescriptorSha256;
+    private sealed class FixedTimeProvider(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
 
     private FirebaseDocumentPublicationRepository CreateRepository() => new(
         fixture.Db,

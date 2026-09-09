@@ -38,18 +38,44 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
         DocumentPublicationRequest request,
         CancellationToken cancellationToken = default)
     {
+        // Firestore can invoke this callback more than once.  Snapshot every input which has
+        // caller-owned collection semantics before the first attempt; retries never observe a
+        // changed guard, template, condition list, document list, or document ordering.
+        request = FreezeRequest(request);
         DocumentPublicationContract.ValidateRequest(Competition, definition, request);
         var scope = new DocumentPublicationScope(Competition, request.CommunityContext, definition.PublicationSet);
-        var ordered = DocumentPublicationContract.ValidateAndOrder(request.Documents);
+        var ordered = DocumentPublicationContract.ValidateCanonicalOrder(request.Documents);
         var targetId = DocumentPublicationContract.ComputeSnapshotId(ordered);
+        var guardedCommit = request.SourcePublicationCommit;
 
         try
         {
             return await _db.RunTransactionAsync(async transaction =>
             {
+                GuardedPublicationState? guarded = null;
+                if (guardedCommit is not null)
+                {
+                    guarded = await ReadAndValidateGuardAsync(transaction, guardedCommit);
+                    if (guarded.ExistingReceipt is not null)
+                    {
+                        var persisted = guarded.ExistingReceipt;
+                        var persistedRequest = CreateReceiptRequest(
+                            guardedCommit,
+                            persisted.Request.SelectedSnapshotId,
+                            persisted.Request.PublicationDisposition);
+                        if (FirebaseContextSourceCycleRepository.ReceiptSemanticJson(persisted.Request)
+                            != FirebaseContextSourceCycleRepository.ReceiptSemanticJson(persistedRequest))
+                            throw new InvalidDataException("STATE_CONFLICT");
+                        if (persisted.Request.SelectedSnapshotId != targetId)
+                            throw new InvalidDataException("Persisted source receipt does not match the requested publication bytes.");
+                        var replay = await LoadSnapshotAsync(transaction, scope, definition, targetId)
+                            ?? throw new InvalidDataException("Persisted source receipt references a missing publication snapshot.");
+                        return new DocumentPublicationResult(ToDocumentDisposition(persisted.Request.PublicationDisposition), replay.Snapshot);
+                    }
+                }
+                var currentSnapshotId = await LoadHeadSnapshotIdAsync(transaction, scope);
                 // Read and validate only the head envelope first. A stale caller must fail before
                 // corrupt current or target graphs are inspected.
-                var currentSnapshotId = await LoadHeadSnapshotIdAsync(transaction, scope);
                 DocumentPublicationContract.EnsureExpectedHead(
                     scope,
                     request.ExpectedPreviousSnapshotId,
@@ -71,12 +97,22 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
 
                 if (disposition == DocumentPublicationDisposition.Unchanged)
                 {
+                    // The only missing-receipt recovery is an already-current target under the
+                    // exact expected head.  Validate the whole immutable graph and metadata,
+                    // then append only the receipt/final reduction; no historical predecessor
+                    // or creation-time inference is permitted.
+                    if (guarded is not null && current!.Snapshot.MetadataJson != request.MetadataJson)
+                        throw new InvalidDataException("STATE_CONFLICT");
+                    if (guarded is not null)
+                        WriteGuardedReceipt(transaction, guarded, guardedCommit!, targetId, ToSourceDisposition(disposition), createdAt: null);
                     return new DocumentPublicationResult(disposition, current!.Snapshot);
                 }
 
                 if (disposition == DocumentPublicationDisposition.Reactivated)
                 {
                     transaction.Set(HeadReference(scope), ToHead(scope, targetId));
+                    if (guarded is not null)
+                        WriteGuardedReceipt(transaction, guarded, guardedCommit!, targetId, ToSourceDisposition(disposition), createdAt: null);
                     return new DocumentPublicationResult(disposition, target!.Snapshot);
                 }
 
@@ -128,6 +164,8 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
                     entries);
                 transaction.Create(SnapshotReference(scope, targetId), ToFirestoreSnapshot(snapshot));
                 transaction.Set(HeadReference(scope), ToHead(scope, targetId));
+                if (guarded is not null)
+                    WriteGuardedReceipt(transaction, guarded, guardedCommit!, targetId, ToSourceDisposition(disposition), createdAt.ToDateTimeOffset());
                 return new DocumentPublicationResult(disposition, snapshot);
             }, cancellationToken: cancellationToken);
         }
@@ -142,6 +180,216 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
             throw;
         }
     }
+
+    private sealed record GuardedPublicationState(
+        BundesligaContextSourceOuterCycle Outer,
+        BundesligaContextSourceCycleClaim Source,
+        BundesligaContextSourceHealth Health,
+        IReadOnlyDictionary<string, BundesligaContextSourceReceipt> PriorReceipts,
+        IReadOnlyDictionary<BundesligaContextSource, BundesligaContextSourceCycleClaim> SourceCycles,
+        BundesligaContextSourceReceipt? ExistingReceipt,
+        BundesligaContextSourceReceipt? PriorCompletedReceipt);
+
+    private static DocumentPublicationRequest FreezeRequest(DocumentPublicationRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        var documents = DocumentPublicationContract.ValidateCanonicalOrder(request.Documents)
+            .Select(document => new DocumentPublicationPayload(document.Kind, document.Name, document.Content, document.Description))
+            .ToImmutableArray();
+        ContextSourcePublicationCommitRequest? commit = null;
+        if (request.SourcePublicationCommit is { } supplied)
+        {
+            var guard = supplied.Guard;
+            var frozenGuard = new ContextSourcePublicationGuard(
+                guard.Competition, guard.Scope, guard.CycleId, guard.Source, guard.ConsumerLaneId,
+                guard.CommunityContext, guard.PublicationSet, guard.BundleDigest, guard.ObservationDigest,
+                guard.WatermarkSequence, guard.WatermarkCycleId);
+            var template = supplied.ReceiptTemplate;
+            var frozenTemplate = new ContextSourcePublicationReceiptTemplate(
+                template.SelectionDisposition, template.SelectedOrigin,
+                new BundesligaContextSourceDates(template.SourceDates.RatedAt, template.SourceDates.MembershipCapturedAt,
+                    template.SourceDates.MembershipEffectiveAt, template.SourceDates.EnrichmentCapturedAt),
+                template.RosterRevision,
+                new BundesligaContextSourceCarriedFields(template.CarriedFields.AgeCount, template.CarriedFields.PositionCount,
+                    template.CarriedFields.MarketValueCount, template.CarriedFields.OldestFieldEffectiveAt),
+                template.ActiveConditions.ToImmutableArray());
+            commit = new ContextSourcePublicationCommitRequest(frozenGuard, frozenTemplate);
+        }
+        return new DocumentPublicationRequest(request.CommunityContext, request.ExpectedPreviousSnapshotId,
+            documents, request.MetadataJson, commit);
+    }
+
+    private async Task<GuardedPublicationState> ReadAndValidateGuardAsync(
+        Transaction transaction,
+        ContextSourcePublicationCommitRequest commit)
+    {
+        var guard = commit.Guard;
+        var receiptRef = _db.Collection(FirebaseContextSourceCycleRepository.Receipts)
+            .Document(BundesligaContextSourceHashing.ReceiptStorageId(guard.Identity, guard.Source, guard.ConsumerLaneId));
+        var existingSnapshot = await transaction.GetSnapshotAsync(receiptRef);
+        if (existingSnapshot.Exists)
+        {
+            var existing = FirebaseContextSourceCycleRepository.ParseReceipt(existingSnapshot, guard.Identity, guard.Source, guard.ConsumerLaneId);
+            return new GuardedPublicationState(null!, null!, null!, new Dictionary<string, BundesligaContextSourceReceipt>(), new Dictionary<BundesligaContextSource, BundesligaContextSourceCycleClaim>(), existing, null);
+        }
+
+        var cycleRef = _db.Collection(FirebaseContextSourceCycleRepository.Cycles).Document(guard.Identity.StorageId);
+        var outer = FirebaseContextSourceCycleRepository.ParseCycle(await transaction.GetSnapshotAsync(cycleRef), guard.Identity);
+        if (outer.Status != BundesligaContextSourceCycleStatus.HandoffReady
+            || outer.BundleSha256 != guard.BundleDigest
+            || !outer.EnabledSources.Contains(guard.Source))
+            throw new InvalidDataException("STATE_CONFLICT");
+        var sourceCycles = new Dictionary<BundesligaContextSource, BundesligaContextSourceCycleClaim>();
+        foreach (var source in outer.EnabledSources)
+        {
+            var sourceRef = _db.Collection(FirebaseContextSourceCycleRepository.Observations)
+                .Document(BundesligaContextSourceHashing.SourceCycleStorageId(guard.Identity, source));
+            sourceCycles[source] = FirebaseContextSourceCycleRepository.ParseSource(
+                await transaction.GetSnapshotAsync(sourceRef), guard.Identity, source, outer.ExpectedConsumers);
+        }
+        var sourceCycle = sourceCycles[guard.Source];
+        if (sourceCycle.Status != BundesligaContextSourceSourceStatus.Finalized
+            || sourceCycle.ObservationDigest != guard.ObservationDigest
+            || !sourceCycle.ReceivedConsumers.SequenceEqual(outer.ExpectedConsumers.Take(sourceCycle.ReceivedConsumers.Count), StringComparer.Ordinal)
+            || outer.ExpectedConsumers.ElementAtOrDefault(sourceCycle.ReceivedConsumers.Count) != guard.ConsumerLaneId)
+            throw new InvalidDataException("STATE_CONFLICT");
+        var healthRef = _db.Collection(FirebaseContextSourceCycleRepository.Health)
+            .Document(BundesligaContextSourceHashing.HealthStorageId(guard.Competition, guard.Identity.ScopeValue, guard.Source));
+        var healthSnapshot = await transaction.GetSnapshotAsync(healthRef);
+        if (!healthSnapshot.Exists) throw new InvalidDataException("STATE_CONFLICT");
+        var health = FirebaseContextSourceCycleRepository.ParseHealth(healthSnapshot, guard.Identity, guard.Source);
+        FirebaseContextSourceCycleRepository.ValidateRosterAcquisitionReasonAgainstRevisionState(
+            sourceCycle.Observation!, healthSnapshot, guard.Identity, guard.Source);
+        if (health.Watermark != new BundesligaContextSourceWatermark(guard.WatermarkSequence, guard.WatermarkCycleId))
+            throw new InvalidDataException("STATE_CONFLICT");
+        BundesligaContextSourceReceipt? priorCompletedReceipt = null;
+        if (commit.ReceiptTemplate.SelectionDisposition == BundesligaContextSourceSelectionDisposition.MetadataUnchanged)
+        {
+            priorCompletedReceipt = await ReadAndValidateAuthoritativePriorSelectionAsync(transaction, guard, health);
+        }
+        var prior = new Dictionary<string, BundesligaContextSourceReceipt>(StringComparer.Ordinal);
+        foreach (var lane in sourceCycle.ReceivedConsumers)
+        {
+            var priorRef = _db.Collection(FirebaseContextSourceCycleRepository.Receipts)
+                .Document(BundesligaContextSourceHashing.ReceiptStorageId(guard.Identity, guard.Source, lane));
+            var priorSnapshot = await transaction.GetSnapshotAsync(priorRef);
+            if (!priorSnapshot.Exists) throw new InvalidDataException("STATE_CONFLICT");
+            prior[lane] = FirebaseContextSourceCycleRepository.ParseReceipt(priorSnapshot, guard.Identity, guard.Source, lane);
+        }
+        return new GuardedPublicationState(outer, sourceCycle, health, prior, sourceCycles, null, priorCompletedReceipt);
+    }
+
+    /// <summary>
+    /// A metadata-unchanged selection is authoritative only when health's named completed
+    /// cycle, immutable observation, lane receipt, all selected fields, and that cycle's
+    /// freshness reduction agree.  The current cycle's reference is intentionally not used.
+    /// </summary>
+    private async Task<BundesligaContextSourceReceipt> ReadAndValidateAuthoritativePriorSelectionAsync(
+        Transaction transaction,
+        ContextSourcePublicationGuard guard,
+        BundesligaContextSourceHealth health)
+    {
+        var priorCycleId = health.LastCompletedCycleId ?? throw new InvalidDataException("STATE_CONFLICT");
+        var identity = BundesligaContextSourceCycleIdentity.FromCycleId(guard.Competition, guard.Scope, priorCycleId);
+        if (identity == guard.Identity) throw new InvalidDataException("STATE_CONFLICT");
+        var outer = FirebaseContextSourceCycleRepository.ParseCycle(
+            await transaction.GetSnapshotAsync(_db.Collection(FirebaseContextSourceCycleRepository.Cycles).Document(identity.StorageId)), identity);
+        if (outer.Status != BundesligaContextSourceCycleStatus.Complete || !outer.EnabledSources.Contains(guard.Source))
+            throw new InvalidDataException("STATE_CONFLICT");
+        var source = FirebaseContextSourceCycleRepository.ParseSource(
+            await transaction.GetSnapshotAsync(_db.Collection(FirebaseContextSourceCycleRepository.Observations)
+                .Document(BundesligaContextSourceHashing.SourceCycleStorageId(identity, guard.Source))),
+            identity, guard.Source, outer.ExpectedConsumers);
+        if (source.Status != BundesligaContextSourceSourceStatus.Complete || source.Observation is null)
+            throw new InvalidDataException("STATE_CONFLICT");
+        var receipt = FirebaseContextSourceCycleRepository.ParseReceipt(
+            await transaction.GetSnapshotAsync(_db.Collection(FirebaseContextSourceCycleRepository.Receipts)
+                .Document(BundesligaContextSourceHashing.ReceiptStorageId(identity, guard.Source, guard.ConsumerLaneId))),
+            identity, guard.Source, guard.ConsumerLaneId);
+        var referenceDate = DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime);
+        var selection = health.CommunitySelections.SingleOrDefault(value => value.ConsumerLaneId == guard.ConsumerLaneId);
+        if (selection is null) throw new InvalidDataException("STATE_CONFLICT");
+        try
+        {
+            BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+                health, selection, receipt, source.Observation, outer, referenceDate);
+        }
+        catch (InvalidDataException)
+        {
+            throw new InvalidDataException("STATE_CONFLICT");
+        }
+        return receipt;
+    }
+
+    private void WriteGuardedReceipt(
+        Transaction transaction,
+        GuardedPublicationState state,
+        ContextSourcePublicationCommitRequest commit,
+        string snapshotId,
+        BundesligaContextSourcePublicationDisposition disposition,
+        DateTimeOffset? createdAt)
+    {
+        var receiptRequest = CreateReceiptRequest(commit, snapshotId, disposition);
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receiptRequest, state.Source.Observation!);
+        BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(receiptRequest, DateOnly.FromDateTime(state.Outer.StalenessReferenceAtUtc.UtcDateTime));
+        var recordedAt = createdAt ?? DateTimeOffset.UtcNow;
+        recordedAt = new DateTimeOffset(recordedAt.UtcDateTime.Ticks - recordedAt.UtcDateTime.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
+        var receipt = new BundesligaContextSourceReceipt(receiptRequest, recordedAt);
+        receipt.Validate();
+        if (state.PriorCompletedReceipt is not null)
+            BundesligaContextSourceReceiptContract.ValidateMetadataUnchangedAgainstPriorReceipt(receiptRequest, state.PriorCompletedReceipt);
+        var received = state.Source.ReceivedConsumers.Append(commit.Guard.ConsumerLaneId).ToArray();
+        var complete = received.Length == state.Outer.ExpectedConsumers.Count;
+        var completedSource = state.Source with
+        {
+            ReceivedConsumers = received,
+            Status = complete ? BundesligaContextSourceSourceStatus.Complete : state.Source.Status,
+            CompletedAtUtc = complete ? recordedAt : null
+        };
+        completedSource.Validate(state.Outer.ExpectedConsumers);
+        var receiptRef = _db.Collection(FirebaseContextSourceCycleRepository.Receipts).Document(receiptRequest.StorageId);
+        transaction.Create(receiptRef, FirebaseContextSourceCycleRepository.ToFirestore(receipt));
+        transaction.Set(_db.Collection(FirebaseContextSourceCycleRepository.Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(receiptRequest.Identity, receiptRequest.Source)), FirebaseContextSourceCycleRepository.ToFirestore(completedSource));
+        if (!complete) return;
+
+        var allReceipts = state.Outer.ExpectedConsumers.Select(lane => lane == receiptRequest.ConsumerLaneId ? receipt : state.PriorReceipts[lane]).ToArray();
+        var reduced = BundesligaContextSourceHealthReducer.ReduceCompleted(state.Health, state.Outer, completedSource, allReceipts);
+        transaction.Set(_db.Collection(FirebaseContextSourceCycleRepository.Health).Document(reduced.StorageId), FirebaseContextSourceCycleRepository.ToFirestore(reduced));
+        if (state.Outer.EnabledSources.All(source => source == receiptRequest.Source || state.SourceCycles[source].Status == BundesligaContextSourceSourceStatus.Complete))
+        {
+            var completedOuter = state.Outer with { Status = BundesligaContextSourceCycleStatus.Complete, CompletedAtUtc = recordedAt };
+            transaction.Set(_db.Collection(FirebaseContextSourceCycleRepository.Cycles).Document(completedOuter.Identity.StorageId), FirebaseContextSourceCycleRepository.ToFirestore(completedOuter));
+        }
+    }
+
+    private static BundesligaContextSourceReceiptRequest CreateReceiptRequest(
+        ContextSourcePublicationCommitRequest commit,
+        string snapshotId,
+        BundesligaContextSourcePublicationDisposition disposition)
+    {
+        var guard = commit.Guard;
+        var template = commit.ReceiptTemplate;
+        return new BundesligaContextSourceReceiptRequest(guard.Identity, guard.Source, guard.ConsumerLaneId,
+            guard.CommunityContext, guard.ObservationDigest, guard.BundleDigest, template.SelectionDisposition,
+            snapshotId, template.SelectedOrigin, disposition, template.SourceDates, template.RosterRevision,
+            template.CarriedFields, template.ActiveConditions);
+    }
+
+    private static BundesligaContextSourcePublicationDisposition ToSourceDisposition(DocumentPublicationDisposition value) => value switch
+    {
+        DocumentPublicationDisposition.Published => BundesligaContextSourcePublicationDisposition.Published,
+        DocumentPublicationDisposition.Unchanged => BundesligaContextSourcePublicationDisposition.Unchanged,
+        DocumentPublicationDisposition.Reactivated => BundesligaContextSourcePublicationDisposition.Reactivated,
+        _ => throw new ArgumentOutOfRangeException(nameof(value))
+    };
+
+    private static DocumentPublicationDisposition ToDocumentDisposition(BundesligaContextSourcePublicationDisposition value) => value switch
+    {
+        BundesligaContextSourcePublicationDisposition.Published => DocumentPublicationDisposition.Published,
+        BundesligaContextSourcePublicationDisposition.Unchanged => DocumentPublicationDisposition.Unchanged,
+        BundesligaContextSourcePublicationDisposition.Reactivated => DocumentPublicationDisposition.Reactivated,
+        _ => throw new InvalidDataException("Source receipt is not a publication disposition.")
+    };
 
     public async Task<LoadedDocumentPublication?> GetLastKnownGoodAsync(
         DocumentPublicationDefinition definition,
