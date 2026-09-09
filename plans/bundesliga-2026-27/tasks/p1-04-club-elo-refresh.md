@@ -1,8 +1,8 @@
 # P1-04 — Refresh Club Elo during context collection
 
-- Status: Accepted ADR-0081 decision; implementation pending
-- Depends on: accepted tracked ADR-0081 specification/publication, fresh C3, then E1; C2 is accepted at `c7cc0712b16834d4013948949f1502514ae46770`
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md)
+- Status: ADR-0081 published/green; C3 correction-limited at local unintegrated `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`; implementation incomplete
+- Depends on: ADR-0081 published and exact-head green at `f37c9e549e952004c5443f25aab363fda6e2811c` (workflow `34319614680`, all 12 jobs); fresh bounded C3 diagnosis/reslicing, correction and review; E1 remains blocked until corrected C3 is accepted, published, and exact-head green; C2 is reusable common evidence
+- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 
 ## Outcome
 
@@ -16,9 +16,12 @@ seven-calendar-day network-candidate limit retain seed/LKG.
 
 ## Work and verification
 
-- [ ] After accepted tracked ADR-0081 specification/publication, a fresh C3
-  writer applies ADR-0081's exact 13 shared/publication/receipt paths.
-- [ ] E1 follows accepted C3 on ADR-0081's exact 17 literal source, command,
+- [ ] C3 is correction-limited at local unintegrated
+  `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
+  diagnosis/reslicing and subsequent correction/review on ADR-0081's exact 13
+  shared/publication/receipt paths; implementation remains incomplete.
+- [ ] E1 remains blocked until corrected C3 is accepted, published, and
+  exact-head green; it then follows ADR-0081's exact 17 literal source, command,
   dependency, mapping and fixture paths; no path is inferred.
 - [ ] Prove descriptor-selected payload isolation, strict Firestore integer
   reconstruction, displayed-date health, hostile fixtures, retries, mapping,
@@ -26,8 +29,9 @@ seven-calendar-day network-candidate limit retain seed/LKG.
 - [ ] Complete fresh incremental/final reviews and exact-head CI.
 
 ADR-0081 closes C3/E1 selection, publication and receipt completion without
-enabling Club Elo. R1 is independent after C2; W1 cannot partially wire Club
-Elo and waits for C2 plus one accepted source.
+enabling Club Elo. ADR-0082 defers R1; only accepted E1 may release W1. W1/A1
+are outside this objective and not released. A1 later owns E1 attribution only,
+while roster attribution waits for future accepted R1.
 The retained HTML body is historical specification evidence, not a live
 acceptance. Synthetic fixtures prove mechanics only; a real accepting-evidence
 recipe is unsupported pending separate specification. Flags remain false.

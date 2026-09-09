@@ -1,18 +1,23 @@
 # P1-04 / P1-05 context-refresh design
 
-- Status: Accepted successor contracts; dormant implementation
-- Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), and [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md)
+- Status: Accepted P1-04 successor contracts; P1-05 dormant closeout with R1 deferred
+- Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 
 ## Seam and graph
 
 One immutable enabled-source observation is reused by eight lanes inside an
 existing context cycle; community heads remain independent and atomic. Disabled
 sources resolve no services and do no source-cycle, artifact, persistence, issue
-or API work. C2 is accepted at `c7cc0712b16834d4013948949f1502514ae46770`.
-The current frontier is accepted tracked ADR-0081 specification/publication,
-then fresh C3→E1. R1 is independent after C2; W1 waits for C2 and one accepted
-source and cannot partially wire Club Elo. This preserves the seven-milestone
-upper bound.
+or API work. C2 is reusable common evidence. ADR-0081 is published/green at
+`f37c9e549e952004c5443f25aab363fda6e2811c` with workflow `34319614680` and
+all 12 jobs green. The current frontier is C3 correction-limited at local
+unintegrated `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
+diagnosis/reslicing and subsequent correction/review. E1 remains blocked until
+corrected C3 is accepted, published, and exact-head green. R1 is deferred under
+ADR-0082 until the exact ADR-0079 sidecar and separate owner gates exist. Only
+accepted E1 may release W1; A1 later links E1 attribution only, while roster
+attribution waits for future accepted R1. W1/A1 do not start here. This
+preserves the seven-milestone upper bound.
 
 ## Source contracts
 
@@ -24,8 +29,11 @@ family-specific numeric rules. P1-05 remains HTML-independent. ADR-0078 owns its
 metadata-before-artifact evaluation matrix, truthful nulls/revisions, retained
 membership/enrichment provenance, and rejection-only real artifact handling.
 ADR-0079 pins dcaribou's only future sidecar/artifact URLs and strict envelope;
-without that sidecar P1-05 is `MetadataUnavailable`, does not request an
-artifact, and retains seed/LKG.
+without that sidecar P1-05 is `MetadataUnavailable`, has no probe, resolves no
+provider, and produces no observation, receipt, artifact, health, publication,
+or API action. It retains seed/LKG with truthful original dates/provenance;
+automatic freshness is unavailable. Existing v1/v2 remain unchanged with no v3
+relabel, migration, or backfill.
 
 ## Publication fence and recovery
 
@@ -57,4 +65,6 @@ fresh final review, one heavy family, exact-head CI. Flags remain false. The
 owner separately controls live acquisition, development persistence, unattended
 HTML reuse, GitHub artifacts/issues, production activation/writes, rollback,
 restoration and completion evidence. Synthetic trusted-date fixtures prove
-mechanics only.
+mechanics only. The rejected R1 `b4c9041b323cd55534194fa894b2f3975ac6526a`
+and rejected closeout `80b7c6c` are unintegrated evidence only, with no
+implementation credit.

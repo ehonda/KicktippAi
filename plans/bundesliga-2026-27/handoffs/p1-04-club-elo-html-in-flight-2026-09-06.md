@@ -1,19 +1,25 @@
 # P1-04 official Club Elo HTML in-flight handoff
 
-- Status: ADR-0081 accepted; tracked specification review/publication then dormant C3/E1
+- Status: ADR-0081 published/green; C3 correction-limited at local unintegrated `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`; E1 blocked
 - Date reconciled: 2026-09-09
 - Task: [P1-04](../tasks/p1-04-club-elo-refresh.md)
-- Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), and [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md)
+- Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 
 ## Resume boundary
 
 The Owner-selected official HTML contract is accepted, but selection is not
-unattended-reuse or activation authority. C1 review/integration is satisfied on
-C2 is accepted at `c7cc0712b16834d4013948949f1502514ae46770`. Resume only
-after fresh tracked ADR-0081 specification acceptance/publication, with a fresh
-C3 writer on its exact 13 shared/publication/receipt paths; E1's exact 17
-source/command/dependency/mapping/fixture paths follow accepted C3. P1-05
-remains independent of HTML; R1 remains sidecar-gated.
+unattended-reuse or activation authority. ADR-0081 is published and exact-head
+green at `f37c9e549e952004c5443f25aab363fda6e2811c` (workflow `34319614680`,
+all 12 jobs). C3 is correction-limited at local unintegrated
+`d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
+diagnosis/reslicing and subsequent correction/review on its exact 13
+shared/publication/receipt paths. E1's exact 17 source/command/dependency/
+mapping/fixture paths remain blocked until corrected C3 is accepted, published,
+and exact-head green. P1-05 remains independent of HTML and deferred under
+[ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md).
+Only accepted E1 may release W1; W1/A1 are outside this objective and not
+released. A1 later owns E1 attribution only, while roster attribution waits for
+future accepted R1.
 
 Two official captures eleven minutes apart were byte-identical: displayed date
 `2026-09-04`, body length `562,238`, SHA-256

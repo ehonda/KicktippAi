@@ -87,3 +87,4 @@ remain authoritative.
 | [0079](0079-pin-roster-refresh-endpoints-and-close-c2-validation.md) | Pinned roster endpoints and C2 validation closure | Accepted |
 | [0080](0080-bound-transitional-context-publication-recovery.md) | Bound transitional context-publication recovery | Accepted; narrowly supersedes ADR-0078's transitional inference paragraph |
 | [0081](0081-close-club-elo-html-publication-and-selection-seams.md) | Close Club Elo HTML publication and selection seams | Accepted; supersedes the specified ADR-0077 C3/E1 seams |
+| [0082](0082-close-dormant-roster-refresh-scope-with-r1-deferred.md) | Close the dormant roster-refresh scope with R1 deferred | Accepted |

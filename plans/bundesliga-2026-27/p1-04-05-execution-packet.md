@@ -1,7 +1,7 @@
 # P1-04 / P1-05 execution packet
 
-- Status: Frozen C3/E1 successor contract — 2026-09-09; implementation pending
-- Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md), and [ADR-0081](decisions/0081-close-club-elo-html-publication-and-selection-seams.md)
+- Status: Frozen C3/E1 successor contract and P1-05 dormant closeout — 2026-09-09; C3 correction-limited at local unintegrated `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, E1 blocked, P1-05 deferred
+- Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 - Scope: dormant P1-04/P1-05 only; no source is enabled
 
 ## Frozen order
@@ -12,11 +12,18 @@
 2. S1 acceptance closes the metadata-authority contract.
 3. S3 accepts ADR-0080's narrow replacement for transitional C1 inference.
    It releases no source and authorizes no implementation by itself.
-4. C2 is accepted at `c7cc0712b16834d4013948949f1502514ae46770`.
-5. The tracked ADR-0081 specification receives fresh acceptance/publication;
-   a fresh C3 writer then applies its 13 exact paths, followed by E1's 17 exact
-   paths. R1 follows C2 independently; W1 follows C2 and one accepted source
-   but cannot partially wire Club Elo. Exact-head CI closes each milestone.
+4. C2 is reusable common evidence only.
+5. ADR-0081 is published and exact-head green at
+   `f37c9e549e952004c5443f25aab363fda6e2811c`, workflow `34319614680`, all 12
+   jobs. C3 is correction-limited at local unintegrated
+   `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
+   diagnosis/reslicing and subsequent correction/review. E1's 17 exact paths
+   remain blocked until corrected C3 is accepted, published, and exact-head
+   green. R1 remains deferred under ADR-0082 pending the exact ADR-0079
+   dcaribou sidecar and separate owner gates. Only accepted E1 may release W1.
+   W1/A1 are outside this objective and not released; A1 later owns E1
+   attribution only, while roster attribution waits for a future accepted R1.
+   Exact-head CI closes future implementation milestones.
 
 This preserves ADR-0074's seven-milestone upper bound; no two/three-writer or
 old-run push assumption applies. One heavy-operation family is serialized.
@@ -86,9 +93,10 @@ authorizes no other change in the file or any additional path. R1 owns only
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaRosterDuckDbFixture.cs`,
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextRostersCommandTests.cs`, and
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/CollectContextRostersCommandFirestoreTests.cs`.
-`A1-source-attribution` alone owns repository-root `README.md` after both R1
-and E1 acceptance and before closeout; R1/E1 do not concurrently own it. S0
-does not edit it.
+`A1-source-attribution` is outside this objective and is not released. When
+later released, it alone owns repository-root `README.md` for E1 attribution
+only after accepted E1; roster attribution waits for a future accepted R1.
+R1/E1 do not concurrently own repository-root `README.md`. S0 does not edit it.
 
 W1 owns only `src/Orchestrator/Commands/Operations/CollectContext/GitHubContextSourceArtifactStore.cs`,
 `src/Orchestrator/Commands/Operations/CollectContext/GitHubContextSourceIssueProjector.cs`,
@@ -138,8 +146,11 @@ The test-project edit makes only the six named fixtures deterministically
 available. E1 adds a direct AngleSharp reference to `Orchestrator.csproj`
 using the existing central 1.7.2 pin; no central-package edit or inferred
 dependency/fixture is authorized. R1 cannot edit shared descriptor/receipt/
-health/fence surfaces. C3 starts only after accepted ADR-0081 specification
-publication and serially reuses C2 paths.
+health/fence surfaces. C3 is correction-limited at local unintegrated
+`d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
+diagnosis/reslicing and subsequent correction/review after published/green
+ADR-0081; E1 remains blocked until corrected C3 is accepted, published, and
+exact-head green. C3 serially reuses C2 paths.
 
 ## Verification and authority
 
@@ -160,11 +171,37 @@ evaluation-precedence validator covers observation diagnostics, retained
 descriptors, and `MetadataUnchanged.retainedDiagnostics`; no per-call ad hoc or
 lexical order is permitted. Direct Firebase proof includes valid non-lexical ADR
 order plus reversed, duplicate, invalid-primary, and unknown-code hostiles.
-R1's frozen hostile/null/replay/supersession
-checklist includes ADR-0079's strict sidecar contract.
+R1's deferred future hostile/null/replay/supersession checklist includes
+ADR-0079's strict sidecar contract. This closeout makes no sidecar/artifact
+probe and no provider, observation, receipt, artifact, health, publication, or
+API action. Dcaribou remains the sole metadata authority; seed/LKG retains
+truthful original dates/provenance and automatic freshness remains unavailable.
+Existing v1/v2 remain unchanged; no v3 relabel, migration, or backfill occurs.
 C3/E1 cover ADR-0081's HTML fixture/reconstruction/integer, receipt-completion
 and family-specific numeric contracts; R1 covers rejection and synthetic
 takeover; disabled sources prove zero resolution/writes/API calls.
 All flags remain false. Separate owner gates cover live acquisition,
 development persistence, unattended HTML reuse, GitHub mutations, production
 writes/activation, rollback, restoration and completion evidence.
+The current eight-pair topology, schedule, serial/default-success and
+non-cancelling behavior, manual-only leaves, no bonus, models, prompts,
+credentials, posting, and copy remain unchanged. The rejected R1
+`b4c9041b323cd55534194fa894b2f3975ac6526a` and rejected closeout `80b7c6c`
+remain unintegrated evidence only and confer no implementation credit.
+
+## Closeout literal scope
+
+```text
+.agents/skills/bundesliga-2026-27-onboarding/references/competition-profile.md
+plans/bundesliga-2026-27/README.md
+plans/bundesliga-2026-27/decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md
+plans/bundesliga-2026-27/decisions/README.md
+plans/bundesliga-2026-27/designs/p1-04-05-context-refresh.md
+plans/bundesliga-2026-27/execution-strategy.md
+plans/bundesliga-2026-27/handoffs/p1-04-club-elo-html-in-flight-2026-09-06.md
+plans/bundesliga-2026-27/handoffs/p1-05-roster-refresh-in-flight-2026-09-06.md
+plans/bundesliga-2026-27/p1-04-05-execution-packet.md
+plans/bundesliga-2026-27/p1-status-snapshot.md
+plans/bundesliga-2026-27/tasks/p1-04-club-elo-refresh.md
+plans/bundesliga-2026-27/tasks/p1-05-roster-refresh.md
+```
