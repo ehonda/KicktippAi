@@ -339,6 +339,93 @@ public sealed class ContextSourceCycleCoordinator
         return receipt;
     }
 
+    /// <summary>
+    /// Completes the receipt that belongs to a prepared lane.  Preparation is the authority
+    /// boundary: a caller cannot use this operation to attach a selection to another cycle,
+    /// source, bundle, observation, or consumer lane.  The repository retains its exact
+    /// semantic-replay transaction, so a guarded Published/Unchanged/Reactivated receipt is
+    /// returned unchanged on replay.
+    /// </summary>
+    public async Task<BundesligaContextSourceReceipt> CompletePreparedReceiptAsync(
+        ContextSourceCyclePreparation preparation,
+        BundesligaContextSourceReceiptRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(preparation);
+        ArgumentNullException.ThrowIfNull(request);
+        request.Validate();
+        preparation.Files.Validate();
+        // A dry run produces an in-memory bundle only; it must never manufacture a receipt.
+        if (preparation.PersistedCycle is null) throw new InvalidOperationException("Dry-run preparation cannot complete a receipt.");
+        var observation = preparation.Files.Bundle.Observations.SingleOrDefault(value => value.Source == request.Source)
+            ?? throw new InvalidDataException("Receipt source is not in the prepared bundle.");
+        if (request.Identity != preparation.Files.Bundle.Cycle
+            || request.ConsumerLaneId != preparation.CurrentLaneId
+            || request.BundleDigest != preparation.Files.Digest
+            || request.ObservationDigest != observation.ObservationDigest)
+            throw new InvalidDataException("Receipt does not match the prepared cycle identity.");
+        ContextSourceBundleHandoff.ValidateBundleCycle(preparation.PersistedCycle, preparation.Files.Bundle);
+        if (preparation.PersistedCycle.BundleSha256 != preparation.Files.Digest)
+            throw new InvalidDataException("Prepared persisted cycle does not bind the exact bundle.");
+        var persisted = await _repository.GetCycleAsync(request.Identity, cancellationToken)
+            ?? throw new InvalidDataException("Prepared persisted cycle is missing.");
+        ContextSourceBundleHandoff.ValidateBundleCycle(persisted, preparation.Files.Bundle);
+        if (persisted.Status is not (BundesligaContextSourceCycleStatus.HandoffReady or BundesligaContextSourceCycleStatus.Complete)
+            || persisted.BundleSha256 != preparation.Files.Digest
+            || !persisted.EnabledSources.Contains(request.Source))
+            throw new InvalidDataException("Prepared persisted cycle is no longer receipt-completable.");
+        var sourceCycle = await _repository.GetSourceCycleAsync(request.Identity, request.Source, cancellationToken)
+            ?? throw new InvalidDataException("Prepared source observation is missing.");
+        sourceCycle.Validate(persisted.ExpectedConsumers);
+        if (sourceCycle.Status is not (BundesligaContextSourceSourceStatus.Finalized or BundesligaContextSourceSourceStatus.Complete)
+            || sourceCycle.Identity != request.Identity
+            || sourceCycle.Source != request.Source
+            || sourceCycle.AttemptId != BundesligaContextSourceHashing.AttemptId(request.Identity, request.Source)
+            || sourceCycle.ObservationDigest != observation.ObservationDigest
+            || sourceCycle.Observation is null
+            || !sourceCycle.Observation.CreateCanonicalUtf8().AsSpan().SequenceEqual(observation.CreateCanonicalUtf8()))
+            throw new InvalidDataException("Prepared source observation does not match the immutable bundle.");
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(request, observation);
+        BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(
+            request, DateOnly.FromDateTime(persisted.StalenessReferenceAtUtc.UtcDateTime));
+        if (request.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published
+            or BundesligaContextSourcePublicationDisposition.Unchanged
+            or BundesligaContextSourcePublicationDisposition.Reactivated)
+        {
+            var priorReceipt = await _repository.GetReceiptAsync(request.Identity, request.Source, request.ConsumerLaneId, cancellationToken);
+            if (priorReceipt is null || !ReceiptRequestsAreSemanticallyEqual(priorReceipt.Request, request))
+                throw new InvalidDataException("STATE_CONFLICT");
+        }
+        return await RecordReceiptAsync(request, cancellationToken);
+    }
+
+    private static bool ReceiptRequestsAreSemanticallyEqual(
+        BundesligaContextSourceReceiptRequest left,
+        BundesligaContextSourceReceiptRequest right)
+        => left.Identity.Competition == right.Identity.Competition
+           && left.Identity.Scope == right.Identity.Scope
+           && left.Identity.CycleId == right.Identity.CycleId
+           && left.Identity.Sequence == right.Identity.Sequence
+           && left.Source == right.Source
+           && left.ConsumerLaneId == right.ConsumerLaneId
+           && left.CommunityContext == right.CommunityContext
+           && left.ObservationDigest == right.ObservationDigest
+           && left.BundleDigest == right.BundleDigest
+           && left.SelectionDisposition == right.SelectionDisposition
+           && left.SelectedSnapshotId == right.SelectedSnapshotId
+           && left.SelectedOrigin == right.SelectedOrigin
+           && left.PublicationDisposition == right.PublicationDisposition
+           && left.SourceDates.RatedAt == right.SourceDates.RatedAt
+           && left.SourceDates.MembershipCapturedAt == right.SourceDates.MembershipCapturedAt
+           && left.SourceDates.MembershipEffectiveAt == right.SourceDates.MembershipEffectiveAt
+           && left.SourceDates.EnrichmentCapturedAt == right.SourceDates.EnrichmentCapturedAt
+           && left.RosterRevision == right.RosterRevision
+           && left.CarriedFields.AgeCount == right.CarriedFields.AgeCount
+           && left.CarriedFields.PositionCount == right.CarriedFields.PositionCount
+           && left.CarriedFields.MarketValueCount == right.CarriedFields.MarketValueCount
+           && left.CarriedFields.OldestFieldEffectiveAt == right.CarriedFields.OldestFieldEffectiveAt
+           && left.ActiveConditions.SequenceEqual(right.ActiveConditions);
+
     private async Task AbortCycleAndReconcileIssuesAsync(BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceError error, CancellationToken cancellationToken)
     {
         var aborted = await _repository.AbortCycleAsync(identity, error, cancellationToken);

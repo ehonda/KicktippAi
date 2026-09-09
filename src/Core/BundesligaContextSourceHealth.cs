@@ -101,6 +101,47 @@ public static class BundesligaContextSourceReceiptContract
         if (receipt.Source == BundesligaContextSource.ClubElo)
         {
             var eligible = observation.Disposition == BundesligaContextSourceDisposition.ArtifactCaptured && evaluation == "Eligible";
+            var html = BundesligaContextSourceDescriptorContract.IsHtmlClubEloDescriptor(descriptor);
+            if (html)
+            {
+                var candidateDate = BundesligaContextSourceDescriptorContract.ClubEloRatedAt(observation.DescriptorJson);
+                var exactHtmlOutcome = evaluation switch
+                {
+                    "Eligible" => receipt.SelectionDisposition is BundesligaContextSourceSelectionDisposition.NetworkAccepted or BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+                    "StaleRejected" => receipt.SelectionDisposition == BundesligaContextSourceSelectionDisposition.NetworkCandidateStale,
+                    "NotNewer" => receipt.SelectionDisposition == BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+                    _ => receipt.SelectionDisposition == BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected
+                };
+                if (!exactHtmlOutcome || receipt.SelectionDisposition == BundesligaContextSourceSelectionDisposition.NetworkAccepted && receipt.SourceDates.RatedAt != candidateDate
+                    || receipt.SelectionDisposition == BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer && receipt.SourceDates.RatedAt < candidateDate)
+                    throw new InvalidDataException("HTML receipt outcome contradicts its exact evaluation.");
+                var htmlPublicationValid = receipt.SelectionDisposition switch
+                {
+                    BundesligaContextSourceSelectionDisposition.NetworkAccepted =>
+                        receipt.SelectedOrigin == BundesligaContextSourceSelectedOrigin.NetworkCandidate
+                        && (receipt.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published
+                            or BundesligaContextSourcePublicationDisposition.Unchanged
+                            or BundesligaContextSourcePublicationDisposition.Reactivated),
+                    BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected
+                        or BundesligaContextSourceSelectionDisposition.NetworkCandidateStale
+                        or BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer =>
+                        receipt.SelectedOrigin == BundesligaContextSourceSelectedOrigin.LaunchSeed
+                            && (receipt.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published
+                                or BundesligaContextSourcePublicationDisposition.Reactivated)
+                        || receipt.SelectedOrigin == BundesligaContextSourceSelectedOrigin.LastKnownGood
+                            && receipt.PublicationDisposition == BundesligaContextSourcePublicationDisposition.NotAttempted,
+                    _ => false
+                };
+                if (!htmlPublicationValid)
+                    throw new InvalidDataException("HTML receipt origin/publication matrix is invalid.");
+                var exactConditions = DeriveHealthConditions(receipt, observation, null)
+                    .Where(condition => condition != BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days);
+                var representedConditions = receipt.ActiveConditions
+                    .Where(condition => condition != BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days);
+                if (!representedConditions.SequenceEqual(exactConditions, EqualityComparer<BundesligaContextSourceHealthCondition>.Default))
+                    throw new InvalidDataException("HTML receipt conditions do not match the exact evaluation reduction.");
+                return;
+            }
             var selectionValid = observation.Disposition switch
             {
                 BundesligaContextSourceDisposition.ArtifactCaptured => receipt.SelectionDisposition is BundesligaContextSourceSelectionDisposition.NetworkAccepted or BundesligaContextSourceSelectionDisposition.NetworkCandidateStale or BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
@@ -113,9 +154,7 @@ public static class BundesligaContextSourceReceiptContract
             var publicationValid = receipt.SelectionDisposition == BundesligaContextSourceSelectionDisposition.NetworkAccepted
                 ? receipt.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published or BundesligaContextSourcePublicationDisposition.Unchanged
                 : receipt.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published or BundesligaContextSourcePublicationDisposition.NotAttempted or BundesligaContextSourcePublicationDisposition.Reactivated;
-            DateOnly? providerRatedAt = descriptor.GetProperty("providerRatedAt").ValueKind == JsonValueKind.Null
-                ? null
-                : DateOnly.ParseExact(descriptor.GetProperty("providerRatedAt").GetString()!, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var providerRatedAt = BundesligaContextSourceDescriptorContract.ClubEloRatedAt(observation.DescriptorJson);
             var acceptedCandidateDateMatches = receipt.SelectionDisposition != BundesligaContextSourceSelectionDisposition.NetworkAccepted
                 || eligible && receipt.SourceDates.RatedAt == providerRatedAt;
             var authoritativeConditions = DeriveHealthConditions(receipt, observation, null);

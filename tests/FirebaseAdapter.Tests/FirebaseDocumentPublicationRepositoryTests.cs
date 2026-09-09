@@ -2,6 +2,7 @@ using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Models;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
+using System.Text.Json;
 using TestUtilities;
 using TUnit.Core;
 
@@ -11,6 +12,15 @@ namespace FirebaseAdapter.Tests;
 [NotInParallel(new[] { FirestoreFixture.PublicationPayloadsParallelKey, "context-source-cycle-repository" })]
 public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture fixture)
 {
+    [Test]
+    public async Task V1_publication_read_reconstructs_a_real_headed_snapshot()
+    {
+        var build = ClubEloBuild(BundesligaClubEloSeed.Default);
+        var published = await CreateRepository().PublishAsync(BundesligaDocumentPublication.ClubElo, BundesligaClubEloPublication.CreateRequest(Community, null, build));
+        var loaded = await CreateRepository().GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, Community);
+        await Assert.That(published.Snapshot.Documents.Length).IsEqualTo(19);
+        await Assert.That(BundesligaClubEloPublication.ReconstructLastKnownGood(loaded!).Entries).IsEquivalentTo(BundesligaClubEloSeed.Default.Entries);
+    }
     private string Community { get; } = $"publication-{Guid.NewGuid():N}";
     private static readonly DocumentPublicationDefinition Definition = new(
         "fixture-publication",
@@ -93,7 +103,9 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
 
         var moved = await publication.PublishAsync(BundesligaDocumentPublication.Rosters,
             RosterRequest(commit: null, expected: published.Snapshot.SnapshotId, contentTag: "moved"));
+        var beforeReplay = await PersistedGraphFingerprintAsync();
         var replay = await publication.PublishAsync(BundesligaDocumentPublication.Rosters, request);
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeReplay);
         await Assert.That(replay.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
         await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(published.Snapshot.SnapshotId);
         await Assert.That((await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, prepared.Guard.Source, prepared.Guard.ConsumerLaneId))!.RecordedAtUtc)
@@ -102,9 +114,13 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         var semanticMismatch = new DocumentPublicationRequest(request.CommunityContext, request.ExpectedPreviousSnapshotId,
             request.Documents, request.MetadataJson, new ContextSourcePublicationCommitRequest(prepared.Guard,
                 prepared.Commit.ReceiptTemplate with { ActiveConditions = [] }));
+        var beforeSemanticMismatch = await PersistedGraphFingerprintAsync();
         await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters, semanticMismatch)).Throws<InvalidDataException>();
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeSemanticMismatch);
+        var beforeByteMismatch = await PersistedGraphFingerprintAsync();
         await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.Rosters,
             RosterRequest(prepared.Commit, null, "different-bytes"))).Throws<InvalidDataException>();
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeByteMismatch);
         await Assert.That((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, BundesligaContextSourceContract.DevelopmentCommunity))!.Snapshot.SnapshotId)
             .IsEqualTo(moved.Snapshot.SnapshotId);
     }
@@ -812,6 +828,152 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
     }
 
     [Test]
+    public async Task Html_v2_club_elo_publication_round_trips_through_the_direct_repository_without_metadata_retrofit()
+    {
+        var repository = CreateRepository();
+        var build = HtmlClubEloBuild();
+        var initial = await repository.PublishAsync(BundesligaDocumentPublication.ClubElo,
+            BundesligaClubEloPublication.CreateRequest(Community, null, build));
+        var unchanged = await repository.PublishAsync(BundesligaDocumentPublication.ClubElo,
+            BundesligaClubEloPublication.CreateRequest(Community, initial.Snapshot.SnapshotId, build));
+        var loaded = await repository.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, Community);
+
+        await Assert.That(initial.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(unchanged.Disposition).IsEqualTo(DocumentPublicationDisposition.Unchanged);
+        await Assert.That(build.MetadataJson).Contains("\"selectedPayload\":{\"path\":\"club-elo/source.html\"");
+        await Assert.That(BundesligaClubEloPublication.ReconstructLastKnownGood(loaded!).Entries.Count).IsEqualTo(18);
+    }
+
+    [Test]
+    public async Task Guarded_html_v2_club_elo_truthfully_covers_published_replay_reactivated_and_unchanged()
+    {
+        await ClearContextSourceStateForGuardedTestAsync();
+        var publication = CreateRepository();
+        var first = await PrepareGuardedHtmlClubEloAsync();
+        var build = first.Build;
+        var published = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, first.Commit, null));
+        var receipt = await first.Cycles.GetReceiptAsync(first.Guard.Identity, BundesligaContextSource.ClubElo, first.Guard.ConsumerLaneId);
+        var movedBuild = (await PrepareGuardedHtmlClubEloAsync(100)).Build;
+        var moved = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo,
+            HtmlClubEloRequest(movedBuild, null, published.Snapshot.SnapshotId));
+        var replay = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, first.Commit, null));
+        var replayReceipt = await first.Cycles.GetReceiptAsync(first.Guard.Identity, BundesligaContextSource.ClubElo, first.Guard.ConsumerLaneId);
+
+        await Assert.That(published.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(published.Snapshot.SnapshotId);
+        await Assert.That(replay.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(receipt!.Request).IsEqualTo(ExpectedReceipt(first.Commit, published.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Published));
+        await Assert.That(replayReceipt!.Request).IsEqualTo(receipt.Request);
+        await Assert.That(replayReceipt.RecordedAtUtc).IsEqualTo(receipt.RecordedAtUtc);
+        await Assert.That((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, BundesligaContextSourceContract.DevelopmentCommunity))!.SnapshotId).IsEqualTo(moved.Snapshot.SnapshotId);
+
+        await Task.WhenAll(fixture.ClearDocumentPublicationsAsync(), fixture.ClearContextDocumentsAsync(), fixture.ClearKpiDocumentsAsync());
+        await ClearContextSourceStateForGuardedTestAsync();
+        var reactivation = await PrepareGuardedHtmlClubEloAsync();
+        var historical = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(reactivation.Build, null, null));
+        var currentBuild = HtmlClubEloBuild(reactivation.Guard.Identity, GuardNow, 200);
+        var current = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(currentBuild, null, historical.Snapshot.SnapshotId));
+        var reactivated = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(reactivation.Build, reactivation.Commit, current.Snapshot.SnapshotId));
+        var reactivatedReceipt = await reactivation.Cycles.GetReceiptAsync(reactivation.Guard.Identity, BundesligaContextSource.ClubElo, reactivation.Guard.ConsumerLaneId);
+        await Assert.That(reactivated.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
+        await Assert.That(reactivatedReceipt!.Request).IsEqualTo(ExpectedReceipt(reactivation.Commit, reactivated.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Reactivated));
+        await Assert.That(reactivated.Snapshot.MetadataJson).IsEqualTo(historical.Snapshot.MetadataJson);
+        await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(historical.Snapshot.CreatedAt);
+        await Assert.That(reactivated.Snapshot.PreviousSnapshotId).IsEqualTo(historical.Snapshot.PreviousSnapshotId);
+
+        await Task.WhenAll(fixture.ClearDocumentPublicationsAsync(), fixture.ClearContextDocumentsAsync(), fixture.ClearKpiDocumentsAsync());
+        await ClearContextSourceStateForGuardedTestAsync();
+        var unchangedCycle = await PrepareGuardedHtmlClubEloAsync();
+        var legacy = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(unchangedCycle.Build, null, null));
+        var unchanged = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(unchangedCycle.Build, unchangedCycle.Commit, legacy.Snapshot.SnapshotId));
+        await Assert.That(unchanged.Disposition).IsEqualTo(DocumentPublicationDisposition.Unchanged);
+        await Assert.That((await unchangedCycle.Cycles.GetReceiptAsync(unchangedCycle.Guard.Identity, BundesligaContextSource.ClubElo, unchangedCycle.Guard.ConsumerLaneId))!.Request)
+            .IsEqualTo(ExpectedReceipt(unchangedCycle.Commit, legacy.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Unchanged));
+        await Assert.That(BundesligaClubEloPublication.ReconstructLastKnownGood((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, BundesligaContextSourceContract.DevelopmentCommunity))!).Entries.Count).IsEqualTo(18);
+    }
+
+    [Test]
+    public async Task Guarded_HTML_seed_CAS_uses_an_absent_head_for_publish_and_historical_reactivation_only()
+    {
+        await ClearContextSourceStateForGuardedTestAsync();
+        var publication = CreateRepository();
+        var build = ClubEloBuild(BundesligaClubEloSeed.Default);
+        var publishedCycle = await PrepareGuardedHtmlSeedCycleAsync();
+        var published = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, publishedCycle.Commit, null));
+        var publishedReceipt = await publishedCycle.Cycles.GetReceiptAsync(publishedCycle.Guard.Identity, BundesligaContextSource.ClubElo, publishedCycle.Guard.ConsumerLaneId);
+        var movedBuild = ClubEloBuild(BundesligaClubEloSnapshot.Create(BundesligaClubEloSeed.Default.Entries.Select(entry => entry.Team.TeamSlug == "b04" ? entry with { Elo = entry.Elo + 1 } : entry).ToArray(), BundesligaClubEloSeed.Default.RatedAt, BundesligaClubEloSeed.Default.CollectedAt, BundesligaClubEloSeed.Default.SourceUrl, BundesligaClubEloSnapshotOrigin.LaunchSeed));
+        var moved = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(movedBuild, null, published.Snapshot.SnapshotId));
+        var watermarkAdvanced = await PrepareGuardedHtmlSeedCycleAsync();
+        var advancedBuild = ClubEloBuild(BundesligaClubEloSnapshot.Create(BundesligaClubEloSeed.Default.Entries.Select(entry => entry.Team.TeamSlug == "b04" ? entry with { Elo = entry.Elo + 2 } : entry).ToArray(), BundesligaClubEloSeed.Default.RatedAt, BundesligaClubEloSeed.Default.CollectedAt, BundesligaClubEloSeed.Default.SourceUrl, BundesligaClubEloSnapshotOrigin.LaunchSeed));
+        var advanced = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo,
+            HtmlClubEloRequest(advancedBuild, watermarkAdvanced.Commit, moved.Snapshot.SnapshotId));
+        var scope = new DocumentPublicationScope(BundesligaContextSourceContract.Competition, BundesligaContextSourceContract.DevelopmentCommunity, BundesligaDocumentPublication.ClubEloPublicationSet);
+        var advancedReceipt = await watermarkAdvanced.Cycles.GetReceiptAsync(watermarkAdvanced.Guard.Identity, BundesligaContextSource.ClubElo, watermarkAdvanced.Guard.ConsumerLaneId);
+        var advancedHealth = await watermarkAdvanced.Cycles.GetHealthAsync(watermarkAdvanced.Guard.Competition, watermarkAdvanced.Guard.Scope, watermarkAdvanced.Guard.Source);
+        await Assert.That(advanced.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(await HeadSnapshotIdAsync(scope)).IsEqualTo(advanced.Snapshot.SnapshotId);
+        await Assert.That(advancedReceipt!.Request).IsEqualTo(ExpectedReceipt(watermarkAdvanced.Commit, advanced.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Published));
+        await Assert.That(advancedHealth!.Watermark).IsEqualTo(new BundesligaContextSourceWatermark(watermarkAdvanced.Guard.CycleSequence, watermarkAdvanced.Guard.CycleId));
+        var beforeReplay = await PersistedGraphFingerprintAsync();
+        var replay = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, publishedCycle.Commit, null));
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeReplay);
+
+        await Assert.That(published.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(publishedReceipt!.Request).IsEqualTo(ExpectedReceipt(publishedCycle.Commit, published.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Published));
+        await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(published.Snapshot.SnapshotId);
+        await Assert.That(await HeadSnapshotIdAsync(scope)).IsEqualTo(advanced.Snapshot.SnapshotId);
+        await Assert.That((await publishedCycle.Cycles.GetReceiptAsync(publishedCycle.Guard.Identity, BundesligaContextSource.ClubElo, publishedCycle.Guard.ConsumerLaneId))!.RecordedAtUtc).IsEqualTo(publishedReceipt.RecordedAtUtc);
+        await Assert.That((await watermarkAdvanced.Cycles.GetHealthAsync(watermarkAdvanced.Guard.Competition, watermarkAdvanced.Guard.Scope, watermarkAdvanced.Guard.Source))!.Watermark)
+            .IsNotEqualTo(new BundesligaContextSourceWatermark(publishedCycle.Guard.CycleSequence, publishedCycle.Guard.CycleId));
+
+        await Task.WhenAll(fixture.ClearDocumentPublicationsAsync(), fixture.ClearContextDocumentsAsync(), fixture.ClearKpiDocumentsAsync());
+        var historical = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, null, null));
+        var current = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(movedBuild, null, historical.Snapshot.SnapshotId));
+        await fixture.Db.Collection("document-publication-heads").Document(DocumentPublicationContract.ComputeHeadId(scope)).DeleteAsync();
+        var reactivationCycle = await PrepareGuardedHtmlSeedCycleAsync();
+        var reactivated = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, reactivationCycle.Commit, null));
+        var reactivatedReceipt = await reactivationCycle.Cycles.GetReceiptAsync(reactivationCycle.Guard.Identity, BundesligaContextSource.ClubElo, reactivationCycle.Guard.ConsumerLaneId);
+
+        await Assert.That(reactivated.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
+        await Assert.That(reactivatedReceipt!.Request).IsEqualTo(ExpectedReceipt(reactivationCycle.Commit, historical.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Reactivated));
+        await Assert.That(reactivated.Snapshot.MetadataJson).IsEqualTo(historical.Snapshot.MetadataJson);
+        await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(historical.Snapshot.CreatedAt);
+        await Assert.That(reactivated.Snapshot.PreviousSnapshotId).IsEqualTo(historical.Snapshot.PreviousSnapshotId);
+        await Assert.That(reactivated.Snapshot.Documents).IsEquivalentTo(historical.Snapshot.Documents);
+
+        var sameHeaded = await PrepareGuardedHtmlSeedCycleAsync();
+        var beforeSameHeadedFailure = await PersistedGraphFingerprintAsync();
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, sameHeaded.Commit, null))).Throws<DocumentPublicationConcurrencyException>();
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeSameHeadedFailure);
+        await Assert.That(await sameHeaded.Cycles.GetReceiptAsync(sameHeaded.Guard.Identity, BundesligaContextSource.ClubElo, sameHeaded.Guard.ConsumerLaneId)).IsNull();
+        await Assert.That((await sameHeaded.Cycles.GetSourceCycleAsync(sameHeaded.Guard.Identity, BundesligaContextSource.ClubElo))!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Finalized);
+        var differentHeaded = await PrepareGuardedHtmlSeedCycleAsync();
+        var beforeDifferentHeadedFailure = await PersistedGraphFingerprintAsync();
+        await Assert.That(() => publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(movedBuild, differentHeaded.Commit, null))).Throws<DocumentPublicationConcurrencyException>();
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeDifferentHeadedFailure);
+        await Assert.That(await differentHeaded.Cycles.GetReceiptAsync(differentHeaded.Guard.Identity, BundesligaContextSource.ClubElo, differentHeaded.Guard.ConsumerLaneId)).IsNull();
+        await Assert.That((await differentHeaded.Cycles.GetCycleAsync(differentHeaded.Guard.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.HandoffReady);
+        await Assert.That(current.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That((await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, BundesligaContextSourceContract.DevelopmentCommunity))!.SnapshotId).IsEqualTo(historical.Snapshot.SnapshotId);
+    }
+
+    [Test]
+    public async Task Guarded_html_v2_contradictory_receipt_is_rejected_before_any_head_or_receipt_mutation()
+    {
+        await ClearContextSourceStateForGuardedTestAsync();
+        var prepared = await PrepareGuardedHtmlClubEloAsync();
+        var hostile = new ContextSourcePublicationCommitRequest(prepared.Guard,
+            prepared.Commit.ReceiptTemplate with
+            {
+                SourceDates = new BundesligaContextSourceDates(new DateOnly(2026, 9, 3), null, null, null)
+            });
+
+        await Assert.That(() => CreateRepository().PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(prepared.Build, hostile, null))).Throws<InvalidDataException>();
+        await Assert.That(await prepared.Cycles.GetReceiptAsync(prepared.Guard.Identity, BundesligaContextSource.ClubElo, prepared.Guard.ConsumerLaneId)).IsNull();
+        await Assert.That(await CreateRepository().GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, BundesligaContextSourceContract.DevelopmentCommunity)).IsNull();
+    }
+
+    [Test]
     public async Task Club_elo_corrupt_headed_payload_fails_before_lkg_reconstruction_or_head_movement()
     {
         var repository = CreateRepository();
@@ -1063,6 +1225,104 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
             BundesligaClubEloSelectionDisposition.NetworkDisabled,
             ["UNATTENDED_NETWORK_USE_NOT_APPROVED"]));
 
+    private static BundesligaClubEloPublicationBuild HtmlClubEloBuild(
+        BundesligaContextSourceCycleIdentity? cycle = null, DateTimeOffset? observedAt = null, int eloOffset = 0)
+    {
+        var observed = observedAt ?? new DateTimeOffset(2026, 9, 4, 12, 0, 0, TimeSpan.Zero);
+        var snapshot = BundesligaClubEloSnapshot.Create(BundesligaTeamManifest.Default.Entries
+            .OrderBy(team => team.TeamSlug, StringComparer.Ordinal)
+            .Select((team, index) => new BundesligaClubEloEntry(team, index + 1, 1500 + eloOffset + index)).ToArray(),
+            new DateOnly(2026, 9, 4), observed, new Uri("https://clubelo.com/GER"), BundesligaClubEloSnapshotOrigin.NetworkCandidate);
+        var sourceCycle = cycle ?? BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 2);
+        var bytes = System.Text.Encoding.UTF8.GetBytes("html");
+        var mapping = new[] { ("b04", "/Leverkusen", "Leverkusen"), ("bmg", "/Gladbach", "Gladbach"), ("bvb", "/Dortmund", "Dortmund"), ("fca", "/Augsburg", "Augsburg"), ("fcb", "/Bayern", "Bayern München"), ("fck", "/Koeln", "Köln"), ("fcu", "/UnionBerlin", "Union Berlin"), ("hsv", "/Hamburg", "Hamburg"), ("m05", "/Mainz", "Mainz"), ("rbl", "/RBLeipzig", "RB Leipzig"), ("s04", "/Schalke", "Schalke"), ("scf", "/Freiburg", "Freiburg"), ("scp", "/Paderborn", "Paderborn"), ("sge", "/Frankfurt", "Frankfurt"), ("sve", "/Elversberg", "Elversberg"), ("svw", "/Werder", "Werder"), ("tsg", "/Hoffenheim", "Hoffenheim"), ("vfb", "/Stuttgart", "Stuttgart") };
+        var rows = snapshot.Entries.OrderBy(entry => entry.Team.TeamSlug, StringComparer.Ordinal).Zip(mapping)
+            .Select(value => new { teamSlug = value.First.Team.TeamSlug, providerRoute = value.Second.Item2, providerDisplayName = value.Second.Item3, globalRank = value.First.GlobalRank, elo = value.First.Elo }).ToArray();
+        var descriptor = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
+            response = new { statusCode = 200, finalUrl = "https://clubelo.com/GER", redirectCount = 0, redirectLocation = (string?)null, mediaType = "text/html", charset = "utf-8", contentEncodings = Array.Empty<string>(), declaredContentLength = (long)bytes.Length },
+            rawSha256 = BundesligaContextSourceHashing.Sha256(bytes), rawByteLength = (long)bytes.Length, parserContract = "club-elo-official-html-parser/v1", displayedDate = "2026-09-04",
+            providerDateEvidence = new { kind = "OfficialHtmlHeadingLink", recipeId = "club-elo-official-html-displayed-date/v1", field = "h1>a[href]", rawValue = "2026-09-04", ratedAt = "2026-09-04" },
+            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
+            sourceRows = rows, evaluation = "Eligible"
+        });
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo,
+            BundesligaContextSourceHashing.AttemptId(sourceCycle, BundesligaContextSource.ClubElo), observed,
+            BundesligaContextSourceDisposition.ArtifactCaptured, descriptor,
+            new BundesligaContextSourcePayload("club-elo/source.html", bytes.Length, BundesligaContextSourceHashing.Sha256(bytes)), []);
+        return BundesligaClubEloPublication.BuildSourceBacked(new BundesligaClubEloSelection(snapshot,
+            BundesligaClubEloSelectionDisposition.NetworkAccepted, []), sourceCycle, observation, bytes);
+    }
+
+    private async Task<(BundesligaClubEloPublicationBuild Build, FirebaseContextSourceCycleRepository Cycles, ContextSourcePublicationGuard Guard, ContextSourcePublicationCommitRequest Commit)> PrepareGuardedHtmlClubEloAsync(int eloOffset = 0)
+    {
+        var identity = BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, NextGuardedCycleId());
+        var cycles = new FirebaseContextSourceCycleRepository(fixture.Db, new FakeLogger<FirebaseContextSourceCycleRepository>(), new FixedTimeProvider(GuardNow.AddMinutes(2)));
+        var outer = new BundesligaContextSourceOuterCycle(identity, GuardNow, GuardNow, BundesligaContextSourceContract.DevelopmentLane,
+            BundesligaContextSourceContract.DevelopmentConsumers, [BundesligaContextSource.ClubElo], BundesligaContextSourceCycleStatus.Claiming);
+        await cycles.CreateOrResumeCycleAsync(outer);
+        await cycles.ClaimSourceAsync(identity, BundesligaContextSource.ClubElo, GuardToken, GuardNow);
+        var build = HtmlClubEloBuild(identity, GuardNow, eloOffset);
+        using var metadata = System.Text.Json.JsonDocument.Parse(build.MetadataJson);
+        var root = metadata.RootElement;
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo,
+            BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), GuardNow,
+            BundesligaContextSourceDisposition.ArtifactCaptured, root.GetProperty("sourceDescriptor").GetRawText(),
+            new BundesligaContextSourcePayload("club-elo/source.html", root.GetProperty("raw_byte_length").GetInt64(), root.GetProperty("raw_sha256").GetString()!), []);
+        await cycles.FinalizeSourceAsync(identity, BundesligaContextSource.ClubElo, GuardToken, observation, GuardNow.AddMinutes(1));
+        var bundle = new string('e', 64);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var guard = new ContextSourcePublicationGuard(identity.Competition, identity.Scope, identity.CycleId, BundesligaContextSource.ClubElo,
+            BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentCommunity, BundesligaDocumentPublication.ClubEloPublicationSet, bundle,
+            observation.ObservationDigest, identity.Sequence, identity.CycleId);
+        var template = new ContextSourcePublicationReceiptTemplate(BundesligaContextSourceSelectionDisposition.NetworkAccepted,
+            BundesligaContextSourceSelectedOrigin.NetworkCandidate, new BundesligaContextSourceDates(new DateOnly(2026, 9, 4), null, null, null),
+            null, new BundesligaContextSourceCarriedFields(0, 0, 0, null), []);
+        return (build, cycles, guard, new ContextSourcePublicationCommitRequest(guard, template));
+    }
+
+    private async Task<(FirebaseContextSourceCycleRepository Cycles, ContextSourcePublicationGuard Guard, ContextSourcePublicationCommitRequest Commit)> PrepareGuardedHtmlSeedCycleAsync()
+    {
+        var identity = BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, NextGuardedCycleId());
+        var cycles = new FirebaseContextSourceCycleRepository(fixture.Db, new FakeLogger<FirebaseContextSourceCycleRepository>(), new FixedTimeProvider(GuardNow.AddMinutes(2)));
+        var outer = new BundesligaContextSourceOuterCycle(identity, GuardNow, GuardNow, BundesligaContextSourceContract.DevelopmentLane,
+            BundesligaContextSourceContract.DevelopmentConsumers, [BundesligaContextSource.ClubElo], BundesligaContextSourceCycleStatus.Claiming);
+        await cycles.CreateOrResumeCycleAsync(outer);
+        await cycles.ClaimSourceAsync(identity, BundesligaContextSource.ClubElo, GuardToken, GuardNow);
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo,
+            BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), GuardNow,
+            BundesligaContextSourceDisposition.Rejected,
+            $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"+/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}", null,
+            ["CLUB_ELO_TRANSPORT_REJECTED"]);
+        await cycles.FinalizeSourceAsync(identity, BundesligaContextSource.ClubElo, GuardToken, observation, GuardNow.AddMinutes(1));
+        var bundle = new string('e', 64);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await cycles.TransitionCycleAsync(identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var guard = new ContextSourcePublicationGuard(identity.Competition, identity.Scope, identity.CycleId, BundesligaContextSource.ClubElo,
+            BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentCommunity, BundesligaDocumentPublication.ClubEloPublicationSet, bundle,
+            observation.ObservationDigest, identity.Sequence, identity.CycleId);
+        var template = new ContextSourcePublicationReceiptTemplate(BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected,
+            BundesligaContextSourceSelectedOrigin.LaunchSeed, new BundesligaContextSourceDates(BundesligaClubEloSeed.Default.RatedAt, null, null, null), null,
+            new BundesligaContextSourceCarriedFields(0, 0, 0, null), BundesligaContextSourceHealth.OrderConditions([
+                BundesligaContextSourceHealthCondition.AcquisitionFailed,
+                BundesligaContextSourceHealthCondition.ClubEloSourceRejected,
+                BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]));
+        return (cycles, guard, new ContextSourcePublicationCommitRequest(guard, template));
+    }
+
+    private static DocumentPublicationRequest HtmlClubEloRequest(BundesligaClubEloPublicationBuild build,
+        ContextSourcePublicationCommitRequest? commit, string? expected) => new(BundesligaContextSourceContract.DevelopmentCommunity, expected, build.Documents, build.MetadataJson, commit);
+
+    private static BundesligaContextSourceReceiptRequest ExpectedReceipt(ContextSourcePublicationCommitRequest commit,
+        string selectedSnapshotId, BundesligaContextSourcePublicationDisposition publicationDisposition) => new(
+        commit.Guard.Identity, commit.Guard.Source, commit.Guard.ConsumerLaneId, commit.Guard.CommunityContext,
+        commit.Guard.ObservationDigest, commit.Guard.BundleDigest, commit.ReceiptTemplate.SelectionDisposition,
+        selectedSnapshotId, commit.ReceiptTemplate.SelectedOrigin, publicationDisposition, commit.ReceiptTemplate.SourceDates,
+        commit.ReceiptTemplate.RosterRevision, commit.ReceiptTemplate.CarriedFields, commit.ReceiptTemplate.ActiveConditions);
+
     private async Task CorruptStoredSnapshotIdAsync(DocumentPublicationScope scope, string metadataId, string storedSnapshotId)
     {
         var reference = fixture.Db.Collection("document-publication-snapshots")
@@ -1076,6 +1336,62 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
             .Document(DocumentPublicationContract.ComputeHeadId(scope))
             .GetSnapshotAsync();
         return snapshot.GetValue<string>("snapshotId");
+    }
+
+    // The raw document fields deliberately retain immutable snapshot metadata, payload versions,
+    // content/hash/metadata fields, source receipts, both cycle levels, health, and received-lane order.
+    private async Task<string> PersistedGraphFingerprintAsync()
+    {
+        var collections = new[]
+        {
+            "document-publication-heads", "document-publication-snapshots", "context-documents", "kpi-documents",
+            "context-source-cycle-receipts", "context-source-cycle-observations", "context-source-cycles", "context-source-health"
+        };
+        var graph = new List<object>();
+        foreach (var collection in collections.OrderBy(value => value, StringComparer.Ordinal))
+        {
+            var snapshot = await fixture.Db.Collection(collection).GetSnapshotAsync();
+            graph.Add(new
+            {
+                Collection = collection,
+                Count = snapshot.Documents.Count,
+                Documents = snapshot.Documents.OrderBy(document => document.Reference.Path, StringComparer.Ordinal)
+                    .Select(SnapshotFingerprint).ToArray()
+            });
+        }
+        return JsonSerializer.Serialize(graph);
+    }
+
+    private static string SnapshotFingerprint(DocumentSnapshot snapshot) => JsonSerializer.Serialize(new
+    {
+        snapshot.Exists,
+        snapshot.Id,
+        Path = snapshot.Reference.Path,
+        CreateTime = snapshot.Exists ? CanonicalTimestamp(snapshot.CreateTime) : null,
+        UpdateTime = snapshot.Exists ? CanonicalTimestamp(snapshot.UpdateTime) : null,
+        Fields = snapshot.Exists ? CanonicalFirestoreValue(snapshot.ToDictionary()) : new SortedDictionary<string, object?>(StringComparer.Ordinal)
+    });
+
+    private static object? CanonicalFirestoreValue(object? value) => value switch
+    {
+        null => null,
+        Timestamp timestamp => CanonicalTimestamp(timestamp),
+        DocumentReference reference => new { Path = reference.Path },
+        GeoPoint point => new { point.Latitude, point.Longitude },
+        byte[] bytes => Convert.ToBase64String(bytes),
+        Google.Protobuf.ByteString bytes => bytes.ToBase64(),
+        IEnumerable<KeyValuePair<string, object>> map => map
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .ToDictionary(pair => pair.Key, pair => CanonicalFirestoreValue(pair.Value), StringComparer.Ordinal),
+        System.Collections.IEnumerable values when value is not string => values.Cast<object?>().Select(CanonicalFirestoreValue).ToArray(),
+        _ => value
+    };
+
+    private static object? CanonicalTimestamp(Timestamp? timestamp)
+    {
+        if (timestamp is null) return null;
+        var proto = timestamp.ToProto();
+        return new { Seconds = proto.Seconds, Nanoseconds = proto.Nanos };
     }
 
     private static string PublicationPayloadId(DocumentPublicationScope scope, string name, int version) =>
