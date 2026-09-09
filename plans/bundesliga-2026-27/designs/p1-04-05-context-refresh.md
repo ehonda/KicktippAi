@@ -10,9 +10,9 @@ existing context cycle; community heads remain independent and atomic. Disabled
 sources resolve no services and do no source-cycle, artifact, persistence, issue
 or API work. C2 is reusable common evidence. ADR-0081 is published/green at
 `f37c9e549e952004c5443f25aab363fda6e2811c` with workflow `34319614680` and
-all 12 jobs green. The current frontier is C3 correction-limited at local
-unintegrated `d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
-diagnosis/reslicing and subsequent correction/review. E1 remains blocked until
+all 12 jobs green. The rejected C3 implementation base is local unintegrated
+`83b4c31b9cf6d2fa2dab87b5b9c7f92fe2a28197`; this accepted re-freeze is a
+bounded seam specification only, not implementation credit. E1 remains blocked until
 corrected C3 is accepted, published, and exact-head green. R1 is deferred under
 ADR-0082 until the exact ADR-0079 sidecar and separate owner gates exist. Only
 accepted E1 may release W1; A1 later links E1 attribution only, while roster
@@ -50,6 +50,36 @@ expected equals a different current head. Prior selection is verified against
 the prior completed cycle's observation, receipt, and
 `stalenessReferenceAtUtc`; current freshness is calculated separately.
 
+## C3 seam-correction contract
+
+The literal HTML matrix is: `NetworkAccepted` + `NetworkCandidate` permits
+`Published`/`Unchanged`/`Reactivated`; retained
+`Rejected`/`Stale`/`NotNewer` + `LaunchSeed` permits
+`Published`/`Reactivated`; the same retained states + `LastKnownGood` permits
+only `NotAttempted`; all else fails. A missing head selects validated seed only
+for an actual guarded `Published`/`Reactivated`; retaining an existing verified
+head selects current `LastKnownGood`, even when immutable publication provenance
+was `LaunchSeed`. Prior health↔prior receipt has exact origin; current
+retained↔prior binds lane/community/snapshot/date and transitions
+`NetworkCandidate`/`LaunchSeed`/`LastKnownGood`→`LastKnownGood`; the head binds
+exact scope/snapshot only. Receipt-first exact replay precedes
+current/prior/head/freshness; changed-origin replay conflicts; prior/current
+freshness use their own reference dates. CSV is unchanged: no global tightening
+or schema/head-origin/provider-interface/Firebase-publication implementation
+change.
+
+Typed manifests require explicit Core JSON root/property/array/nested kind,
+required-string, numeric-range, and canonical guards. Syntax is `JsonException`;
+artifact shape/type/value is `InvalidDataException`; the adapter normalizes only
+those to `HANDOFF_ARTIFACT_CONFLICT`. Do not broadly catch
+`InvalidOperationException`/`ArgumentException`/`FormatException`/
+`OverflowException`/`KeyNotFoundException`; narrow only a demonstrated
+conversion. Filesystem/store/probe/repository/cancellation/I/O/auth/programming
+faults stay visible. Record development `BundleVerified`/`HandoffReady`,
+production `UploadReserved`/`HandoffReady`/follower, and `Complete` outcomes;
+incomplete conflicts abort only with no reacquisition/publication/receipt/prefix
+drift and idempotent retry.
+
 ## Verification and activation
 
 C2 proves exact receipt replay, null round trips, supersession, guard/CAS precedence, crash retry,
@@ -68,3 +98,10 @@ restoration and completion evidence. Synthetic trusted-date fixtures prove
 mechanics only. The rejected R1 `b4c9041b323cd55534194fa894b2f3975ac6526a`
 and rejected closeout `80b7c6c` are unintegrated evidence only, with no
 implementation credit.
+
+C3 proof includes the literal independent matrix, all three transitions, crossed
+origins, mutation-free hostiles, replay, seed publish plus reactivation and
+rejection of seed `Unchanged`; typed wrong types at every envelope/nested level
+with correct hash/order reachability; Core and actual development/production
+load; preserved infrastructure exceptions; coordinator state matrix; and the
+earlier 18,432/all-eight-lane/CSV/v1-v2/path/round-trip proofs.
