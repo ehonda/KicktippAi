@@ -8,17 +8,18 @@ using TUnit.Core;
 namespace FirebaseAdapter.Tests;
 
 [ClassDataSource<FirestoreFixture>(Shared = SharedType.Keyed, Key = FirestoreFixture.SharedKey)]
-[NotInParallel("context-source-cycle-repository")]
+[NotInParallel(new[] { FirestoreFixture.PublicationPayloadsParallelKey, "context-source-cycle-repository" })]
 public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture fixture)
 {
     private const string Cycles = "context-source-cycles";
     private const string Observations = "context-source-cycle-observations";
     private const string Receipts = "context-source-cycle-receipts";
     private const string Health = "context-source-health";
+    private const string Heads = "document-publication-heads";
     [Before(Test)]
     public async Task ClearAsync()
     {
-        foreach (var collection in new[] { Cycles, Observations, Receipts, Health })
+        foreach (var collection in new[] { Cycles, Observations, Receipts, Health, Heads })
         {
             var snapshot = await fixture.Db.Collection(collection).GetSnapshotAsync();
             foreach (var document in snapshot.Documents) await document.Reference.DeleteAsync();
@@ -464,6 +465,328 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         await Assert.That(receipt.Request.PublicationDisposition).IsEqualTo(BundesligaContextSourcePublicationDisposition.Published);
         await Assert.That(receipt.Request.SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LaunchSeed);
         await Assert.That((await repository.GetCycleAsync(cycle.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+    }
+
+    [Test]
+    public async Task Club_Elo_not_attempted_HTML_receipt_requires_the_authoritative_prior_selection_and_matching_head_but_replays_after_head_loss()
+    {
+        var repository = CreateRepository();
+        var prior = Cycle("0198f865-1467-7000-8000-000000000070", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(prior);
+        await repository.ClaimSourceAsync(prior.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        var priorObservation = HtmlEloObservation(prior.Identity); var priorBundle = new string('e', 64);
+        await repository.FinalizeSourceAsync(prior.Identity, BundesligaContextSource.ClubElo, Token('1'), priorObservation, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(prior.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, priorBundle);
+        await repository.TransitionCycleAsync(prior.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, priorBundle);
+        await repository.RecordReceiptAsync(HtmlReceipt(prior.Identity, priorObservation, priorBundle, BundesligaContextSourceSelectionDisposition.NetworkAccepted, BundesligaContextSourceSelectedOrigin.NetworkCandidate, BundesligaContextSourcePublicationDisposition.Published, new DateOnly(2026, 9, 4), []));
+
+        var current = Cycle("0198f865-1468-7000-8000-000000000071", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(current);
+        await repository.ClaimSourceAsync(current.Identity, BundesligaContextSource.ClubElo, Token('2'), Now());
+        var observation = HtmlEloObservation(current.Identity); var bundle = new string('d', 64);
+        await repository.FinalizeSourceAsync(current.Identity, BundesligaContextSource.ClubElo, Token('2'), observation, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(current.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(current.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var request = HtmlReceipt(current.Identity, observation, bundle, BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, BundesligaContextSourceSelectedOrigin.LastKnownGood, BundesligaContextSourcePublicationDisposition.NotAttempted, new DateOnly(2026, 9, 4), []);
+        var scope = new DocumentPublicationScope(current.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
+        var headReference = fixture.Db.Collection(Heads).Document(DocumentPublicationContract.ComputeHeadId(scope));
+
+        InvalidDataException? missingHead = null;
+        var beforeMissingHeadFailure = await PersistedGraphFingerprintAsync();
+        try { await repository.RecordReceiptAsync(request); }
+        catch (InvalidDataException exception) { missingHead = exception; }
+        await Assert.That(missingHead).IsNotNull();
+        await Assert.That(missingHead!.Message).IsEqualTo("Stored document identity/property set is invalid.");
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeMissingHeadFailure);
+        await AssertNoCurrentReceiptMutation(current.Identity);
+        await headReference.SetAsync(new Dictionary<string, object> { ["competition"] = scope.Competition, ["communityContext"] = scope.CommunityContext, ["publicationSet"] = scope.PublicationSet, ["snapshotId"] = request.SelectedSnapshotId });
+        var recorded = await repository.RecordReceiptAsync(request);
+        await headReference.UpdateAsync("snapshotId", new string('f', 64));
+        var beforeMovedReplay = await PersistedGraphFingerprintAsync();
+        var movedReplay = await repository.RecordReceiptAsync(request);
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeMovedReplay);
+        await headReference.DeleteAsync();
+        var beforeMissingHeadReplay = await PersistedGraphFingerprintAsync();
+        var replay = await repository.RecordReceiptAsync(request);
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeMissingHeadReplay);
+
+        await Assert.That(recorded.RecordedAtUtc).IsEqualTo(movedReplay.RecordedAtUtc);
+        await Assert.That(recorded.RecordedAtUtc).IsEqualTo(replay.RecordedAtUtc);
+        await Assert.That(replay.Request.SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LastKnownGood);
+        InvalidDataException? changedOrigin = null;
+        var beforeChangedOrigin = await PersistedGraphFingerprintAsync();
+        try { await repository.RecordReceiptAsync(request with { SelectedOrigin = BundesligaContextSourceSelectedOrigin.LaunchSeed }); }
+        catch (InvalidDataException exception) { changedOrigin = exception; }
+        await Assert.That(changedOrigin).IsNotNull();
+        await Assert.That(changedOrigin!.Message).IsEqualTo("STATE_CONFLICT");
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeChangedOrigin);
+        await Assert.That((await repository.GetReceiptAsync(current.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))!.RecordedAtUtc).IsEqualTo(recorded.RecordedAtUtc);
+    }
+
+    [Test]
+    [Arguments(BundesligaContextSourceSelectionDisposition.NetworkAccepted, BundesligaContextSourceSelectedOrigin.NetworkCandidate, BundesligaContextSourcePublicationDisposition.Published)]
+    [Arguments(BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected, BundesligaContextSourceSelectedOrigin.LaunchSeed, BundesligaContextSourcePublicationDisposition.Published)]
+    [Arguments(BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected, BundesligaContextSourceSelectedOrigin.LaunchSeed, BundesligaContextSourcePublicationDisposition.Reactivated)]
+    public async Task HTML_retained_prior_origins_transition_to_current_LastKnownGood_not_attempted(
+        BundesligaContextSourceSelectionDisposition priorSelection,
+        BundesligaContextSourceSelectedOrigin priorOrigin,
+        BundesligaContextSourcePublicationDisposition priorPublication)
+    {
+        var scenario = await CreateHtmlRetainedScenarioAsync(priorSelection, priorOrigin, priorPublication);
+        var current = await scenario.Repository.RecordReceiptAsync(scenario.Request);
+        await Assert.That(current.Request.SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LastKnownGood);
+        await Assert.That(current.Request.PublicationDisposition).IsEqualTo(BundesligaContextSourcePublicationDisposition.NotAttempted);
+
+        var next = Cycle("0198f865-1469-7000-8000-0000000000b4", [BundesligaContextSource.ClubElo]);
+        await scenario.Repository.CreateOrResumeCycleAsync(next);
+        await scenario.Repository.ClaimSourceAsync(next.Identity, BundesligaContextSource.ClubElo, Token('3'), Now());
+        var observation = HtmlEloObservation(next.Identity); var bundle = new string('b', 64);
+        await scenario.Repository.FinalizeSourceAsync(next.Identity, BundesligaContextSource.ClubElo, Token('3'), observation, Now().AddMinutes(1));
+        await scenario.Repository.TransitionCycleAsync(next.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await scenario.Repository.TransitionCycleAsync(next.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var lkgToLkg = HtmlReceipt(next.Identity, observation, bundle, BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+            BundesligaContextSourceSelectedOrigin.LastKnownGood, BundesligaContextSourcePublicationDisposition.NotAttempted,
+            current.Request.SourceDates.RatedAt!.Value, []);
+        var transitioned = await scenario.Repository.RecordReceiptAsync(lkgToLkg);
+        await Assert.That(transitioned.Request.SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LastKnownGood);
+        await Assert.That(transitioned.Request.PublicationDisposition).IsEqualTo(BundesligaContextSourcePublicationDisposition.NotAttempted);
+    }
+
+    [Test]
+    [Arguments("no-prior")]
+    [Arguments("missing-prior-outer")]
+    [Arguments("crossed-prior-outer")]
+    [Arguments("missing-prior-source")]
+    [Arguments("corrupt-prior-source")]
+    [Arguments("missing-prior-receipt")]
+    [Arguments("corrupt-prior-receipt")]
+    [Arguments("health-selection")]
+    [Arguments("missing-health")]
+    [Arguments("prior-health-selected-date")]
+    [Arguments("prior-health-origin")]
+    [Arguments("prior-receipt-origin")]
+    [Arguments("prior-observation-outcome-evaluation-mismatch")]
+    [Arguments("current-launch-seed")]
+    [Arguments("prior-freshness")]
+    [Arguments("hostile-snapshot")]
+    [Arguments("selected-date")]
+    [Arguments("missing-head")]
+    [Arguments("wrong-scope-head")]
+    [Arguments("malformed-head")]
+    [Arguments("extra-head-field")]
+    [Arguments("moved-head")]
+    [Arguments("wrong-current-freshness")]
+    public async Task New_HTML_Club_Elo_not_attempted_hostiles_are_mutation_free(string hostile)
+    {
+        var scenario = await CreateHtmlRetainedScenarioAsync();
+        var request = scenario.Request;
+        var healthReference = fixture.Db.Collection(Health).Document(BundesligaContextSourceHashing.HealthStorageId(scenario.Current.Identity.Competition, scenario.Current.Identity.ScopeValue, BundesligaContextSource.ClubElo));
+        var healthIsReadable = hostile is not ("health-selection" or "missing-health");
+        switch (hostile)
+        {
+            case "no-prior": await healthReference.UpdateAsync("lastCompletedCycleId", null!); break;
+            case "missing-prior-outer": await fixture.Db.Collection(Cycles).Document(scenario.Prior.Identity.StorageId).DeleteAsync(); break;
+            case "crossed-prior-outer": await fixture.Db.Collection(Cycles).Document(scenario.Prior.Identity.StorageId).UpdateAsync("bundleSha256", new string('f', 64)); break;
+            case "missing-prior-source": await fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo)).DeleteAsync(); break;
+            case "corrupt-prior-source": await fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo)).UpdateAsync("status", "Finalized"); break;
+            case "missing-prior-receipt": await fixture.Db.Collection(Receipts).Document(BundesligaContextSourceHashing.ReceiptStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane)).DeleteAsync(); break;
+            case "corrupt-prior-receipt": await fixture.Db.Collection(Receipts).Document(BundesligaContextSourceHashing.ReceiptStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane)).UpdateAsync("selectionDisposition", "999"); break;
+            case "health-selection": await healthReference.UpdateAsync("communitySelections", Array.Empty<object>()); break;
+            case "missing-health": await healthReference.DeleteAsync(); break;
+            case "prior-health-selected-date": await UpdatePriorHealthSelectedDateAsync(healthReference, new DateOnly(2026, 9, 5)); break;
+            case "prior-health-origin": await UpdatePriorHealthSelectedOriginAsync(healthReference, BundesligaContextSourceSelectedOrigin.LastKnownGood); break;
+            case "prior-receipt-origin":
+                var priorObservation = (await scenario.Repository.GetSourceCycleAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo))!.Observation!;
+                var independentlyValid = HtmlReceipt(scenario.Prior.Identity, priorObservation, new string('e', 64),
+                    BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, BundesligaContextSourceSelectedOrigin.LaunchSeed,
+                    BundesligaContextSourcePublicationDisposition.Published, new DateOnly(2026, 9, 4), []);
+                independentlyValid.Validate();
+                BundesligaContextSourceReceiptContract.ValidateAgainstObservation(independentlyValid, priorObservation);
+                BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(independentlyValid, new DateOnly(2026, 9, 6));
+                await fixture.Db.Collection(Receipts).Document(BundesligaContextSourceHashing.ReceiptStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane)).UpdateAsync(new Dictionary<string, object>
+                {
+                    ["selectionDisposition"] = independentlyValid.SelectionDisposition.ToString(),
+                    ["selectedOrigin"] = independentlyValid.SelectedOrigin.ToString(),
+                    ["publicationDisposition"] = independentlyValid.PublicationDisposition.ToString()
+                });
+                break;
+            case "prior-observation-outcome-evaluation-mismatch":
+                var alternateObservation = HtmlTransportEloObservation(scenario.Prior.Identity);
+                alternateObservation.Validate();
+                var originalPriorObservation = (await scenario.Repository.GetSourceCycleAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo))!.Observation!;
+                var originalPriorReceipt = (await scenario.Repository.GetReceiptAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))!;
+                originalPriorObservation.Validate(); originalPriorReceipt.Validate();
+                BundesligaContextSourceReceiptContract.ValidateAgainstObservation(originalPriorReceipt.Request, originalPriorObservation);
+                BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(originalPriorReceipt.Request, new DateOnly(2026, 9, 6));
+                var priorSourceReference = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo));
+                var priorSourceMap = (await priorSourceReference.GetSnapshotAsync()).ToDictionary();
+                var alternateObservationMap = new Dictionary<string, object>((IDictionary<string, object>)priorSourceMap["observation"], StringComparer.Ordinal);
+                alternateObservationMap["disposition"] = alternateObservation.Disposition.ToString();
+                alternateObservationMap["descriptorSha256"] = alternateObservation.DescriptorSha256;
+                alternateObservationMap["descriptor"] = FirestoreMap(alternateObservation.DescriptorJson);
+                alternateObservationMap["diagnostics"] = alternateObservation.Diagnostics.ToArray();
+                alternateObservationMap["payload"] = null;
+                await priorSourceReference.UpdateAsync(new Dictionary<string, object>
+                {
+                    ["observation"] = alternateObservationMap,
+                    ["observationDigest"] = alternateObservation.ObservationDigest
+                });
+                await fixture.Db.Collection(Receipts).Document(BundesligaContextSourceHashing.ReceiptStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane)).UpdateAsync(new Dictionary<string, object>
+                {
+                    ["observationDigest"] = alternateObservation.ObservationDigest
+                });
+                var persistedAlternateObservation = (await scenario.Repository.GetSourceCycleAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo))!.Observation!;
+                var persistedPriorReceipt = (await scenario.Repository.GetReceiptAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))!;
+                persistedAlternateObservation.Validate(); persistedPriorReceipt.Validate();
+                BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(persistedPriorReceipt.Request, new DateOnly(2026, 9, 6));
+                await Assert.That(persistedPriorReceipt.Request with { ObservationDigest = originalPriorReceipt.Request.ObservationDigest }).IsEqualTo(originalPriorReceipt.Request);
+                await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(persistedPriorReceipt.Request, persistedAlternateObservation)).Throws<InvalidDataException>();
+                break;
+            case "current-launch-seed": request = request with { SelectedOrigin = BundesligaContextSourceSelectedOrigin.LaunchSeed, PublicationDisposition = BundesligaContextSourcePublicationDisposition.Published }; break;
+            case "prior-freshness": await fixture.Db.Collection(Receipts).Document(BundesligaContextSourceHashing.ReceiptStorageId(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane)).UpdateAsync("activeConditions", new[] { "CLUB_ELO_STALE_GT_7_DAYS" }); break;
+            case "hostile-snapshot": request = request with { SelectedSnapshotId = new string('f', 64) }; await scenario.Head.UpdateAsync("snapshotId", request.SelectedSnapshotId); break;
+            case "selected-date": request = request with { SourceDates = request.SourceDates with { RatedAt = new DateOnly(2026, 9, 5) } }; break;
+            case "missing-head": await scenario.Head.DeleteAsync(); break;
+            case "wrong-scope-head": await scenario.Head.UpdateAsync("communityContext", "wrong-community"); break;
+            case "malformed-head": await scenario.Head.UpdateAsync("snapshotId", 1L); break;
+            case "extra-head-field": await scenario.Head.UpdateAsync("unexpected", true); break;
+            case "moved-head": await scenario.Head.UpdateAsync("snapshotId", new string('f', 64)); break;
+            case "wrong-current-freshness": request = request with { ActiveConditions = [BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days] }; break;
+            default: throw new ArgumentOutOfRangeException(nameof(hostile));
+        }
+        var beforeFailure = await PersistedGraphFingerprintAsync();
+
+        await Assert.That(() => scenario.Repository.RecordReceiptAsync(request)).Throws<InvalidDataException>();
+        await AssertNoCurrentReceiptMutation(scenario.Current.Identity, healthIsReadable);
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeFailure);
+    }
+
+    [Test]
+    public async Task HTML_retained_prior_freshness_reference_mismatch_is_state_conflict_without_current_receipt_mutation()
+    {
+        var scenario = await CreateHtmlRetainedScenarioAsync();
+        var canonicalUtc = Now().AddDays(10);
+        await fixture.Db.Collection(Cycles).Document(scenario.Prior.Identity.StorageId).UpdateAsync(new Dictionary<string, object>
+        {
+            ["startedAtUtc"] = BundesligaContextSourceContract.FormatUtc(canonicalUtc),
+            ["stalenessReferenceAtUtc"] = BundesligaContextSourceContract.FormatUtc(canonicalUtc)
+        });
+
+        var outer = (await scenario.Repository.GetCycleAsync(scenario.Prior.Identity))!;
+        var source = (await scenario.Repository.GetSourceCycleAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo))!;
+        var receipt = (await scenario.Repository.GetReceiptAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))!;
+        var health = (await scenario.Repository.GetHealthAsync(scenario.Prior.Identity.Competition, scenario.Prior.Identity.Scope, BundesligaContextSource.ClubElo))!;
+        var selection = health.CommunitySelections.Single();
+
+        outer.Validate(); source.Validate(outer.ExpectedConsumers); receipt.Validate(); health.Validate(); source.Observation!.Validate();
+        await Assert.That(outer.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+        await Assert.That(source.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Complete);
+        await Assert.That(outer.StartedAtUtc).IsEqualTo(canonicalUtc);
+        await Assert.That(outer.StalenessReferenceAtUtc).IsEqualTo(canonicalUtc);
+        await Assert.That(outer.Identity).IsEqualTo(receipt.Request.Identity);
+        await Assert.That(source.Identity).IsEqualTo(receipt.Request.Identity);
+        await Assert.That(health.Competition).IsEqualTo(receipt.Request.Identity.Competition);
+        await Assert.That(health.Scope).IsEqualTo(receipt.Request.Identity.Scope);
+        await Assert.That(health.Source).IsEqualTo(receipt.Request.Source);
+        await Assert.That(selection.ConsumerLaneId).IsEqualTo(receipt.Request.ConsumerLaneId);
+        await Assert.That(selection.CommunityContext).IsEqualTo(receipt.Request.CommunityContext);
+        await Assert.That(selection.SelectedSnapshotId).IsEqualTo(receipt.Request.SelectedSnapshotId);
+        await Assert.That(selection.SelectedOrigin).IsEqualTo(receipt.Request.SelectedOrigin);
+        await Assert.That(selection.RatedAt).IsEqualTo(receipt.Request.SourceDates.RatedAt);
+        await Assert.That(selection.MembershipCapturedAt).IsEqualTo(receipt.Request.SourceDates.MembershipCapturedAt);
+        await Assert.That(selection.MembershipEffectiveAt).IsEqualTo(receipt.Request.SourceDates.MembershipEffectiveAt);
+        await Assert.That(selection.EnrichmentCapturedAt).IsEqualTo(receipt.Request.SourceDates.EnrichmentCapturedAt);
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receipt.Request, source.Observation);
+
+        InvalidDataException? directFailure = null;
+        try
+        {
+            BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+                health, selection, receipt, source.Observation, outer,
+                DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime));
+        }
+        catch (InvalidDataException exception) { directFailure = exception; }
+        await Assert.That(directFailure).IsNotNull();
+        await Assert.That(directFailure!.Message).IsEqualTo("Receipt freshness conditions do not match the cycle staleness reference.");
+
+        var beforeFailure = await PersistedGraphFingerprintAsync();
+        InvalidDataException? conflict = null;
+        try { await scenario.Repository.RecordReceiptAsync(scenario.Request); }
+        catch (InvalidDataException exception) { conflict = exception; }
+        await Assert.That(conflict).IsNotNull();
+        await Assert.That(conflict!.Message).IsEqualTo("STATE_CONFLICT");
+        await AssertNoCurrentReceiptMutation(scenario.Current.Identity);
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeFailure);
+    }
+
+    [Test]
+    public async Task Production_prior_lane_and_community_bindings_reject_valid_cross_lane_receipts_without_mutation()
+    {
+        var repository = CreateRepository();
+        var prior = ProductionCycle(606, [BundesligaContextSource.ClubElo]);
+        await CompleteRejectedEloCycle(repository, prior);
+
+        var outer = (await repository.GetCycleAsync(prior.Identity))!;
+        var source = (await repository.GetSourceCycleAsync(prior.Identity, BundesligaContextSource.ClubElo))!;
+        var health = (await repository.GetHealthAsync(prior.Identity.Competition, prior.Identity.Scope, BundesligaContextSource.ClubElo))!;
+        var firstLane = "pes-squad-context";
+        var secondLane = "schadensfresse-context";
+        var firstSelection = health.CommunitySelections.Single(selection => selection.ConsumerLaneId == firstLane);
+        var secondReceipt = (await repository.GetReceiptAsync(prior.Identity, BundesligaContextSource.ClubElo, secondLane))!;
+
+        outer.Validate(); source.Validate(outer.ExpectedConsumers); health.Validate(); secondReceipt.Validate(); source.Observation!.Validate();
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(secondReceipt.Request, source.Observation);
+        BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(secondReceipt.Request, DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime));
+        await Assert.That(firstSelection.ConsumerLaneId).IsNotEqualTo(secondReceipt.Request.ConsumerLaneId);
+        await Assert.That(firstSelection.CommunityContext).IsNotEqualTo(secondReceipt.Request.CommunityContext);
+
+        var beforeFailure = await PersistedGraphFingerprintAsync();
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+            health, firstSelection, secondReceipt, source.Observation!, outer,
+            DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime))).Throws<InvalidDataException>();
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeFailure);
+    }
+
+    [Test]
+    public async Task Authoritative_prior_selection_rejects_a_valid_outer_with_a_different_cycle_identity_without_mutation()
+    {
+        var scenario = await CreateHtmlRetainedScenarioAsync();
+        var outer = (await scenario.Repository.GetCycleAsync(scenario.Prior.Identity))!;
+        var source = (await scenario.Repository.GetSourceCycleAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo))!;
+        var receipt = (await scenario.Repository.GetReceiptAsync(scenario.Prior.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))!;
+        var health = (await scenario.Repository.GetHealthAsync(scenario.Prior.Identity.Competition, scenario.Prior.Identity.Scope, BundesligaContextSource.ClubElo))!;
+        var selection = health.CommunitySelections.Single();
+        var differentIdentityOuter = outer with { Identity = scenario.Current.Identity };
+
+        outer.Validate(); source.Validate(outer.ExpectedConsumers); receipt.Validate(); health.Validate(); source.Observation!.Validate(); differentIdentityOuter.Validate();
+        await Assert.That(outer.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+        await Assert.That(source.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Complete);
+        await Assert.That(differentIdentityOuter.Identity).IsNotEqualTo(receipt.Request.Identity);
+        await Assert.That(differentIdentityOuter.BundleSha256).IsEqualTo(receipt.Request.BundleDigest);
+        await Assert.That(differentIdentityOuter with { Identity = outer.Identity }).IsEqualTo(outer);
+        await Assert.That(selection.ConsumerLaneId).IsEqualTo(receipt.Request.ConsumerLaneId);
+        await Assert.That(selection.CommunityContext).IsEqualTo(receipt.Request.CommunityContext);
+        await Assert.That(selection.SelectedSnapshotId).IsEqualTo(receipt.Request.SelectedSnapshotId);
+        await Assert.That(selection.SelectedOrigin).IsEqualTo(receipt.Request.SelectedOrigin);
+        await Assert.That(selection.RatedAt).IsEqualTo(receipt.Request.SourceDates.RatedAt);
+        await Assert.That(selection.MembershipCapturedAt).IsEqualTo(receipt.Request.SourceDates.MembershipCapturedAt);
+        await Assert.That(selection.MembershipEffectiveAt).IsEqualTo(receipt.Request.SourceDates.MembershipEffectiveAt);
+        await Assert.That(selection.EnrichmentCapturedAt).IsEqualTo(receipt.Request.SourceDates.EnrichmentCapturedAt);
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receipt.Request, source.Observation);
+        BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(receipt.Request, DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime));
+
+        var beforeFailure = await PersistedGraphFingerprintAsync();
+        InvalidDataException? directFailure = null;
+        try
+        {
+            BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+                health, selection, receipt, source.Observation, differentIdentityOuter,
+                DateOnly.FromDateTime(differentIdentityOuter.StalenessReferenceAtUtc.UtcDateTime));
+        }
+        catch (InvalidDataException exception) { directFailure = exception; }
+        await Assert.That(directFailure).IsNotNull();
+        await Assert.That(directFailure!.Message).IsEqualTo("Health selection does not match its authoritative prior receipt.");
+        await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeFailure);
     }
 
     [Test]
@@ -947,6 +1270,112 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         }
 
         await Assert.That(() => repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Html_Club_Elo_descriptor_round_trips_with_strict_nested_integer_reconstruction()
+    {
+        var repository = CreateRepository();
+        var cycle = Cycle("0198f865-1468-7000-8000-000000000083", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(cycle);
+        await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        var observation = HtmlEloObservation(cycle.Identity);
+        await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), observation, Now().AddMinutes(1));
+
+        var roundTripped = await repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo);
+        await Assert.That(roundTripped!.Observation!.DescriptorSha256).IsEqualTo(observation.DescriptorSha256);
+        var sourceReference = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(cycle.Identity, BundesligaContextSource.ClubElo));
+        await sourceReference.UpdateAsync("observation.descriptor.response.redirectCount", 0.0);
+        await Assert.That(() => repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Html_Club_Elo_Firestore_reconstruction_rejects_every_native_integer_coercion_and_nested_shape_hostile()
+    {
+        var mutations = new (string Field, double Value)[]
+        {
+            ("rawByteLength", 3.0), ("response.statusCode", 200.0), ("response.redirectCount", 0.0), ("response.declaredContentLength", 3.0),
+            ("sourceRows.0.globalRank", 1.0), ("sourceRows.0.elo", 1500.0)
+        };
+        var sequence = 84;
+        foreach (var mutation in mutations)
+        {
+            var repository = CreateRepository();
+            var cycle = Cycle($"0198f865-1468-7000-8000-{sequence++:D12}", [BundesligaContextSource.ClubElo]);
+            await repository.CreateOrResumeCycleAsync(cycle);
+            await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+            await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), HtmlEloObservation(cycle.Identity), Now().AddMinutes(1));
+            var source = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(cycle.Identity, BundesligaContextSource.ClubElo));
+            if (mutation.Field.StartsWith("sourceRows.", StringComparison.Ordinal))
+            {
+                var sourceMap = (await source.GetSnapshotAsync()).ToDictionary();
+                var observationMap = (IDictionary<string, object>)sourceMap["observation"];
+                var descriptorMap = (IDictionary<string, object>)observationMap["descriptor"];
+                var rows = ((IEnumerable<object>)descriptorMap["sourceRows"])
+                    .Select(value => new Dictionary<string, object>((IDictionary<string, object>)value, StringComparer.Ordinal))
+                    .ToList();
+                rows[0][mutation.Field.EndsWith("globalRank", StringComparison.Ordinal) ? "globalRank" : "elo"] = mutation.Value;
+                await source.UpdateAsync("observation.descriptor.sourceRows", rows);
+            }
+            else
+                await source.UpdateAsync($"observation.descriptor.{mutation.Field}", mutation.Value);
+            await Assert.That(() => repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
+        }
+
+        var shapedRepository = CreateRepository();
+        var shapedCycle = Cycle("0198f865-1468-7000-8000-000000000091", [BundesligaContextSource.ClubElo]);
+        await shapedRepository.CreateOrResumeCycleAsync(shapedCycle);
+        await shapedRepository.ClaimSourceAsync(shapedCycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        await shapedRepository.FinalizeSourceAsync(shapedCycle.Identity, BundesligaContextSource.ClubElo, Token('1'), HtmlEloObservation(shapedCycle.Identity), Now().AddMinutes(1));
+        var shapedSource = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(shapedCycle.Identity, BundesligaContextSource.ClubElo));
+        await shapedSource.UpdateAsync("observation.descriptor.response.unknown", true);
+        await Assert.That(() => shapedRepository.GetSourceCycleAsync(shapedCycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Html_Club_Elo_receipts_persist_exact_replay_and_reduce_health_once_for_accepted_and_retained_rejection()
+    {
+        var repository = CreateRepository();
+        var acceptedCycle = Cycle("0198f865-1468-7000-8000-000000000092", [BundesligaContextSource.ClubElo]);
+        var accepted = HtmlEloObservation(acceptedCycle.Identity); var bundle = new string('e', 64);
+        await repository.CreateOrResumeCycleAsync(acceptedCycle);
+        await repository.ClaimSourceAsync(acceptedCycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        await repository.FinalizeSourceAsync(acceptedCycle.Identity, BundesligaContextSource.ClubElo, Token('1'), accepted, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(acceptedCycle.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(acceptedCycle.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var acceptedRequest = HtmlReceipt(acceptedCycle.Identity, accepted, bundle, BundesligaContextSourceSelectionDisposition.NetworkAccepted, BundesligaContextSourceSelectedOrigin.NetworkCandidate, BundesligaContextSourcePublicationDisposition.Published, new DateOnly(2026, 9, 4), []);
+        var acceptedFirst = await repository.RecordReceiptAsync(acceptedRequest);
+        var acceptedReplay = await repository.RecordReceiptAsync(acceptedRequest);
+        await Assert.That(acceptedReplay.RecordedAtUtc).IsEqualTo(acceptedFirst.RecordedAtUtc);
+        await Assert.That((await repository.GetReceiptAsync(acceptedCycle.Identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))!.RecordedAtUtc).IsEqualTo(acceptedFirst.RecordedAtUtc);
+        await Assert.That((await repository.GetSourceCycleAsync(acceptedCycle.Identity, BundesligaContextSource.ClubElo))!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Complete);
+        await Assert.That((await repository.GetCycleAsync(acceptedCycle.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+        await Assert.That((await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Documents.Count).IsEqualTo(1);
+        var retainedScope = new DocumentPublicationScope(acceptedCycle.Identity.Competition, acceptedRequest.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
+        await fixture.Db.Collection(Heads).Document(DocumentPublicationContract.ComputeHeadId(retainedScope)).SetAsync(new Dictionary<string, object>
+        {
+            ["competition"] = retainedScope.Competition,
+            ["communityContext"] = retainedScope.CommunityContext,
+            ["publicationSet"] = retainedScope.PublicationSet,
+            ["snapshotId"] = acceptedRequest.SelectedSnapshotId
+        });
+
+        var rejectedCycle = Cycle("0198f865-1468-7000-8000-000000000093", [BundesligaContextSource.ClubElo]);
+        var rejected = HtmlTransportEloObservation(rejectedCycle.Identity);
+        await repository.CreateOrResumeCycleAsync(rejectedCycle);
+        await repository.ClaimSourceAsync(rejectedCycle.Identity, BundesligaContextSource.ClubElo, Token('2'), Now());
+        await repository.FinalizeSourceAsync(rejectedCycle.Identity, BundesligaContextSource.ClubElo, Token('2'), rejected, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(rejectedCycle.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(rejectedCycle.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var rejectedRequest = HtmlReceipt(rejectedCycle.Identity, rejected, bundle, BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected, BundesligaContextSourceSelectedOrigin.LastKnownGood, BundesligaContextSourcePublicationDisposition.NotAttempted, new DateOnly(2026, 9, 4), [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected]);
+        var rejectedFirst = await repository.RecordReceiptAsync(rejectedRequest);
+        var rejectedReplay = await repository.RecordReceiptAsync(rejectedRequest);
+        await Assert.That(rejectedReplay.RecordedAtUtc).IsEqualTo(rejectedFirst.RecordedAtUtc);
+        await Assert.That((await repository.GetCycleAsync(rejectedCycle.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+        await Assert.That((await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Documents.Count).IsEqualTo(2);
+        var health = (await repository.GetHealthAsync(rejectedCycle.Identity.Competition, rejectedCycle.Identity.Scope, BundesligaContextSource.ClubElo))!;
+        await Assert.That(health.ConsecutiveFailures.Acquisition).IsEqualTo(1);
+        await Assert.That(health.ActiveConditions).Contains(BundesligaContextSourceHealthCondition.ClubEloSourceRejected);
     }
 
     [Test]
@@ -1485,7 +1914,154 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         await Assert.That(() => repository.UpdateIssueProjectionAsync(pending, synchronizedProjection with { LastAttemptedAtUtc = Now().AddMinutes(5) })).Throws<InvalidDataException>();
     }
 
+    private static string SnapshotFingerprint(DocumentSnapshot snapshot) => JsonSerializer.Serialize(new
+    {
+        snapshot.Exists,
+        snapshot.Id,
+        Path = snapshot.Reference.Path,
+        CreateTime = snapshot.Exists ? CanonicalTimestamp(snapshot.CreateTime) : null,
+        UpdateTime = snapshot.Exists ? CanonicalTimestamp(snapshot.UpdateTime) : null,
+        Fields = snapshot.Exists ? CanonicalFirestoreValue(snapshot.ToDictionary()) : new SortedDictionary<string, object?>(StringComparer.Ordinal)
+    });
+
+    private static object? CanonicalFirestoreValue(object? value) => value switch
+    {
+        null => null,
+        Timestamp timestamp => CanonicalTimestamp(timestamp),
+        DocumentReference reference => new { Path = reference.Path },
+        GeoPoint point => new { point.Latitude, point.Longitude },
+        byte[] bytes => Convert.ToBase64String(bytes),
+        Google.Protobuf.ByteString bytes => bytes.ToBase64(),
+        IEnumerable<KeyValuePair<string, object>> map => map
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .ToDictionary(pair => pair.Key, pair => CanonicalFirestoreValue(pair.Value), StringComparer.Ordinal),
+        System.Collections.IEnumerable values when value is not string => values.Cast<object?>().Select(CanonicalFirestoreValue).ToArray(),
+        _ => value
+    };
+
+    private static object? CanonicalTimestamp(Timestamp? timestamp)
+    {
+        if (timestamp is null) return null;
+        var proto = timestamp.ToProto();
+        return new { Seconds = proto.Seconds, Nanoseconds = proto.Nanos };
+    }
+
+    private static Dictionary<string, object?> FirestoreMap(string json)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.EnumerateObject().ToDictionary(
+            property => property.Name,
+            property => FirestoreValue(property.Value),
+            StringComparer.Ordinal);
+    }
+
+    private static object? FirestoreValue(JsonElement value) => value.ValueKind switch
+    {
+        JsonValueKind.Object => value.EnumerateObject().ToDictionary(
+            property => property.Name, property => FirestoreValue(property.Value), StringComparer.Ordinal),
+        JsonValueKind.Array => value.EnumerateArray().Select(FirestoreValue).ToArray(),
+        JsonValueKind.String => value.GetString(),
+        JsonValueKind.Number when value.TryGetInt64(out var integer) => integer,
+        JsonValueKind.Number => value.GetDouble(),
+        JsonValueKind.True => true,
+        JsonValueKind.False => false,
+        JsonValueKind.Null => null,
+        _ => throw new InvalidDataException("JSON value cannot be represented in Firestore.")
+    };
+
+    // Deliberately captures the complete persisted graph rather than only the document expected
+    // to reject: head, immutable publication rows/payloads, receipts, source/outer cycles, health,
+    // and the exact ordered received-consumer prefixes stored in those source-cycle documents.
+    private async Task<string> PersistedGraphFingerprintAsync()
+    {
+        var collections = new[]
+        {
+            "document-publication-heads", "document-publication-snapshots", "context-documents", "kpi-documents",
+            Cycles, Observations, Receipts, Health
+        };
+        var graph = new List<object>();
+        foreach (var collection in collections.OrderBy(value => value, StringComparer.Ordinal))
+        {
+            var snapshot = await fixture.Db.Collection(collection).GetSnapshotAsync();
+            graph.Add(new
+            {
+                Collection = collection,
+                Count = snapshot.Documents.Count,
+                Documents = snapshot.Documents.OrderBy(document => document.Reference.Path, StringComparer.Ordinal)
+                    .Select(SnapshotFingerprint).ToArray()
+            });
+        }
+        return JsonSerializer.Serialize(graph);
+    }
+
+    private async Task UpdatePriorHealthSelectedDateAsync(DocumentReference healthReference, DateOnly ratedAt)
+    {
+        var map = (await healthReference.GetSnapshotAsync()).ToDictionary();
+        var selections = ((IEnumerable<object>)map["communitySelections"])
+            .Select(value => new Dictionary<string, object>((IDictionary<string, object>)value, StringComparer.Ordinal))
+            .ToArray();
+        selections.Single()["ratedAt"] = ratedAt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+        await healthReference.UpdateAsync("communitySelections", selections);
+    }
+
+    private async Task UpdatePriorHealthSelectedOriginAsync(DocumentReference healthReference, BundesligaContextSourceSelectedOrigin origin)
+    {
+        var map = (await healthReference.GetSnapshotAsync()).ToDictionary();
+        var selections = ((IEnumerable<object>)map["communitySelections"])
+            .Select(value => new Dictionary<string, object>((IDictionary<string, object>)value, StringComparer.Ordinal))
+            .ToArray();
+        selections.Single()["selectedOrigin"] = origin.ToString();
+        await healthReference.UpdateAsync("communitySelections", selections);
+    }
+
+    private async Task<(FirebaseContextSourceCycleRepository Repository, BundesligaContextSourceOuterCycle Prior, BundesligaContextSourceOuterCycle Current, BundesligaContextSourceReceiptRequest Request, DocumentReference Head)> CreateHtmlRetainedScenarioAsync(
+        BundesligaContextSourceSelectionDisposition priorSelection = BundesligaContextSourceSelectionDisposition.NetworkAccepted,
+        BundesligaContextSourceSelectedOrigin priorOrigin = BundesligaContextSourceSelectedOrigin.NetworkCandidate,
+        BundesligaContextSourcePublicationDisposition priorPublication = BundesligaContextSourcePublicationDisposition.Published)
+    {
+        var repository = CreateRepository();
+        var prior = Cycle("0198f865-1467-7000-8000-0000000000b2", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(prior);
+        await repository.ClaimSourceAsync(prior.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        var priorObservation = priorSelection == BundesligaContextSourceSelectionDisposition.NetworkAccepted
+            ? HtmlEloObservation(prior.Identity)
+            : HtmlTransportEloObservation(prior.Identity);
+        var priorBundle = new string('e', 64);
+        await repository.FinalizeSourceAsync(prior.Identity, BundesligaContextSource.ClubElo, Token('1'), priorObservation, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(prior.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, priorBundle);
+        await repository.TransitionCycleAsync(prior.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, priorBundle);
+        var priorConditions = priorSelection == BundesligaContextSourceSelectionDisposition.NetworkAccepted
+            ? Array.Empty<BundesligaContextSourceHealthCondition>()
+            : new[] { BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected };
+        await repository.RecordReceiptAsync(HtmlReceipt(prior.Identity, priorObservation, priorBundle, priorSelection, priorOrigin, priorPublication, new DateOnly(2026, 9, 4), priorConditions));
+
+        var current = Cycle("0198f865-1468-7000-8000-0000000000b3", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(current);
+        await repository.ClaimSourceAsync(current.Identity, BundesligaContextSource.ClubElo, Token('2'), Now());
+        var observation = HtmlEloObservation(current.Identity); var bundle = new string('d', 64);
+        await repository.FinalizeSourceAsync(current.Identity, BundesligaContextSource.ClubElo, Token('2'), observation, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(current.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(current.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var request = HtmlReceipt(current.Identity, observation, bundle, BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, BundesligaContextSourceSelectedOrigin.LastKnownGood, BundesligaContextSourcePublicationDisposition.NotAttempted, new DateOnly(2026, 9, 4), []);
+        var scope = new DocumentPublicationScope(current.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
+        var head = fixture.Db.Collection(Heads).Document(DocumentPublicationContract.ComputeHeadId(scope));
+        await head.SetAsync(new Dictionary<string, object> { ["competition"] = scope.Competition, ["communityContext"] = scope.CommunityContext, ["publicationSet"] = scope.PublicationSet, ["snapshotId"] = request.SelectedSnapshotId });
+        return (repository, prior, current, request, head);
+    }
+
     private FirebaseContextSourceCycleRepository CreateRepository(DateTimeOffset? recordedAtUtc = null) => new(fixture.Db, new FakeLogger<FirebaseContextSourceCycleRepository>(), new FixedTimeProvider(recordedAtUtc ?? Now().AddMinutes(2)));
+    private async Task AssertNoCurrentReceiptMutation(BundesligaContextSourceCycleIdentity identity, bool healthIsReadable = true)
+    {
+        await Assert.That((await fixture.Db.Collection(Receipts).GetSnapshotAsync()).Documents.Any(document => document.Id == BundesligaContextSourceHashing.ReceiptStorageId(identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane))).IsFalse();
+        await Assert.That((await CreateRepository().GetSourceCycleAsync(identity, BundesligaContextSource.ClubElo))!.Status).IsEqualTo(BundesligaContextSourceSourceStatus.Finalized);
+        await Assert.That((await CreateRepository().GetCycleAsync(identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.HandoffReady);
+        if (healthIsReadable)
+        {
+            var health = await CreateRepository().GetHealthAsync(identity.Competition, identity.Scope, BundesligaContextSource.ClubElo);
+            await Assert.That(health!.LastCompletedCycleId).IsNotEqualTo(identity.CycleId);
+            await Assert.That(health.CommunitySelections.Single().SelectedSnapshotId).IsEqualTo(new string('c', 64));
+        }
+    }
     private static DateTimeOffset Now() => new(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
     private static string Token(char value) => $"{new string(value, 8)}-{new string(value, 4)}-4{new string(value, 3)}-8{new string(value, 3)}-{new string(value, 12)}";
     private static BundesligaContextSourceOuterCycle Cycle(string? uuid = null, IReadOnlyList<BundesligaContextSource>? sources = null)
@@ -1571,6 +2147,36 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         });
         return new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.ArtifactCaptured, descriptor, new BundesligaContextSourcePayload("club-elo/source.csv", 3, rawSha256), []);
     }
+    private static BundesligaContextSourceObservation HtmlEloObservation(BundesligaContextSourceCycleIdentity identity)
+    {
+        var rawSha256 = new string('c', 64);
+        var mapping = new[] { ("b04", "/Leverkusen", "Leverkusen"), ("bmg", "/Gladbach", "Gladbach"), ("bvb", "/Dortmund", "Dortmund"), ("fca", "/Augsburg", "Augsburg"), ("fcb", "/Bayern", "Bayern München"), ("fck", "/Koeln", "Köln"), ("fcu", "/UnionBerlin", "Union Berlin"), ("hsv", "/Hamburg", "Hamburg"), ("m05", "/Mainz", "Mainz"), ("rbl", "/RBLeipzig", "RB Leipzig"), ("s04", "/Schalke", "Schalke"), ("scf", "/Freiburg", "Freiburg"), ("scp", "/Paderborn", "Paderborn"), ("sge", "/Frankfurt", "Frankfurt"), ("sve", "/Elversberg", "Elversberg"), ("svw", "/Werder", "Werder"), ("tsg", "/Hoffenheim", "Hoffenheim"), ("vfb", "/Stuttgart", "Stuttgart") };
+        var rows = mapping.Select((entry, index) => new { teamSlug = entry.Item1, providerRoute = entry.Item2, providerDisplayName = entry.Item3, globalRank = index + 1, elo = 1500 + index }).ToArray();
+        var descriptor = JsonSerializer.Serialize(new
+        {
+            contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
+            response = new { statusCode = 200, finalUrl = "https://clubelo.com/GER", redirectCount = 0, redirectLocation = (string?)null, mediaType = "text/html", charset = "utf-8", contentEncodings = Array.Empty<string>(), declaredContentLength = 3L },
+            rawSha256, rawByteLength = 3L, parserContract = "club-elo-official-html-parser/v1", displayedDate = "2026-09-04",
+            providerDateEvidence = new { kind = "OfficialHtmlHeadingLink", recipeId = "club-elo-official-html-displayed-date/v1", field = "h1>a[href]", rawValue = "2026-09-04", ratedAt = "2026-09-04" },
+            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
+            sourceRows = rows, evaluation = "Eligible"
+        });
+        return new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.ArtifactCaptured, descriptor, new BundesligaContextSourcePayload("club-elo/source.html", 3, rawSha256), []);
+    }
+    private static BundesligaContextSourceObservation HtmlTransportEloObservation(BundesligaContextSourceCycleIdentity identity) => new(
+        BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.Rejected,
+        $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"+/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}",
+        null, ["CLUB_ELO_TRANSPORT_REJECTED"]);
+    private static BundesligaContextSourceReceiptRequest HtmlReceipt(
+        BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle,
+        BundesligaContextSourceSelectionDisposition selection, BundesligaContextSourceSelectedOrigin origin,
+        BundesligaContextSourcePublicationDisposition publication, DateOnly ratedAt,
+        IReadOnlyList<BundesligaContextSourceHealthCondition> conditions) => new(identity, BundesligaContextSource.ClubElo,
+        BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentCommunity,
+        observation.ObservationDigest, bundle, selection, new string('c', 64), origin, publication,
+        new BundesligaContextSourceDates(ratedAt, null, null, null), null,
+        new BundesligaContextSourceCarriedFields(0, 0, 0, null), conditions);
     private static BundesligaContextSourceReceiptRequest EloFallbackReceipt(BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle) => new(identity, BundesligaContextSource.ClubElo, BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentCommunity, observation.ObservationDigest, bundle, BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected, new string('c', 64), BundesligaContextSourceSelectedOrigin.LaunchSeed, BundesligaContextSourcePublicationDisposition.Published, new BundesligaContextSourceDates(new DateOnly(2026, 8, 20), null, null, null), null, new BundesligaContextSourceCarriedFields(0, 0, 0, null), [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]);
     private static BundesligaContextSourceReceiptRequest ProductionEloFallbackReceipt(BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle, string lane) => new(identity, BundesligaContextSource.ClubElo, lane, CommunityForLane(lane), observation.ObservationDigest, bundle, BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected, new string('c', 64), BundesligaContextSourceSelectedOrigin.LaunchSeed, BundesligaContextSourcePublicationDisposition.Published, new BundesligaContextSourceDates(new DateOnly(2026, 8, 20), null, null, null), null, new BundesligaContextSourceCarriedFields(0, 0, 0, null), [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]);
     private static BundesligaContextSourceReceiptRequest Receipt(BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle) => new(identity, BundesligaContextSource.Rosters, BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentCommunity, observation.ObservationDigest, bundle, BundesligaContextSourceSelectionDisposition.CandidateRejected, new string('c', 64), BundesligaContextSourceSelectedOrigin.FallbackSeed, BundesligaContextSourcePublicationDisposition.NotAttempted, new BundesligaContextSourceDates(null, null, new DateOnly(2026, 8, 20), null), new string('a', 40), new BundesligaContextSourceCarriedFields(0, 0, 0, null), BundesligaContextSourceHealth.OrderConditions([BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown, BundesligaContextSourceHealthCondition.RosterMembershipRejected, BundesligaContextSourceHealthCondition.RosterMembershipStaleGt14Days]));

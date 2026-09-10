@@ -21,9 +21,12 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
     private static readonly string[] ObservationFields = ["source", "attemptId", "observedAtUtc", "disposition", "descriptorSha256", "descriptor", "payload", "diagnostics"];
     private static readonly string[] PayloadFields = ["path", "byteLength", "sha256"];
     private static readonly string[] EloDescriptorFields = ["contract", "sourceUrl", "rawSha256", "rawByteLength", "csvHeader", "providerRatedAt", "providerDateEvidence", "nameMappingContract", "nameMappingSha256", "sourceRows", "evaluation"];
+    private static readonly string[] HtmlEloDescriptorFields = ["contract", "sourceUrl", "response", "rawSha256", "rawByteLength", "parserContract", "displayedDate", "providerDateEvidence", "tableContract", "tableHeader", "nameMappingContract", "nameMappingSha256", "sourceRows", "evaluation"];
     private static readonly string[] RosterDescriptorFields = ["contract", "metadataUrl", "artifactUrl", "advertisedRevision", "metadataSha256", "metadataByteLength", "remoteIdentityBefore", "acquisitionReason", "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate", "policySha256", "retainedDescriptorSha256", "retainedEvaluation", "retainedDiagnostics", "evaluation"];
     private static readonly string[] DateEvidenceFields = ["kind", "recipeId", "field", "rawValue", "ratedAt"];
     private static readonly string[] SourceRowFields = ["teamSlug", "providerName", "globalRank", "elo"];
+    private static readonly string[] HtmlSourceRowFields = ["teamSlug", "providerRoute", "providerDisplayName", "globalRank", "elo"];
+    private static readonly string[] HtmlResponseFields = ["statusCode", "finalUrl", "redirectCount", "redirectLocation", "mediaType", "charset", "contentEncodings", "declaredContentLength"];
     private static readonly string[] RemoteIdentityFields = ["etag", "byteLength"];
     private static readonly string[] WatermarkFields = ["sequence", "cycleId"];
     private static readonly string[] FailureFields = ["acquisition", "membership", "enrichment", "handoff"];
@@ -351,7 +354,6 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
             var sourceCycle = ParseSource(sourceSnapshots[request.Source], request.Identity, request.Source, outer.ExpectedConsumers);
             if (sourceCycle.ObservationDigest != request.ObservationDigest || sourceCycle.Status is not (BundesligaContextSourceSourceStatus.Finalized or BundesligaContextSourceSourceStatus.Complete)) throw new InvalidDataException("STATE_CONFLICT");
             BundesligaContextSourceReceiptContract.ValidateAgainstObservation(request, sourceCycle.Observation!);
-            BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(request, DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime));
             if (request.Source == BundesligaContextSource.Rosters && request.RosterRevision != AdvertisedRevision(sourceCycle.Observation!)) throw new InvalidDataException("STATE_CONFLICT");
             var healthRef = HealthReference(request.Identity, request.Source); var healthSnapshot = await transaction.GetSnapshotAsync(healthRef);
             if (!healthSnapshot.Exists) throw new InvalidDataException("STATE_CONFLICT");
@@ -387,6 +389,43 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
                 }
                 BundesligaContextSourceReceiptContract.ValidateMetadataUnchangedAgainstPriorReceipt(request, priorReceipt);
             }
+            if (request.Source == BundesligaContextSource.ClubElo
+                && request.PublicationDisposition == BundesligaContextSourcePublicationDisposition.NotAttempted
+                && IsHtmlClubEloObservation(sourceCycle.Observation!))
+            {
+                var priorCycleId = health.LastCompletedCycleId ?? throw new InvalidDataException("STATE_CONFLICT");
+                var priorIdentity = BundesligaContextSourceCycleIdentity.FromCycleId(request.Identity.Competition, request.Identity.Scope, priorCycleId);
+                if (priorIdentity == request.Identity) throw new InvalidDataException("STATE_CONFLICT");
+                var priorOuter = ParseCycle(await transaction.GetSnapshotAsync(CycleReference(priorIdentity)), priorIdentity);
+                if (priorOuter.Status != BundesligaContextSourceCycleStatus.Complete || !priorOuter.EnabledSources.Contains(request.Source))
+                    throw new InvalidDataException("STATE_CONFLICT");
+                var priorSource = ParseSource(await transaction.GetSnapshotAsync(SourceReference(priorIdentity, request.Source)), priorIdentity, request.Source, priorOuter.ExpectedConsumers);
+                if (priorSource.Status != BundesligaContextSourceSourceStatus.Complete || priorSource.Observation is null)
+                    throw new InvalidDataException("STATE_CONFLICT");
+                var priorReceipt = ParseReceipt(await transaction.GetSnapshotAsync(ReceiptReference(priorIdentity, request.Source, request.ConsumerLaneId)), priorIdentity, request.Source, request.ConsumerLaneId);
+                var selections = health.CommunitySelections.Where(selection => selection.ConsumerLaneId == request.ConsumerLaneId).ToArray();
+                if (selections.Length != 1) throw new InvalidDataException("STATE_CONFLICT");
+                try
+                {
+                    BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+                        health, selections[0], priorReceipt, priorSource.Observation, priorOuter,
+                        DateOnly.FromDateTime(priorOuter.StalenessReferenceAtUtc.UtcDateTime));
+                }
+                catch (InvalidDataException)
+                {
+                    throw new InvalidDataException("STATE_CONFLICT");
+                }
+                if (request.SelectedOrigin != BundesligaContextSourceSelectedOrigin.LastKnownGood
+                    || request.ConsumerLaneId != priorReceipt.Request.ConsumerLaneId
+                    || request.CommunityContext != priorReceipt.Request.CommunityContext
+                    || request.SelectedSnapshotId != priorReceipt.Request.SelectedSnapshotId
+                    || request.SourceDates.RatedAt != priorReceipt.Request.SourceDates.RatedAt)
+                    throw new InvalidDataException("STATE_CONFLICT");
+                var publicationScope = new DocumentPublicationScope(request.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
+                var publicationHead = await transaction.GetSnapshotAsync(PublicationHeadReference(publicationScope));
+                ValidateClubEloPublicationHead(publicationHead, publicationScope, request.SelectedSnapshotId);
+            }
+            BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(request, DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime));
             var expectedLane = outer.ExpectedConsumers.ElementAtOrDefault(sourceCycle.ReceivedConsumers.Count);
             if (expectedLane != request.ConsumerLaneId) throw new InvalidDataException("STATE_CONFLICT");
             var recordedAtUtc = TruncateUtc(_timeProvider.GetUtcNow());
@@ -523,6 +562,7 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
     private DocumentReference ReceiptReference(BundesligaContextSourceReceiptRequest request) => _db.Collection(Receipts).Document(request.StorageId);
     private DocumentReference ReceiptReference(BundesligaContextSourceCycleIdentity identity, BundesligaContextSource source, string lane) => _db.Collection(Receipts).Document(BundesligaContextSourceHashing.ReceiptStorageId(identity, source, lane));
     private DocumentReference HealthReference(BundesligaContextSourceCycleIdentity identity, BundesligaContextSource source) => _db.Collection(Health).Document(BundesligaContextSourceHashing.HealthStorageId(identity.Competition, identity.ScopeValue, source));
+    private DocumentReference PublicationHeadReference(DocumentPublicationScope scope) => _db.Collection("document-publication-heads").Document(DocumentPublicationContract.ComputeHeadId(scope));
     private static bool AllowedTransition(BundesligaContextSourceScope scope, BundesligaContextSourceCycleStatus expected, BundesligaContextSourceCycleStatus next) => (expected, next) switch { (BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified) => true, (BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.UploadReserved) => scope == BundesligaContextSourceScope.ProductionLive, (BundesligaContextSourceCycleStatus.UploadReserved, BundesligaContextSourceCycleStatus.HandoffReady) => scope == BundesligaContextSourceScope.ProductionLive, (BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady) => scope == BundesligaContextSourceScope.Development, _ => false };
     private static bool CycleRequestEquals(BundesligaContextSourceOuterCycle left, BundesligaContextSourceOuterCycle right) => left.Identity == right.Identity && left.ProducerLaneId == right.ProducerLaneId && left.ExpectedConsumers.SequenceEqual(right.ExpectedConsumers, StringComparer.Ordinal) && left.EnabledSources.SequenceEqual(right.EnabledSources);
     private static bool SameDesiredProjection(BundesligaContextSourceIssueProjection left, BundesligaContextSourceIssueProjection right)
@@ -746,6 +786,37 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
     internal static BundesligaContextSourceReceipt ParseReceipt(DocumentSnapshot snapshot, BundesligaContextSourceCycleIdentity identity, BundesligaContextSource source, string lane) { RequireSnapshot(snapshot, snapshot.Reference.Parent.Id, BundesligaContextSourceHashing.ReceiptStorageId(identity, source, lane), ReceiptFields); var map = snapshot.ToDictionary(); RequireNestedMap(map, "sourceDates", ReceiptDateFields); RequireNestedMap(map, "carriedFields", CarriedFieldFields); var v = snapshot.ConvertTo<FirestoreContextSourceReceipt>(); if (v.Contract != BundesligaContextSourceReceipt.Contract || v.Competition != identity.Competition || v.Scope != identity.ScopeValue || v.CycleId != identity.CycleId || v.Source != BundesligaContextSourceContract.SourceValue(source) || v.ConsumerLaneId != lane || !TryParseDefined(v.SelectionDisposition, out BundesligaContextSourceSelectionDisposition selection) || !TryParseDefined(v.SelectedOrigin, out BundesligaContextSourceSelectedOrigin origin) || !TryParseDefined(v.PublicationDisposition, out BundesligaContextSourcePublicationDisposition publication)) throw new InvalidDataException("Stored receipt identity/enums are invalid."); var request = new BundesligaContextSourceReceiptRequest(identity, source, lane, v.CommunityContext, v.ObservationDigest, v.BundleDigest, selection, v.SelectedSnapshotId, origin, publication, new BundesligaContextSourceDates(ParseDate(v.SourceDates.RatedAt), ParseDate(v.SourceDates.MembershipCapturedAt), ParseDate(v.SourceDates.MembershipEffectiveAt), ParseDate(v.SourceDates.EnrichmentCapturedAt)), v.RosterRevision, new BundesligaContextSourceCarriedFields(v.CarriedFields.AgeCount, v.CarriedFields.PositionCount, v.CarriedFields.MarketValueCount, ParseDate(v.CarriedFields.OldestFieldEffectiveAt)), v.ActiveConditions.Select(ParseCondition).ToArray()); var result = new BundesligaContextSourceReceipt(request, BundesligaContextSourceContract.ParseUtc(v.RecordedAtUtc)); result.Validate(); return result; }
     internal static BundesligaContextSourceHealth ParseHealth(DocumentSnapshot snapshot, BundesligaContextSourceCycleIdentity identity, BundesligaContextSource source) { RequireSnapshot(snapshot, snapshot.Reference.Parent.Id, BundesligaContextSourceHashing.HealthStorageId(identity.Competition, identity.ScopeValue, source), HealthFields); var map = snapshot.ToDictionary(); ValidateHealthNestedShape(map); var v = snapshot.ConvertTo<FirestoreContextSourceHealth>(); if (v.Contract != BundesligaContextSourceHealth.Contract || v.Competition != identity.Competition || v.Scope != identity.ScopeValue || v.Source != BundesligaContextSourceContract.SourceValue(source)) throw new InvalidDataException("Stored health identity is invalid."); var dates = new BundesligaContextSourceSuccessfulDates(ParseDate(v.LastSuccessfulSourceDates.RatedAt), ParseDate(v.LastSuccessfulSourceDates.MembershipEffectiveAt), ParseDate(v.LastSuccessfulSourceDates.EnrichmentCapturedAt)); var result = new BundesligaContextSourceHealth(v.Competition, identity.Scope, source, new BundesligaContextSourceWatermark(v.Watermark.Sequence, v.Watermark.CycleId), v.LastCompletedCycleId, new BundesligaContextSourceFailures(v.ConsecutiveFailures.Acquisition, v.ConsecutiveFailures.Membership, v.ConsecutiveFailures.Enrichment, v.ConsecutiveFailures.Handoff), dates, v.RosterRevisionState is null ? null : FromFirestore(v.RosterRevisionState), v.CommunitySelections.Select(FromFirestore).ToArray(), v.ActiveConditions.Select(ParseCondition).ToArray(), v.DesiredIssueProjection is null ? null : FromFirestore(v.DesiredIssueProjection)); result.Validate(); return result; }
     private static void RequireSnapshot(DocumentSnapshot snapshot, string collection, string expectedId, IReadOnlyList<string> fields) { if (!snapshot.Exists || snapshot.Id != expectedId || snapshot.Reference.Parent.Id != collection || !snapshot.ToDictionary().Keys.Order(StringComparer.Ordinal).SequenceEqual(fields.Order(StringComparer.Ordinal), StringComparer.Ordinal)) throw new InvalidDataException("Stored document identity/property set is invalid."); }
+    private static void ValidateClubEloPublicationHead(DocumentSnapshot snapshot, DocumentPublicationScope scope, string expectedSnapshotId)
+    {
+        var headId = DocumentPublicationContract.ComputeHeadId(scope);
+        RequireSnapshot(snapshot, "document-publication-heads", headId, ["competition", "communityContext", "publicationSet", "snapshotId"]);
+        FirestoreDocumentPublicationHead head;
+        try { head = snapshot.ConvertTo<FirestoreDocumentPublicationHead>(); }
+        catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or FormatException)
+        {
+            throw new InvalidDataException("STATE_CONFLICT");
+        }
+        if (head.Competition != scope.Competition
+            || head.CommunityContext != scope.CommunityContext
+            || head.PublicationSet != scope.PublicationSet)
+            throw new InvalidDataException("STATE_CONFLICT");
+        try
+        {
+            BundesligaContextSourceHashing.ValidateSha(head.SnapshotId);
+        }
+        catch (InvalidDataException)
+        {
+            throw new InvalidDataException("STATE_CONFLICT");
+        }
+        if (head.SnapshotId != expectedSnapshotId) throw new InvalidDataException("STATE_CONFLICT");
+    }
+    private static bool IsHtmlClubEloObservation(BundesligaContextSourceObservation observation)
+    {
+        using var document = JsonDocument.Parse(observation.DescriptorJson);
+        return document.RootElement.TryGetProperty("contract", out var contract)
+            && contract.ValueKind == JsonValueKind.String
+            && contract.GetString() == "club-elo-official-html-descriptor/v1";
+    }
     internal static string ReceiptSemanticJson(BundesligaContextSourceReceiptRequest value) => JsonSerializer.Serialize(value, JsonOptions);
     private static FirestoreContextSourceRosterRevisionState ToFirestore(BundesligaContextSourceRosterRevisionState value) => new()
     {
@@ -818,15 +889,23 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
         IReadOnlyDictionary<string, object?> descriptor,
         BundesligaContextSource source)
     {
-        RequireMapFields(descriptor, source == BundesligaContextSource.ClubElo ? EloDescriptorFields : RosterDescriptorFields);
+        RequireMapFields(descriptor, source == BundesligaContextSource.ClubElo ? EloFieldsFor(descriptor) : RosterDescriptorFields);
         if (source == BundesligaContextSource.ClubElo)
         {
             RequireStoredInt64(descriptor, "rawByteLength", allowNull: true);
+            if (IsHtmlEloDescriptor(descriptor) && descriptor["response"] is not null)
+            {
+                var response = RequireMap(descriptor["response"]); RequireMapFields(response, HtmlResponseFields);
+                RequireStoredInt64(response, "statusCode"); RequireStoredInt64(response, "redirectCount"); RequireStoredInt64(response, "declaredContentLength", allowNull: true);
+            }
             if (descriptor["sourceRows"] is null) return;
             if (descriptor["sourceRows"] is not System.Collections.IEnumerable rows || descriptor["sourceRows"] is string)
                 throw new InvalidDataException("Stored canonical array is invalid.");
             foreach (var row in rows)
-                RequireStoredInt64(RequireMap(row), "globalRank");
+            {
+                var value = RequireMap(row); RequireStoredInt64(value, "globalRank");
+                if (IsHtmlEloDescriptor(descriptor)) RequireStoredInt64(value, "elo");
+            }
             return;
         }
 
@@ -852,13 +931,14 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
 
     private static void WriteDescriptor(Utf8JsonWriter writer, IReadOnlyDictionary<string, object?> descriptor, BundesligaContextSource source)
     {
-        var fields = source == BundesligaContextSource.ClubElo ? EloDescriptorFields : RosterDescriptorFields;
+        var fields = source == BundesligaContextSource.ClubElo ? EloFieldsFor(descriptor) : RosterDescriptorFields;
         RequireMapFields(descriptor, fields); writer.WriteStartObject();
         foreach (var field in fields)
         {
             writer.WritePropertyName(field); var value = descriptor[field];
             if (field == "providerDateEvidence" && value is not null) WriteOrderedMap(writer, RequireMap(value), DateEvidenceFields);
-            else if (field == "sourceRows" && value is not null) WriteOrderedMapArray(writer, value, SourceRowFields);
+            else if (field == "response" && value is not null) WriteOrderedMap(writer, RequireMap(value), HtmlResponseFields);
+            else if (field == "sourceRows" && value is not null) WriteOrderedMapArray(writer, value, source == BundesligaContextSource.ClubElo && IsHtmlEloDescriptor(descriptor) ? HtmlSourceRowFields : SourceRowFields);
             else if (field is "remoteIdentityBefore" or "remoteIdentityAfter" && value is not null) WriteOrderedMap(writer, RequireMap(value), RemoteIdentityFields);
             else WriteValue(writer, value);
         }
@@ -893,6 +973,18 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
 
     private static IReadOnlyDictionary<string, object?> RequireMap(object? value)
         => value as IReadOnlyDictionary<string, object?> ?? throw new InvalidDataException("Stored canonical map is invalid.");
+    private static bool IsHtmlEloDescriptor(IReadOnlyDictionary<string, object?> descriptor)
+        => descriptor.TryGetValue("contract", out var contract) && contract is string value && value == "club-elo-official-html-descriptor/v1";
+    private static IReadOnlyList<string> EloFieldsFor(IReadOnlyDictionary<string, object?> descriptor)
+    {
+        if (!descriptor.TryGetValue("contract", out var contract) || contract is not string value) throw new InvalidDataException("Stored Club Elo descriptor contract is invalid.");
+        return value switch
+        {
+            "club-elo-direct-csv-descriptor/v1" => EloDescriptorFields,
+            "club-elo-official-html-descriptor/v1" => HtmlEloDescriptorFields,
+            _ => throw new InvalidDataException("Stored Club Elo descriptor contract is invalid.")
+        };
+    }
     private static void RequireMapFields(IReadOnlyDictionary<string, object?> map, IReadOnlyList<string> fields)
     {
         if (!map.Keys.Order(StringComparer.Ordinal).SequenceEqual(fields.Order(StringComparer.Ordinal), StringComparer.Ordinal)) throw new InvalidDataException("Stored nested property set is invalid.");

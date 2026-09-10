@@ -8,8 +8,13 @@ public sealed record BundesligaContextSourcePayload(string Path, long ByteLength
 {
     public void Validate(BundesligaContextSource source)
     {
-        var expected = source == BundesligaContextSource.ClubElo ? "club-elo/source.csv" : "rosters/source.duckdb";
-        if (Path != expected || ByteLength < 0) throw new InvalidDataException("Payload identity is not canonical.");
+        var validPath = source switch
+        {
+            BundesligaContextSource.ClubElo => Path is "club-elo/source.csv" or "club-elo/source.html",
+            BundesligaContextSource.Rosters => Path == "rosters/source.duckdb",
+            _ => false
+        };
+        if (!validPath || ByteLength < 0) throw new InvalidDataException("Payload identity is not canonical.");
         BundesligaContextSourceHashing.ValidateSha(Sha256);
     }
 }
@@ -55,12 +60,16 @@ public sealed record BundesligaContextSourceObservation(
         BundesligaContextSourceHashing.ValidateSha(AttemptId);
         BundesligaContextSourceContract.FormatUtc(ObservedAtUtc);
         BundesligaContextSourceDescriptorContract.Validate(Source, DescriptorJson, Disposition);
+        if (Source == BundesligaContextSource.ClubElo)
+            BundesligaContextSourceDescriptorContract.ValidateHtmlFreshness(DescriptorJson, ObservedAtUtc);
         if (Diagnostics.Any(string.IsNullOrWhiteSpace))
             throw new InvalidDataException("Diagnostics must be nonempty.");
         if (Source == BundesligaContextSource.Rosters)
             BundesligaContextSourceDescriptorContract.ValidateRosterDiagnostics(DescriptorJson, Disposition, Diagnostics);
         else if (!Diagnostics.SequenceEqual(Diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal))
             throw new InvalidDataException("Diagnostics must be unique and ordinal sorted.");
+        else
+            BundesligaContextSourceDescriptorContract.ValidateClubEloDiagnostics(DescriptorJson, Disposition, Diagnostics);
         if (Disposition == BundesligaContextSourceDisposition.ArtifactCaptured)
         {
             if (Payload is null) throw new InvalidDataException("ArtifactCaptured requires a payload.");
@@ -161,16 +170,49 @@ public sealed record BundesligaContextSourceBundle(
         using var document = JsonDocument.Parse(utf8);
         var root = document.RootElement;
         var names = new[] { "contract", "competition", "scope", "cycleId", "cycleStorageId", "cycleSequence", "startedAtUtc", "stalenessReferenceAtUtc", "producerLaneId", "expectedConsumers", "observations" };
-        if (!root.EnumerateObject().Select(x => x.Name).SequenceEqual(names, StringComparer.Ordinal) || !utf8.SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(root))) throw new InvalidDataException("Manifest JSON is not canonical.");
-        if (root.GetProperty("contract").GetString() != Contract) throw new InvalidDataException("Manifest contract is invalid.");
-        var scope = root.GetProperty("scope").GetString() switch { BundesligaContextSourceContract.ProductionScope => BundesligaContextSourceScope.ProductionLive, BundesligaContextSourceContract.DevelopmentScope => BundesligaContextSourceScope.Development, _ => throw new InvalidDataException("Manifest scope is invalid.") };
-        if (!root.GetProperty("cycleSequence").TryGetInt64(out var sequence)) throw new InvalidDataException("Manifest sequence is invalid.");
-        var cycle = BundesligaContextSourceCycleIdentity.Create(root.GetProperty("competition").GetString()!, scope, root.GetProperty("cycleId").GetString()!, sequence);
-        if (root.GetProperty("cycleStorageId").GetString() != cycle.StorageId) throw new InvalidDataException("Manifest storage identity mismatch.");
-        var consumers = root.GetProperty("expectedConsumers").EnumerateArray().Select(x => x.ValueKind == JsonValueKind.String ? x.GetString()! : throw new InvalidDataException("Manifest consumer type is invalid.")).ToArray();
-        var observations = root.GetProperty("observations").EnumerateArray().Select(x => BundesligaContextSourceDescriptorContract.ParseObservation(x.GetRawText())).ToArray();
-        var bundle = new BundesligaContextSourceBundle(cycle, BundesligaContextSourceContract.ParseUtc(root.GetProperty("startedAtUtc").GetString()!), BundesligaContextSourceContract.ParseUtc(root.GetProperty("stalenessReferenceAtUtc").GetString()!), root.GetProperty("producerLaneId").GetString()!, consumers, observations);
+        if (root.ValueKind != JsonValueKind.Object
+            || !root.EnumerateObject().Select(x => x.Name).SequenceEqual(names, StringComparer.Ordinal)
+            || !utf8.SequenceEqual(JsonSerializer.SerializeToUtf8Bytes(root)))
+            throw new InvalidDataException("Manifest JSON is not canonical.");
+        if (RequireManifestString(root, "contract") != Contract) throw new InvalidDataException("Manifest contract is invalid.");
+        var scope = RequireManifestString(root, "scope") switch { BundesligaContextSourceContract.ProductionScope => BundesligaContextSourceScope.ProductionLive, BundesligaContextSourceContract.DevelopmentScope => BundesligaContextSourceScope.Development, _ => throw new InvalidDataException("Manifest scope is invalid.") };
+        var sequence = RequireManifestNonnegativeInt64(root, "cycleSequence");
+        var cycle = BundesligaContextSourceCycleIdentity.Create(RequireManifestString(root, "competition"), scope, RequireManifestString(root, "cycleId"), sequence);
+        if (RequireManifestString(root, "cycleStorageId") != cycle.StorageId) throw new InvalidDataException("Manifest storage identity mismatch.");
+        var consumers = RequireManifestStringArray(root, "expectedConsumers");
+        var observationsElement = root.GetProperty("observations");
+        if (observationsElement.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Manifest observations must be an array.");
+        var observations = observationsElement.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.Object
+            ? BundesligaContextSourceDescriptorContract.ParseObservation(x.GetRawText())
+            : throw new InvalidDataException("Manifest observation type is invalid.")).ToArray();
+        var bundle = new BundesligaContextSourceBundle(cycle, BundesligaContextSourceContract.ParseUtc(RequireManifestString(root, "startedAtUtc")), BundesligaContextSourceContract.ParseUtc(RequireManifestString(root, "stalenessReferenceAtUtc")), RequireManifestString(root, "producerLaneId"), consumers, observations);
         bundle.Validate(); return bundle;
+    }
+
+    private static string RequireManifestString(JsonElement root, string name)
+    {
+        var value = root.GetProperty(name);
+        if (value.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(value.GetString()))
+            throw new InvalidDataException($"Manifest '{name}' must be a nonempty string.");
+        return value.GetString()!;
+    }
+
+    private static long RequireManifestNonnegativeInt64(JsonElement root, string name)
+    {
+        var value = root.GetProperty(name);
+        if (value.ValueKind != JsonValueKind.Number || !value.TryGetInt64(out var parsed) || parsed < 0)
+            throw new InvalidDataException($"Manifest '{name}' must be a non-negative Int64.");
+        if (value.GetRawText() != JsonSerializer.Serialize(parsed))
+            throw new InvalidDataException($"Manifest '{name}' must use canonical numeric spelling.");
+        return parsed;
+    }
+
+    private static string[] RequireManifestStringArray(JsonElement root, string name)
+    {
+        var value = root.GetProperty(name);
+        if (value.ValueKind != JsonValueKind.Array || value.EnumerateArray().Any(item => item.ValueKind != JsonValueKind.String || string.IsNullOrEmpty(item.GetString())))
+            throw new InvalidDataException($"Manifest '{name}' must be a nonempty-string array.");
+        return value.EnumerateArray().Select(item => item.GetString()!).ToArray();
     }
 
     private static void AppendFile(IncrementalHash hash, string path, byte[] content)
@@ -182,15 +224,30 @@ public sealed record BundesligaContextSourceBundle(
 
 public static class BundesligaContextSourceDescriptorContract
 {
+    public const string ClubEloHtmlNameMappingSha256 = "8799071a30dca0a921974ac387f18a8005863fdcbea85d3b74c9bda382ba29b7";
     public const string RosterPolicySha256 = "56ce2f0543b91a59b63fbec7889f1bf547681e90f58da7c419028fd749285d9b";
     public const string RosterMetadataUrl = "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb.metadata.json";
     public const string RosterArtifactUrl = "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb";
     public const long MaximumRosterArtifactBytes = 314572800;
 
+
     private static readonly string[] EloFields = ["contract", "sourceUrl", "rawSha256", "rawByteLength", "csvHeader", "providerRatedAt", "providerDateEvidence", "nameMappingContract", "nameMappingSha256", "sourceRows", "evaluation"];
+    private static readonly string[] HtmlEloFields = ["contract", "sourceUrl", "response", "rawSha256", "rawByteLength", "parserContract", "displayedDate", "providerDateEvidence", "tableContract", "tableHeader", "nameMappingContract", "nameMappingSha256", "sourceRows", "evaluation"];
     private static readonly string[] RosterFields = ["contract", "metadataUrl", "artifactUrl", "advertisedRevision", "metadataSha256", "metadataByteLength", "remoteIdentityBefore", "acquisitionReason", "remoteIdentityAfter", "embeddedRevision", "rawSha256", "expectedRawSha256", "rawByteLength", "artifactCaptureDate", "membershipEffectiveDate", "enrichmentCaptureDate", "policySha256", "retainedDescriptorSha256", "retainedEvaluation", "retainedDiagnostics", "evaluation"];
     private static readonly string[] DateEvidenceFields = ["kind", "recipeId", "field", "rawValue", "ratedAt"];
     private static readonly string[] SourceRowFields = ["teamSlug", "providerName", "globalRank", "elo"];
+    private static readonly string[] HtmlSourceRowFields = ["teamSlug", "providerRoute", "providerDisplayName", "globalRank", "elo"];
+    private static readonly string[] HtmlResponseFields = ["statusCode", "finalUrl", "redirectCount", "redirectLocation", "mediaType", "charset", "contentEncodings", "declaredContentLength"];
+    private static readonly IReadOnlyDictionary<string, (string Route, string DisplayName)> HtmlClubEloMapping =
+        new Dictionary<string, (string, string)>(StringComparer.Ordinal)
+        {
+            ["b04"] = ("/Leverkusen", "Leverkusen"), ["bmg"] = ("/Gladbach", "Gladbach"), ["bvb"] = ("/Dortmund", "Dortmund"),
+            ["fca"] = ("/Augsburg", "Augsburg"), ["fcb"] = ("/Bayern", "Bayern München"), ["fck"] = ("/Koeln", "Köln"),
+            ["fcu"] = ("/UnionBerlin", "Union Berlin"), ["hsv"] = ("/Hamburg", "Hamburg"), ["m05"] = ("/Mainz", "Mainz"),
+            ["rbl"] = ("/RBLeipzig", "RB Leipzig"), ["s04"] = ("/Schalke", "Schalke"), ["scf"] = ("/Freiburg", "Freiburg"),
+            ["scp"] = ("/Paderborn", "Paderborn"), ["sge"] = ("/Frankfurt", "Frankfurt"), ["sve"] = ("/Elversberg", "Elversberg"),
+            ["svw"] = ("/Werder", "Werder"), ["tsg"] = ("/Hoffenheim", "Hoffenheim"), ["vfb"] = ("/Stuttgart", "Stuttgart")
+        };
     private static readonly string[] RemoteIdentityFields = ["etag", "byteLength"];
 
     public static void Validate(BundesligaContextSource source, string json, BundesligaContextSourceDisposition disposition)
@@ -199,7 +256,7 @@ public static class BundesligaContextSourceDescriptorContract
         var utf8 = Encoding.UTF8.GetBytes(json);
         using var document = JsonDocument.Parse(utf8, new JsonDocumentOptions { AllowTrailingCommas = false, CommentHandling = JsonCommentHandling.Disallow });
         var root = document.RootElement;
-        RequireFields(root, source == BundesligaContextSource.ClubElo ? EloFields : RosterFields);
+        RequireFields(root, source == BundesligaContextSource.ClubElo ? EloFieldsFor(root) : RosterFields);
         var canonical = JsonSerializer.SerializeToUtf8Bytes(root);
         if (!utf8.AsSpan().SequenceEqual(canonical)) throw new InvalidDataException("Descriptor JSON must be compact UTF-8 with canonical property order and values.");
         if (source == BundesligaContextSource.ClubElo) ValidateElo(root, disposition); else ValidateRoster(root, disposition);
@@ -267,7 +324,9 @@ public static class BundesligaContextSourceDescriptorContract
             || !Enum.IsDefined(disposition)
             || dispositionValue != disposition.ToString())
             throw new InvalidDataException("Observation disposition is unknown.");
-        var descriptor = root.GetProperty("descriptor").GetRawText();
+        var descriptorElement = root.GetProperty("descriptor");
+        if (descriptorElement.ValueKind != JsonValueKind.Object) throw new InvalidDataException("Observation descriptor must be an object.");
+        var descriptor = descriptorElement.GetRawText();
         if (RequireSha(root, "descriptorSha256") != BundesligaContextSourceHashing.Sha256(Encoding.UTF8.GetBytes(descriptor))) throw new InvalidDataException("Descriptor digest mismatch.");
         BundesligaContextSourcePayload? payload = null;
         if (root.GetProperty("payload") is { ValueKind: not JsonValueKind.Null } payloadElement)
@@ -282,8 +341,26 @@ public static class BundesligaContextSourceDescriptorContract
         return observation;
     }
 
+    internal static bool IsHtmlClubEloDescriptor(JsonElement root)
+        => root.TryGetProperty("contract", out var contract)
+            && contract.ValueKind == JsonValueKind.String
+            && contract.GetString() == "club-elo-official-html-descriptor/v1";
+
+    private static IReadOnlyList<string> EloFieldsFor(JsonElement root)
+    {
+        if (root.TryGetProperty("contract", out var contract) && contract.ValueKind == JsonValueKind.String)
+            return contract.GetString() switch
+            {
+                "club-elo-direct-csv-descriptor/v1" => EloFields,
+                "club-elo-official-html-descriptor/v1" => HtmlEloFields,
+                _ => throw new InvalidDataException("Club Elo descriptor contract is invalid.")
+            };
+        throw new InvalidDataException("Club Elo descriptor contract is invalid.");
+    }
+
     private static void ValidateElo(JsonElement root, BundesligaContextSourceDisposition disposition)
     {
+        if (IsHtmlClubEloDescriptor(root)) { ValidateHtmlElo(root, disposition); return; }
         RequireString(root, "contract", "club-elo-direct-csv-descriptor/v1");
         RequireHttps(root, "sourceUrl");
         OptionalSha(root, "rawSha256"); OptionalNonnegativeInt64(root, "rawByteLength", requireFirestoreRoundTrip: true); OptionalString(root, "csvHeader"); OptionalDate(root, "providerRatedAt");
@@ -302,9 +379,206 @@ public static class BundesligaContextSourceDescriptorContract
             RequireSha(root, "rawSha256"); RequireNonnegativeInt64(root, "rawByteLength"); RequireString(root, "csvHeader");
             RequireDate(root, "providerRatedAt"); RequireSha(root, "nameMappingSha256"); RequireString(root, "nameMappingContract");
             evidence = root.GetProperty("providerDateEvidence");
+            if (evidence.ValueKind != JsonValueKind.Object) throw new InvalidDataException("CSV provider date evidence is required.");
             if (root.GetProperty("providerRatedAt").GetString() != evidence.GetProperty("ratedAt").GetString()) throw new InvalidDataException("Rated-at evidence mismatch.");
             ValidateSourceRows(root.GetProperty("sourceRows"), requireCompleteSet: true);
         }
+    }
+
+    private static void ValidateHtmlElo(JsonElement root, BundesligaContextSourceDisposition disposition)
+    {
+        RequireString(root, "contract", "club-elo-official-html-descriptor/v1");
+        RequireString(root, "sourceUrl", "https://clubelo.com/GER");
+        RequireString(root, "parserContract", "club-elo-official-html-parser/v1");
+        RequireString(root, "tableContract", "club-elo-official-html-table/v1");
+        RequireString(root, "nameMappingContract", "bundesliga-2026-27-club-elo-name-map/v1");
+        RequireString(root, "nameMappingSha256", ClubEloHtmlNameMappingSha256);
+        var header = root.GetProperty("tableHeader");
+        if (header.ValueKind != JsonValueKind.Array || !header.EnumerateArray().Select(x => x.ValueKind == JsonValueKind.String ? x.GetString() : null).SequenceEqual(["Club", "Elo", "+/-", "Golo"], StringComparer.Ordinal))
+            throw new InvalidDataException("Club Elo HTML table header is invalid.");
+        OptionalSha(root, "rawSha256"); OptionalNonnegativeInt64(root, "rawByteLength", requireFirestoreRoundTrip: true);
+        ValidateHtmlResponse(root.GetProperty("response"));
+        var displayedDate = root.GetProperty("displayedDate");
+        if (displayedDate.ValueKind is not (JsonValueKind.Null or JsonValueKind.String)) throw new InvalidDataException("Displayed date has the wrong type.");
+        if (displayedDate.ValueKind == JsonValueKind.String) RequireDate(root, "displayedDate");
+        var evidence = root.GetProperty("providerDateEvidence");
+        if (evidence.ValueKind is not (JsonValueKind.Null or JsonValueKind.Object)) throw new InvalidDataException("Provider date evidence has the wrong type.");
+        if (evidence.ValueKind == JsonValueKind.Object) ValidateHtmlDateEvidence(evidence, displayedDate.ValueKind == JsonValueKind.String ? displayedDate.GetString()! : null);
+        var rows = root.GetProperty("sourceRows");
+        if (rows.ValueKind is not (JsonValueKind.Null or JsonValueKind.Array)) throw new InvalidDataException("Club Elo HTML source rows have the wrong type.");
+        if (rows.ValueKind == JsonValueKind.Array) ValidateHtmlSourceRows(rows, false);
+        var evaluation = RequireOneOf(root, "evaluation", "Eligible", "TransportRejected", "SizeRejected", "ResponseRejected", "DomRejected", "LexerRejected", "FragmentRejected", "DateRejected", "MappingRejected", "CoverageRejected", "StaleRejected", "NotNewer");
+        if ((evaluation == "Eligible") != (disposition == BundesligaContextSourceDisposition.ArtifactCaptured) || disposition == BundesligaContextSourceDisposition.MetadataUnchanged)
+            throw new InvalidDataException("Club Elo HTML disposition/evaluation conflict.");
+        if (evaluation == "TransportRejected")
+        {
+            RequireNulls(root, "response", "rawSha256", "rawByteLength", "displayedDate", "providerDateEvidence", "sourceRows");
+            return;
+        }
+        RequireHtmlResponse(root.GetProperty("response"));
+        if (evaluation == "SizeRejected")
+        {
+            RequireNulls(root, "displayedDate", "providerDateEvidence", "sourceRows");
+            var declared = root.GetProperty("response").GetProperty("declaredContentLength");
+            if (root.GetProperty("rawSha256").ValueKind == JsonValueKind.Null && root.GetProperty("rawByteLength").ValueKind == JsonValueKind.Null)
+            {
+                // Advertised oversize and an E1-proved streaming M+1 rejection both lack a
+                // completed raw pair. The bounded-read proof intentionally is not persisted.
+                return;
+            }
+            var rawSha = RequireSha(root, "rawSha256"); var rawLength = RequireNonnegativeInt64(root, "rawByteLength");
+            if (rawLength == 0)
+            {
+                if (rawSha != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                    || declared.ValueKind != JsonValueKind.Null && declared.GetInt64() > 2097152)
+                    throw new InvalidDataException("Complete empty HTML size evidence is invalid.");
+            }
+            else if (rawLength > 2097152 || declared.ValueKind != JsonValueKind.Number || !declared.TryGetInt64(out var declaredLength) || declaredLength is < 0 or > 2097152 || declaredLength == rawLength)
+                throw new InvalidDataException("Complete HTML size-mismatch evidence is invalid.");
+            return;
+        }
+        RequireSha(root, "rawSha256"); RequireNonnegativeInt64(root, "rawByteLength");
+        RequireHtmlSizePassed(root);
+        if (evaluation is "ResponseRejected" or "DomRejected" or "LexerRejected" or "FragmentRejected")
+        {
+            if (evaluation == "ResponseRejected" && IsAcceptingHtmlResponse(root.GetProperty("response"))) throw new InvalidDataException("Response rejection requires a failed response predicate.");
+            if (evaluation != "ResponseRejected") RequireAcceptingHtmlResponse(root.GetProperty("response"));
+            RequireNulls(root, "displayedDate", "providerDateEvidence", "sourceRows");
+            return;
+        }
+        if (evaluation == "DateRejected") { RequireAcceptingHtmlResponse(root.GetProperty("response")); RequireNulls(root, "displayedDate", "providerDateEvidence", "sourceRows"); return; }
+        RequireAcceptingHtmlResponse(root.GetProperty("response"));
+        RequireDate(root, "displayedDate");
+        if (evidence.ValueKind != JsonValueKind.Object) throw new InvalidDataException("HTML date evidence is required.");
+        if (evaluation == "MappingRejected") { RequireNull(root, "sourceRows"); return; }
+        ValidateHtmlSourceRows(rows, evaluation is "Eligible" or "StaleRejected" or "NotNewer");
+        if (evaluation == "CoverageRejected" && rows.GetArrayLength() >= BundesligaTeamManifest.ExpectedTeamCount)
+            throw new InvalidDataException("Coverage rejection must retain a canonical proper subset.");
+        if (evaluation == "Eligible")
+        {
+            var response = root.GetProperty("response");
+            if (response.GetProperty("statusCode").GetInt32() != 200
+                || response.GetProperty("finalUrl").GetString() != "https://clubelo.com/GER"
+                || response.GetProperty("redirectCount").GetInt32() != 0
+                || response.GetProperty("redirectLocation").ValueKind != JsonValueKind.Null
+                || response.GetProperty("mediaType").GetString() != "text/html"
+                || response.GetProperty("charset").GetString() != "utf-8"
+                || response.GetProperty("contentEncodings").GetArrayLength() != 0)
+                throw new InvalidDataException("Eligible HTML response is not accepting.");
+            if (response.GetProperty("declaredContentLength").ValueKind != JsonValueKind.Null
+                && response.GetProperty("declaredContentLength").GetInt64() != root.GetProperty("rawByteLength").GetInt64())
+                throw new InvalidDataException("Eligible HTML declared content length must equal the raw length.");
+        }
+    }
+
+    private static void ValidateHtmlResponse(JsonElement response)
+    {
+        if (response.ValueKind == JsonValueKind.Null) return;
+        RequireFields(response, HtmlResponseFields);
+        RequirePositiveInt32(response, "statusCode", requireFirestoreRoundTrip: true);
+        RequireHttps(response, "finalUrl"); RequireNonnegativeInt32(response, "redirectCount", requireFirestoreRoundTrip: true);
+        OptionalString(response, "redirectLocation"); OptionalString(response, "mediaType"); OptionalString(response, "charset");
+        if (response.GetProperty("contentEncodings").ValueKind != JsonValueKind.Array || response.GetProperty("contentEncodings").EnumerateArray().Any(x => x.ValueKind != JsonValueKind.String)) throw new InvalidDataException("Response content encodings are invalid.");
+        OptionalNonnegativeInt64(response, "declaredContentLength", requireFirestoreRoundTrip: true);
+    }
+
+    private static void RequireHtmlResponse(JsonElement response)
+    {
+        if (response.ValueKind != JsonValueKind.Object) throw new InvalidDataException("HTML response evidence is required.");
+    }
+
+    private static void RequireHtmlSizePassed(JsonElement root)
+    {
+        var length = RequireNonnegativeInt64(root, "rawByteLength");
+        if (length is < 1 or > 2097152) throw new InvalidDataException("HTML raw length did not pass the size gate.");
+        var declared = root.GetProperty("response").GetProperty("declaredContentLength");
+        if (declared.ValueKind != JsonValueKind.Null && (!declared.TryGetInt64(out var value) || value != length))
+            throw new InvalidDataException("HTML declared length did not pass the size gate.");
+    }
+
+    private static void RequireAcceptingHtmlResponse(JsonElement response)
+    {
+        if (!IsAcceptingHtmlResponse(response)) throw new InvalidDataException("HTML response did not pass the accepting-response gate.");
+    }
+
+    private static bool IsAcceptingHtmlResponse(JsonElement response)
+    {
+        return response.GetProperty("statusCode").GetInt32() == 200
+            && response.GetProperty("finalUrl").GetString() == "https://clubelo.com/GER"
+            && response.GetProperty("redirectCount").GetInt32() == 0
+            && response.GetProperty("redirectLocation").ValueKind == JsonValueKind.Null
+            && response.GetProperty("mediaType").GetString() == "text/html"
+            && response.GetProperty("charset").GetString() == "utf-8"
+            && response.GetProperty("contentEncodings").GetArrayLength() == 0;
+    }
+
+    private static void ValidateHtmlDateEvidence(JsonElement evidence, string? displayedDate)
+    {
+        RequireFields(evidence, DateEvidenceFields);
+        RequireString(evidence, "kind", "OfficialHtmlHeadingLink"); RequireString(evidence, "recipeId", "club-elo-official-html-displayed-date/v1"); RequireString(evidence, "field", "h1>a[href]");
+        var raw = RequireString(evidence, "rawValue"); var ratedAt = RequireDate(evidence, "ratedAt");
+        if (raw.Length != 10 || raw != ratedAt.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture) || displayedDate != raw)
+            throw new InvalidDataException("HTML displayed date evidence is not canonical.");
+    }
+
+    private static void ValidateHtmlSourceRows(JsonElement rows, bool requireCompleteSet)
+    {
+        if (rows.ValueKind != JsonValueKind.Array || requireCompleteSet && rows.GetArrayLength() != 18) throw new InvalidDataException("HTML Club Elo source rows are invalid.");
+        var slugs = new List<string>(); var routes = new HashSet<string>(StringComparer.Ordinal); var names = new HashSet<string>(StringComparer.Ordinal); var ranks = new HashSet<int>(); string? previous = null;
+        foreach (var row in rows.EnumerateArray())
+        {
+            RequireFields(row, HtmlSourceRowFields); var slug = RequireString(row, "teamSlug");
+            if (previous is not null && string.CompareOrdinal(previous, slug) >= 0) throw new InvalidDataException("Club Elo rows are not manifest-slug ordered.");
+            previous = slug; slugs.Add(slug);
+            var route = RequireString(row, "providerRoute"); var name = RequireString(row, "providerDisplayName");
+            if (!HtmlClubEloMapping.TryGetValue(slug, out var expected) || route != expected.Route || name != expected.DisplayName)
+                throw new InvalidDataException("HTML Club Elo route/name mapping is not the accepted canonical mapping.");
+            if (!routes.Add(route) || !names.Add(name) || !ranks.Add(RequirePositiveInt32(row, "globalRank", requireFirestoreRoundTrip: true))) throw new InvalidDataException("HTML Club Elo identities are not unique.");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(route, "^/[A-Za-z0-9][A-Za-z0-9-]{0,127}$", System.Text.RegularExpressions.RegexOptions.CultureInvariant) || route == "/GER") throw new InvalidDataException("HTML Club Elo route is unsafe.");
+            RequirePositiveInt32(row, "elo", requireFirestoreRoundTrip: true);
+        }
+        if (requireCompleteSet && (!slugs.SequenceEqual(BundesligaTeamManifest.Default.Entries.Select(entry => entry.TeamSlug), StringComparer.Ordinal)
+            || HtmlClubEloMapping.Count != BundesligaTeamManifest.ExpectedTeamCount)) throw new InvalidDataException("Eligible Club Elo source rows must exactly match the canonical Bundesliga team manifest.");
+    }
+
+    public static DateOnly? ClubEloRatedAt(string descriptorJson)
+    {
+        using var document = JsonDocument.Parse(descriptorJson); var root = document.RootElement;
+        var name = IsHtmlClubEloDescriptor(root) ? "displayedDate" : "providerRatedAt";
+        return root.GetProperty(name).ValueKind == JsonValueKind.Null ? null : DateOnly.ParseExact(root.GetProperty(name).GetString()!, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    public static void ValidateHtmlFreshness(string descriptorJson, DateTimeOffset observedAtUtc)
+    {
+        using var document = JsonDocument.Parse(descriptorJson); var root = document.RootElement;
+        if (!IsHtmlClubEloDescriptor(root)) return;
+        var evaluation = root.GetProperty("evaluation").GetString();
+        if (evaluation is not ("Eligible" or "StaleRejected" or "NotNewer")) return;
+        var ratedAt = ClubEloRatedAt(descriptorJson)!.Value;
+        var observed = DateOnly.FromDateTime(observedAtUtc.UtcDateTime);
+        var age = observed.DayNumber - ratedAt.DayNumber;
+        if (ratedAt > observed || evaluation == "Eligible" && age > 7 || evaluation == "StaleRejected" && age <= 7 || evaluation == "NotNewer" && age > 7)
+            throw new InvalidDataException("HTML evaluation contradicts represented displayed-date freshness.");
+    }
+
+    public static void ValidateClubEloDiagnostics(string descriptorJson, BundesligaContextSourceDisposition disposition, IReadOnlyList<string> diagnostics)
+    {
+        using var document = JsonDocument.Parse(descriptorJson); var root = document.RootElement;
+        if (!IsHtmlClubEloDescriptor(root)) return;
+        var evaluation = root.GetProperty("evaluation").GetString()!;
+        var expected = evaluation switch
+        {
+            "Eligible" => null, "TransportRejected" => "CLUB_ELO_TRANSPORT_REJECTED", "SizeRejected" => "CLUB_ELO_SIZE_REJECTED", "ResponseRejected" => "CLUB_ELO_RESPONSE_REJECTED", "DomRejected" => "CLUB_ELO_DOM_REJECTED", "LexerRejected" => "CLUB_ELO_LEXER_REJECTED", "FragmentRejected" => "CLUB_ELO_FRAGMENT_REJECTED", "DateRejected" => "CLUB_ELO_DISPLAYED_DATE_REJECTED", "MappingRejected" => "CLUB_ELO_MAPPING_REJECTED", "CoverageRejected" => "CLUB_ELO_COVERAGE_REJECTED", "StaleRejected" => "CLUB_ELO_STALE_GT_7_DAYS", "NotNewer" => "CLUB_ELO_NOT_NEWER", _ => throw new InvalidDataException("HTML evaluation is invalid.")
+        };
+        if (expected is null) { if (diagnostics.Count != 0) throw new InvalidDataException("Eligible HTML observations cannot have diagnostics."); return; }
+        if (disposition != BundesligaContextSourceDisposition.Rejected || diagnostics.Count == 0 || !diagnostics.Contains(expected, StringComparer.Ordinal)) throw new InvalidDataException("HTML diagnostic does not match its evaluation.");
+        var terminal = new[] { "CLUB_ELO_CONNECTION_FAILED", "CLUB_ELO_TIMEOUT", "CLUB_ELO_HTTP_REJECTED" };
+        if (evaluation == "TransportRejected")
+        {
+            if (diagnostics.Count > 2 || diagnostics.Any(value => value != expected && !terminal.Contains(value, StringComparer.Ordinal))) throw new InvalidDataException("HTML transport diagnostics are invalid.");
+        }
+        else if (diagnostics.Count != 1 || diagnostics[0] != expected)
+            throw new InvalidDataException("Only transport rejection may carry a terminal cause.");
     }
 
     private static void ValidateDateEvidence(JsonElement evidence)
@@ -442,6 +716,11 @@ public static class BundesligaContextSourceDescriptorContract
         if (rawSha != payload.Sha256 || rawLength != payload.ByteLength)
             throw new InvalidDataException("Descriptor raw identity does not match its payload.");
         payload.Validate(source);
+        if (source == BundesligaContextSource.ClubElo)
+        {
+            var expectedPath = IsHtmlClubEloDescriptor(root) ? "club-elo/source.html" : "club-elo/source.csv";
+            if (payload.Path != expectedPath) throw new InvalidDataException("Descriptor-selected payload identity is invalid.");
+        }
     }
 
     private static void ValidateAllNullOrMetadataObserved(JsonElement root)
@@ -502,10 +781,31 @@ public static class BundesligaContextSourceDescriptorContract
     private static string RequireSha(JsonElement root, string name) { var value = RequireString(root, name); BundesligaContextSourceHashing.ValidateSha(value); return value; }
     private static string RequireLowerHex(JsonElement root, string name, int length) { var value = RequireString(root, name); if (value.Length != length || value.Any(c => !char.IsAsciiHexDigit(c) || char.IsUpper(c))) throw new InvalidDataException($"'{name}' must be lowercase hex."); return value; }
     private static void RequireHttps(JsonElement root, string name) { var value = RequireString(root, name); if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) throw new InvalidDataException($"'{name}' must be HTTPS."); }
-    private static void RequireDate(JsonElement root, string name) { var value = RequireString(root, name); if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", out var parsed) || parsed.ToString("yyyy-MM-dd") != value) throw new InvalidDataException($"'{name}' is not a canonical date."); }
-    private static long RequireNonnegativeInt64(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Number || !p.TryGetInt64(out var value) || value < 0) throw new InvalidDataException($"'{name}' is not a non-negative Int64."); if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p); return value; }
-    private static int RequirePositiveInt32(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Number || !p.TryGetInt32(out var value) || value <= 0) throw new InvalidDataException($"'{name}' is not a positive Int32."); if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p); return value; }
-    private static double RequirePositiveFiniteDouble(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Number || !p.TryGetDouble(out var value) || !double.IsFinite(value) || value <= 0) throw new InvalidDataException($"'{name}' is not a positive finite number."); if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p); return value; }
+    private static DateOnly RequireDate(JsonElement root, string name) { var value = RequireString(root, name); if (!DateOnly.TryParseExact(value, "yyyy-MM-dd", out var parsed) || parsed.ToString("yyyy-MM-dd") != value) throw new InvalidDataException($"'{name}' is not a canonical date."); return parsed; }
+    private static long RequireNonnegativeInt64(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Number || !p.TryGetInt64(out var value) || value < 0) throw new InvalidDataException($"'{name}' is not a non-negative Int64."); RequireCanonicalNumber(p, value); if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p); return value; }
+    private static int RequirePositiveInt32(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Number || !p.TryGetInt32(out var value) || value <= 0) throw new InvalidDataException($"'{name}' is not a positive Int32."); RequireCanonicalNumber(p, value); if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p); return value; }
+    private static int RequireNonnegativeInt32(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind != JsonValueKind.Number || !p.TryGetInt32(out var value) || value < 0) throw new InvalidDataException($"'{name}' is not a non-negative Int32."); RequireCanonicalNumber(p, value); if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p); return value; }
+    private static double RequirePositiveFiniteDouble(JsonElement root, string name, bool requireFirestoreRoundTrip = false)
+    {
+        var p = root.GetProperty(name);
+        if (p.ValueKind != JsonValueKind.Number) throw new InvalidDataException($"'{name}' is not a positive finite number.");
+        if (p.TryGetInt64(out var integer))
+        {
+            if (integer <= 0) throw new InvalidDataException($"'{name}' is not a positive finite number.");
+            RequireCanonicalNumber(p, integer);
+            if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p);
+            return integer;
+        }
+        if (!p.TryGetDouble(out var value) || !double.IsFinite(value) || value <= 0) throw new InvalidDataException($"'{name}' is not a positive finite number.");
+        RequireCanonicalNumber(p, value);
+        if (requireFirestoreRoundTrip) RequireFirestoreRoundtrippableNumber(p);
+        return value;
+    }
+    private static void RequireCanonicalNumber(JsonElement value, object parsed)
+    {
+        if (value.GetRawText() != JsonSerializer.Serialize(parsed))
+            throw new InvalidDataException("Numeric values must use canonical JSON spelling.");
+    }
     private static void RequireFirestoreRoundtrippableNumber(JsonElement value)
     {
         var firestoreValue = value.TryGetInt64(out var integer) ? (object)integer : value.GetDouble();
@@ -518,5 +818,5 @@ public static class BundesligaContextSourceDescriptorContract
     private static void OptionalNonnegativeInt64(JsonElement root, string name, bool requireFirestoreRoundTrip = false) { var p = root.GetProperty(name); if (p.ValueKind == JsonValueKind.Null) return; RequireNonnegativeInt64(root, name, requireFirestoreRoundTrip); }
     private static void OptionalDate(JsonElement root, string name) { var p = root.GetProperty(name); if (p.ValueKind == JsonValueKind.Null) return; RequireDate(root, name); }
     private static string? OptionalLowerHex(JsonElement root, string name, int length) { var p = root.GetProperty(name); return p.ValueKind == JsonValueKind.Null ? null : RequireLowerHex(root, name, length); }
-    private static void ValidateRemoteIdentity(JsonElement identity) { RequireFields(identity, RemoteIdentityFields); var etag = identity.GetProperty("etag"); var length = identity.GetProperty("byteLength"); if (etag.ValueKind == JsonValueKind.Null && length.ValueKind == JsonValueKind.Null) throw new InvalidDataException("Remote identity must have an ETag or byte length."); if (etag.ValueKind is not (JsonValueKind.Null or JsonValueKind.String) || etag.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(etag.GetString())) throw new InvalidDataException("Remote ETag is invalid."); if (length.ValueKind != JsonValueKind.Null && (!length.TryGetInt64(out var n) || n < 0)) throw new InvalidDataException("Remote byte length is invalid."); }
+    private static void ValidateRemoteIdentity(JsonElement identity) { RequireFields(identity, RemoteIdentityFields); var etag = identity.GetProperty("etag"); var length = identity.GetProperty("byteLength"); if (etag.ValueKind == JsonValueKind.Null && length.ValueKind == JsonValueKind.Null) throw new InvalidDataException("Remote identity must have an ETag or byte length."); if (etag.ValueKind is not (JsonValueKind.Null or JsonValueKind.String) || etag.ValueKind == JsonValueKind.String && string.IsNullOrWhiteSpace(etag.GetString())) throw new InvalidDataException("Remote ETag is invalid."); if (length.ValueKind != JsonValueKind.Null) { if (length.ValueKind != JsonValueKind.Number || !length.TryGetInt64(out var n) || n < 0) throw new InvalidDataException("Remote byte length is invalid."); RequireCanonicalNumber(length, n); } }
 }

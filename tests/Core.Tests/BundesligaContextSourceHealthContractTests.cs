@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Core.Tests;
 
@@ -274,6 +275,109 @@ public class BundesligaContextSourceHealthContractTests
     }
 
     [Test]
+    public async Task Eligible_html_Elo_receipt_is_bound_to_the_displayed_date()
+    {
+        var observation = HtmlEligibleEloObservation();
+        var accepted = Receipt(BundesligaContextSource.ClubElo, new BundesligaContextSourceDates(new DateOnly(2026, 9, 4), null, null, null), null, [],
+            BundesligaContextSourceSelectionDisposition.NetworkAccepted, BundesligaContextSourceSelectedOrigin.NetworkCandidate,
+            observation: observation.ObservationDigest, publication: BundesligaContextSourcePublicationDisposition.Published);
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(accepted, observation);
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(accepted with { SourceDates = accepted.SourceDates with { RatedAt = new DateOnly(2026, 9, 3) } }, observation)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Html_receipt_matrix_binds_selected_dates_origin_and_publication_to_the_exact_evaluation()
+    {
+        var candidateDate = new DateOnly(2026, 9, 4);
+        var eligible = HtmlObservation("Eligible", new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero));
+        var accepted = Receipt(BundesligaContextSource.ClubElo, new BundesligaContextSourceDates(candidateDate, null, null, null), null, [], BundesligaContextSourceSelectionDisposition.NetworkAccepted, BundesligaContextSourceSelectedOrigin.NetworkCandidate, observation: eligible.ObservationDigest, publication: BundesligaContextSourcePublicationDisposition.Published);
+        foreach (var publication in new[] { BundesligaContextSourcePublicationDisposition.Published, BundesligaContextSourcePublicationDisposition.Unchanged, BundesligaContextSourcePublicationDisposition.Reactivated })
+            BundesligaContextSourceReceiptContract.ValidateAgainstObservation(accepted with { PublicationDisposition = publication }, eligible);
+        foreach (var origin in new[] { BundesligaContextSourceSelectedOrigin.LaunchSeed, BundesligaContextSourceSelectedOrigin.LastKnownGood })
+        {
+            var retainedEligible = accepted with { SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, SelectedOrigin = origin, PublicationDisposition = origin == BundesligaContextSourceSelectedOrigin.LastKnownGood ? BundesligaContextSourcePublicationDisposition.NotAttempted : BundesligaContextSourcePublicationDisposition.Published, SourceDates = accepted.SourceDates with { RatedAt = candidateDate.AddDays(1) } };
+            BundesligaContextSourceReceiptContract.ValidateAgainstObservation(retainedEligible, eligible);
+            if (origin == BundesligaContextSourceSelectedOrigin.LaunchSeed)
+            {
+                await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(retainedEligible with { PublicationDisposition = BundesligaContextSourcePublicationDisposition.Unchanged }, eligible)).Throws<InvalidDataException>();
+                await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(retainedEligible with { PublicationDisposition = BundesligaContextSourcePublicationDisposition.NotAttempted }, eligible)).Throws<InvalidDataException>();
+            }
+        }
+
+        var stale = HtmlObservation("StaleRejected", eligible.ObservedAtUtc.AddDays(6));
+        BundesligaContextSourceDescriptorContract.ValidateHtmlFreshness(stale.DescriptorJson, stale.ObservedAtUtc);
+        stale.Validate();
+        var staleReceipt = Receipt(BundesligaContextSource.ClubElo, new BundesligaContextSourceDates(new DateOnly(2026, 8, 20), null, null, null), null, [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected], BundesligaContextSourceSelectionDisposition.NetworkCandidateStale, BundesligaContextSourceSelectedOrigin.LastKnownGood, observation: stale.ObservationDigest, publication: BundesligaContextSourcePublicationDisposition.NotAttempted);
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(staleReceipt, stale);
+        var staleWithFreshness = staleReceipt with { ActiveConditions = [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected, BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days] };
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(staleWithFreshness, stale);
+        BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(staleWithFreshness, new DateOnly(2026, 9, 12));
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(staleReceipt, new DateOnly(2026, 9, 12))).Throws<InvalidDataException>();
+
+        var notNewer = HtmlObservation("NotNewer", eligible.ObservedAtUtc);
+        var notNewerReceipt = staleReceipt with { ObservationDigest = notNewer.ObservationDigest, SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, SourceDates = staleReceipt.SourceDates with { RatedAt = candidateDate } };
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(notNewerReceipt, notNewer);
+
+        var rejected = HtmlObservation("TransportRejected", eligible.ObservedAtUtc);
+        var rejectedReceipt = staleReceipt with { ObservationDigest = rejected.ObservationDigest, SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected };
+        BundesligaContextSourceReceiptContract.ValidateAgainstObservation(rejectedReceipt, rejected);
+        foreach (var evaluation in new[] { "TransportRejected", "SizeRejected", "ResponseRejected", "DomRejected", "LexerRejected", "FragmentRejected", "DateRejected", "MappingRejected", "CoverageRejected" })
+        {
+            var rejectedEvaluation = HtmlObservation(evaluation, eligible.ObservedAtUtc);
+            var candidateRejected = rejectedReceipt with { ObservationDigest = rejectedEvaluation.ObservationDigest };
+            BundesligaContextSourceReceiptContract.ValidateAgainstObservation(candidateRejected, rejectedEvaluation);
+            await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(candidateRejected with { SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkAccepted, SelectedOrigin = BundesligaContextSourceSelectedOrigin.NetworkCandidate, PublicationDisposition = BundesligaContextSourcePublicationDisposition.Published }, rejectedEvaluation)).Throws<InvalidDataException>();
+        }
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(rejectedReceipt with { PublicationDisposition = BundesligaContextSourcePublicationDisposition.Published }, rejected)).Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(rejectedReceipt with { ActiveConditions = [BundesligaContextSourceHealthCondition.AcquisitionFailed] }, rejected)).Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(accepted with { PublicationDisposition = BundesligaContextSourcePublicationDisposition.NotAttempted }, eligible)).Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(accepted with { SourceDates = accepted.SourceDates with { RatedAt = candidateDate.AddDays(-1) } }, eligible)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Html_receipt_evaluation_selection_origin_publication_date_and_condition_cartesian_matrix_matches_the_ADR_oracle()
+    {
+        var observedAt = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
+        var evaluations = new[] { "Eligible", "StaleRejected", "NotNewer", "TransportRejected", "SizeRejected", "ResponseRejected", "DomRejected", "LexerRejected", "FragmentRejected", "DateRejected", "MappingRejected", "CoverageRejected" };
+        var selections = new[] { BundesligaContextSourceSelectionDisposition.NetworkAccepted, BundesligaContextSourceSelectionDisposition.NetworkCandidateStale, BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected };
+        var origins = new[] { BundesligaContextSourceSelectedOrigin.NetworkCandidate, BundesligaContextSourceSelectedOrigin.LaunchSeed, BundesligaContextSourceSelectedOrigin.LastKnownGood };
+        var publications = Enum.GetValues<BundesligaContextSourcePublicationDisposition>();
+        var dates = new[] { new DateOnly(2026, 9, 6), new DateOnly(2026, 9, 4), new DateOnly(2026, 8, 30), new DateOnly(2026, 8, 20) };
+        var conditionSubsets = Enumerable.Range(0, 8).Select(mask => BundesligaContextSourceHealth.OrderConditions(new[]
+        {
+            BundesligaContextSourceHealthCondition.AcquisitionFailed,
+            BundesligaContextSourceHealthCondition.ClubEloSourceRejected,
+            BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days
+        }.Where((_, bit) => (mask & (1 << bit)) != 0))).ToArray();
+        var mismatches = new List<string>(); var caseCount = 0;
+
+        foreach (var evaluation in evaluations)
+        foreach (var selection in selections)
+        foreach (var origin in origins)
+        foreach (var publication in publications)
+        foreach (var ratedAt in dates)
+        foreach (var conditions in conditionSubsets)
+        {
+            caseCount++;
+            var evaluationObservedAt = evaluation == "StaleRejected" ? observedAt.AddDays(6) : observedAt;
+            var observation = HtmlObservation(evaluation, evaluationObservedAt);
+            var receipt = Receipt(BundesligaContextSource.ClubElo, new BundesligaContextSourceDates(ratedAt, null, null, null), null, conditions, selection, origin, observation: observation.ObservationDigest, publication: publication);
+            var expected = HtmlReceiptOracle(evaluation, selection, origin, publication, ratedAt, conditions, new DateOnly(2026, 9, 6));
+            var actual = true;
+            try
+            {
+                receipt.Validate();
+                BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receipt, observation);
+                BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(receipt, new DateOnly(2026, 9, 6));
+            }
+            catch (InvalidDataException) { actual = false; }
+            if (actual != expected) mismatches.Add($"{evaluation}/{selection}/{origin}/{publication}/{ratedAt:yyyy-MM-dd}/{string.Join(',', conditions)} expected={expected} actual={actual}");
+        }
+        await Assert.That(caseCount).IsEqualTo(12 * 4 * 3 * 4 * 4 * 8);
+        await Assert.That(mismatches).IsEmpty();
+    }
+
+    [Test]
     public async Task Rejected_Elo_without_a_retained_head_can_publish_the_launch_seed_fallback()
     {
         var observation = Observation(BundesligaContextSource.ClubElo, BundesligaContextSourceDisposition.Rejected);
@@ -361,6 +465,49 @@ public class BundesligaContextSourceHealthContractTests
             ActiveConditions = [BundesligaContextSourceHealthCondition.RosterEnrichmentDateUnknown]
         };
         BundesligaContextSourceReceiptContract.ValidateAgainstObservation(carriedLegacy, eligibleRoster);
+    }
+
+    [Test]
+    public async Task Reducer_recomputes_all_eight_HTML_retained_lanes_without_condition_leakage()
+    {
+        var identity = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 27);
+        var reference = new DateTimeOffset(2026, 9, 12, 12, 0, 0, TimeSpan.Zero); var bundle = new string('b', 64);
+        var observation = HtmlEligibleEloObservation() with { AttemptId = BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo) };
+        var outer = new BundesligaContextSourceOuterCycle(identity, reference, reference, BundesligaContextSourceContract.ProductionConsumers[0], BundesligaContextSourceContract.ProductionConsumers, [BundesligaContextSource.ClubElo], BundesligaContextSourceCycleStatus.HandoffReady, bundle, $"bundesliga-context-source-bundle-{identity.StorageId}");
+        var claim = new BundesligaContextSourceCycleClaim(identity, BundesligaContextSource.ClubElo, observation.AttemptId, BundesligaContextSourceSourceStatus.Complete, "11111111-1111-4111-8111-111111111111", reference, reference.AddMinutes(10), reference, observation.ObservationDigest, observation, null, BundesligaContextSourceContract.ProductionConsumers, reference);
+        var expectedByLane = BundesligaContextSourceContract.ProductionConsumers.Select((lane, index) => new
+        {
+            Lane = lane,
+            SnapshotId = new string("01234567"[index], 64),
+            Origin = index % 3 == 0 ? BundesligaContextSourceSelectedOrigin.LastKnownGood : BundesligaContextSourceSelectedOrigin.LaunchSeed,
+            RatedAt = index % 2 == 0 ? new DateOnly(2026, 9, 4) : new DateOnly(2026, 9, 5)
+        }).ToDictionary(value => value.Lane, StringComparer.Ordinal);
+        var receipts = BundesligaContextSourceContract.ProductionConsumers.Select((lane, index) => new BundesligaContextSourceReceipt((Receipt(
+            BundesligaContextSource.ClubElo,
+            new BundesligaContextSourceDates(expectedByLane[lane].RatedAt, null, null, null), null,
+            index % 2 == 0 ? [] : [BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days],
+            BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+            expectedByLane[lane].Origin,
+            identity, lane, observation.ObservationDigest, bundle,
+            index % 3 == 0 ? BundesligaContextSourcePublicationDisposition.NotAttempted : BundesligaContextSourcePublicationDisposition.Reactivated) with { SelectedSnapshotId = expectedByLane[lane].SnapshotId }), reference)).ToArray();
+
+        var health = BundesligaContextSourceHealthReducer.ReduceCompleted(null, outer, claim, receipts);
+
+        await Assert.That(receipts.Length).IsEqualTo(8);
+        await Assert.That(health.CommunitySelections.Select(selection => selection.ConsumerLaneId)).IsEqualTo(BundesligaContextSourceContract.ProductionConsumers.Order(StringComparer.Ordinal).ToArray());
+        await Assert.That(health.LastSuccessfulSourceDates.RatedAt).IsEqualTo(new DateOnly(2026, 9, 4));
+        await Assert.That(health.ActiveConditions).IsEquivalentTo([BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]);
+        foreach (var selection in health.CommunitySelections)
+        {
+            var expected = expectedByLane[selection.ConsumerLaneId];
+            await Assert.That(selection.SelectedSnapshotId).IsEqualTo(expected.SnapshotId);
+            await Assert.That(selection.SelectedOrigin).IsEqualTo(expected.Origin);
+            await Assert.That(selection.RatedAt).IsEqualTo(expected.RatedAt);
+            IReadOnlyList<BundesligaContextSourceHealthCondition> expectedConditions = expected.RatedAt == new DateOnly(2026, 9, 4)
+                ? [BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]
+                : [];
+            await Assert.That(selection.Conditions).IsEqualTo(expectedConditions);
+        }
     }
 
     [Test]
@@ -617,6 +764,45 @@ public class BundesligaContextSourceHealthContractTests
 
     private static string CommunityFor(string lane, BundesligaContextSourceScope scope) => scope == BundesligaContextSourceScope.Development ? BundesligaContextSourceContract.DevelopmentCommunity : lane switch { "pes-squad-context" => "pes-squad", "schadensfresse-context" => "schadensfresse", "relaxdays-tippt-context" => "relaxdays-tippt", _ => "ehonda-ai-arena" };
 
+    private static bool HtmlReceiptOracle(
+        string evaluation,
+        BundesligaContextSourceSelectionDisposition selection,
+        BundesligaContextSourceSelectedOrigin origin,
+        BundesligaContextSourcePublicationDisposition publication,
+        DateOnly ratedAt,
+        IReadOnlyList<BundesligaContextSourceHealthCondition> conditions,
+        DateOnly referenceDate)
+    {
+        var expectedSelection = evaluation switch
+        {
+            "Eligible" => selection is BundesligaContextSourceSelectionDisposition.NetworkAccepted or BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+            "StaleRejected" => selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateStale,
+            "NotNewer" => selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+            _ => selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected
+        };
+        var accepted = selection == BundesligaContextSourceSelectionDisposition.NetworkAccepted;
+        var retained = !accepted;
+        var expectedOrigin = accepted
+            ? origin == BundesligaContextSourceSelectedOrigin.NetworkCandidate
+            : origin is BundesligaContextSourceSelectedOrigin.LaunchSeed or BundesligaContextSourceSelectedOrigin.LastKnownGood;
+        var expectedPublication = accepted
+            ? publication is BundesligaContextSourcePublicationDisposition.Published or BundesligaContextSourcePublicationDisposition.Unchanged or BundesligaContextSourcePublicationDisposition.Reactivated
+            : origin == BundesligaContextSourceSelectedOrigin.LaunchSeed
+                ? publication is BundesligaContextSourcePublicationDisposition.Published or BundesligaContextSourcePublicationDisposition.Reactivated
+                : origin == BundesligaContextSourceSelectedOrigin.LastKnownGood
+                    && publication == BundesligaContextSourcePublicationDisposition.NotAttempted;
+        var expectedDates = (!accepted || ratedAt == new DateOnly(2026, 9, 4))
+            && (selection != BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer || ratedAt >= new DateOnly(2026, 9, 4));
+        var expectedBaseConditions = evaluation == "Eligible"
+            ? Array.Empty<BundesligaContextSourceHealthCondition>()
+            : new[] { BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected };
+        var actualBaseConditions = conditions.Where(condition => condition != BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days).ToArray();
+        var expectedFreshness = referenceDate.DayNumber - ratedAt.DayNumber > 7;
+        var actualFreshness = conditions.Contains(BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days);
+        return expectedSelection && expectedOrigin && expectedPublication && expectedDates && retained == (origin is BundesligaContextSourceSelectedOrigin.LaunchSeed or BundesligaContextSourceSelectedOrigin.LastKnownGood)
+            && actualBaseConditions.SequenceEqual(expectedBaseConditions) && actualFreshness == expectedFreshness;
+    }
+
     private static bool IsAllowed(BundesligaContextSourceDisposition disposition, BundesligaContextSource source, BundesligaContextSourceSelectionDisposition selection, BundesligaContextSourceSelectedOrigin origin, BundesligaContextSourcePublicationDisposition publication)
     {
         if (source == BundesligaContextSource.ClubElo)
@@ -668,6 +854,61 @@ public class BundesligaContextSourceHealthContractTests
     {
         var rows = BundesligaTeamManifest.Default.Entries.Select((entry, index) => new { teamSlug = entry.TeamSlug, providerName = $"Team {index + 1:00}", globalRank = index + 1, elo = 1500 }).ToArray();
         return JsonSerializer.Serialize(new { contract = "club-elo-direct-csv-descriptor/v1", sourceUrl = "https://example.test/elo.csv", rawSha256 = new string('a', 64), rawByteLength = 1, csvHeader = "Rank,Club,Country,Level,Elo,From,To", providerRatedAt = "2026-09-04", providerDateEvidence = new { kind = "ProviderCsvField", recipeId = "recipe/v1", field = "From", rawValue = "2026-09-04", ratedAt = "2026-09-04" }, nameMappingContract = "map/v1", nameMappingSha256 = new string('b', 64), sourceRows = rows, evaluation = "Eligible" });
+    }
+
+    private static BundesligaContextSourceObservation HtmlEligibleEloObservation()
+    {
+        var identity = BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000000");
+        var mapping = new[]
+        {
+            ("b04", "/Leverkusen", "Leverkusen"), ("bmg", "/Gladbach", "Gladbach"), ("bvb", "/Dortmund", "Dortmund"), ("fca", "/Augsburg", "Augsburg"),
+            ("fcb", "/Bayern", "Bayern München"), ("fck", "/Koeln", "Köln"), ("fcu", "/UnionBerlin", "Union Berlin"), ("hsv", "/Hamburg", "Hamburg"),
+            ("m05", "/Mainz", "Mainz"), ("rbl", "/RBLeipzig", "RB Leipzig"), ("s04", "/Schalke", "Schalke"), ("scf", "/Freiburg", "Freiburg"),
+            ("scp", "/Paderborn", "Paderborn"), ("sge", "/Frankfurt", "Frankfurt"), ("sve", "/Elversberg", "Elversberg"), ("svw", "/Werder", "Werder"),
+            ("tsg", "/Hoffenheim", "Hoffenheim"), ("vfb", "/Stuttgart", "Stuttgart")
+        };
+        var rows = mapping.Select((entry, index) => new { teamSlug = entry.Item1, providerRoute = entry.Item2, providerDisplayName = entry.Item3, globalRank = index + 1, elo = 1500 + index }).ToArray();
+        var descriptor = JsonSerializer.Serialize(new
+        {
+            contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
+            response = new { statusCode = 200, finalUrl = "https://clubelo.com/GER", redirectCount = 0, redirectLocation = (string?)null, mediaType = "text/html", charset = "utf-8", contentEncodings = Array.Empty<string>(), declaredContentLength = 1L },
+            rawSha256 = new string('a', 64), rawByteLength = 1L, parserContract = "club-elo-official-html-parser/v1", displayedDate = "2026-09-04",
+            providerDateEvidence = new { kind = "OfficialHtmlHeadingLink", recipeId = "club-elo-official-html-displayed-date/v1", field = "h1>a[href]", rawValue = "2026-09-04", ratedAt = "2026-09-04" },
+            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
+            sourceRows = rows, evaluation = "Eligible"
+        });
+        return new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero), BundesligaContextSourceDisposition.ArtifactCaptured, descriptor, new BundesligaContextSourcePayload("club-elo/source.html", 1, new string('a', 64)), []);
+    }
+
+    private static BundesligaContextSourceObservation HtmlObservation(string evaluation, DateTimeOffset observedAtUtc)
+    {
+        var eligible = HtmlEligibleEloObservation();
+        var root = JsonNode.Parse(eligible.DescriptorJson)!.AsObject();
+        root["evaluation"] = evaluation;
+        var disposition = evaluation == "Eligible" ? BundesligaContextSourceDisposition.ArtifactCaptured : BundesligaContextSourceDisposition.Rejected;
+        switch (evaluation)
+        {
+            case "TransportRejected":
+                root["response"] = null; root["rawSha256"] = null; root["rawByteLength"] = null; root["displayedDate"] = null; root["providerDateEvidence"] = null; root["sourceRows"] = null;
+                break;
+            case "SizeRejected":
+                root["rawSha256"] = null; root["rawByteLength"] = null; root["displayedDate"] = null; root["providerDateEvidence"] = null; root["sourceRows"] = null; root["response"]!.AsObject()["declaredContentLength"] = 2097153;
+                break;
+            case "ResponseRejected":
+                root["displayedDate"] = null; root["providerDateEvidence"] = null; root["sourceRows"] = null; root["response"]!.AsObject()["statusCode"] = 404;
+                break;
+            case "DomRejected": case "LexerRejected": case "FragmentRejected": case "DateRejected":
+                root["displayedDate"] = null; root["providerDateEvidence"] = null; root["sourceRows"] = null;
+                break;
+            case "MappingRejected": root["sourceRows"] = null; break;
+            case "CoverageRejected": root["sourceRows"] = new JsonArray(); break;
+        }
+        var diagnostics = evaluation switch
+        {
+            "Eligible" => (IReadOnlyList<string>)[], "TransportRejected" => ["CLUB_ELO_TRANSPORT_REJECTED"], "SizeRejected" => ["CLUB_ELO_SIZE_REJECTED"], "ResponseRejected" => ["CLUB_ELO_RESPONSE_REJECTED"], "DomRejected" => ["CLUB_ELO_DOM_REJECTED"], "LexerRejected" => ["CLUB_ELO_LEXER_REJECTED"], "FragmentRejected" => ["CLUB_ELO_FRAGMENT_REJECTED"], "DateRejected" => ["CLUB_ELO_DISPLAYED_DATE_REJECTED"], "MappingRejected" => ["CLUB_ELO_MAPPING_REJECTED"], "CoverageRejected" => ["CLUB_ELO_COVERAGE_REJECTED"], "StaleRejected" => ["CLUB_ELO_STALE_GT_7_DAYS"], "NotNewer" => ["CLUB_ELO_NOT_NEWER"], _ => throw new InvalidOperationException()
+        };
+        return eligible with { ObservedAtUtc = observedAtUtc, Disposition = disposition, DescriptorJson = root.ToJsonString(), Payload = disposition == BundesligaContextSourceDisposition.ArtifactCaptured ? eligible.Payload : null, Diagnostics = diagnostics };
     }
 
     private static string RosterDescriptor(string evaluation)
