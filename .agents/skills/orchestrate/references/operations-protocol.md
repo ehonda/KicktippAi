@@ -263,4 +263,3 @@ migrated or special-cased.
 
 Mark the final checkpoint `complete` or `stopped`. This removes the active
 marker and expires run authorization.
-

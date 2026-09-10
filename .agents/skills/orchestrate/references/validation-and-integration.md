@@ -100,4 +100,3 @@ another retry.
 A later source change invalidates final acceptance and any validation evidence
 whose tested surface it changes. Re-run only the gates made stale by the new
 diff, then obtain fresh final acceptance of the new exact tip.
-

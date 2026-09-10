@@ -168,4 +168,3 @@ run state.
   or publication decisions.
 - **Handoff:** exact workflow/check identifiers, SHA, outcome, and relevant log
   locations to root or diagnosis.
-
