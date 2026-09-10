@@ -13,6 +13,7 @@
   "gates": [],
   "instruction_inputs": [],
   "active_contracts": [],
+  "evidence_references": [],
   "git": {
     "remote": "origin",
     "push_url": "https://github.com/ehonda/KicktippAi.git",
@@ -33,7 +34,9 @@
     "owner_override": null,
     "worktree_reservations": [],
     "active_heavy_reservations": [],
-    "circuit_breaker_mode": "normal"
+    "circuit_breaker_mode": "normal",
+    "circuit_breaker_trigger": null,
+    "degraded_profiles": []
   },
   "retained_agents": [],
   "next_root_action": "<next safe control-plane action>",

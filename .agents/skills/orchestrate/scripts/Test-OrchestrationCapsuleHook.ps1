@@ -107,6 +107,7 @@ try {
         RunId = $runId
         ExpectedRevision = 1
         Status = 'preview'
+        TransitionName = 'run:preview-no-op'
     }
     Assert-True ($noOp.no_op -and $noOp.revision -eq 1) 'semantic duplicates must not create revisions'
 
@@ -116,10 +117,12 @@ try {
         scope = 'lane-a'
         evidence = 'Memory measurement is stale.'
         prohibited_transitions = @('lane-a:build')
-        remediation = 'Refresh resource evidence.'
+        remediation_owner = 'root-orchestrator'
+        remediation_action = 'Refresh resource evidence.'
         continue_actions = @('lane-b:review')
         escalation_condition = 'Evidence remains unavailable after one retry.'
         retry_budget = 1
+        retry_attempts = 0
     } | ConvertTo-Json -Compress
     $setLaneGate = Invoke-Checkpoint @{
         Action = 'SetGate'
@@ -129,6 +132,31 @@ try {
     }
     Assert-True ($setLaneGate.revision -eq 2) 'lane gate must create one revision'
     Assert-True ((Invoke-Validation).valid) 'a lane-scoped gate must preserve hot recovery'
+    $gatedTransitionRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Transition'
+            RunId = $runId
+            ExpectedRevision = 2
+            Status = 'preview'
+            TransitionName = 'lane-a:build'
+        } | Out-Null
+    }
+    catch { $gatedTransitionRejected = $_.Exception.Message -match 'prohibited by active gate' }
+    Assert-True $gatedTransitionRejected 'a gate must deny only its exact prohibited transition'
+
+    $invalidLifecycleRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Transition'
+            RunId = $runId
+            ExpectedRevision = 2
+            Status = 'active'
+            TransitionName = 'run:activate'
+        } | Out-Null
+    }
+    catch { $invalidLifecycleRejected = $_.Exception.Message -match 'not allowed' }
+    Assert-True $invalidLifecycleRejected 'preview must not skip the ready lifecycle state'
 
     $ownerGate = [ordered] @{
         id = 'owner-route'
@@ -136,10 +164,12 @@ try {
         scope = 'run'
         evidence = 'Publication target requires an owner choice.'
         prohibited_transitions = @('run:publish')
-        remediation = 'Ask the owner for the target.'
-        continue_actions = @('lane-a:review')
+        remediation_owner = 'root-orchestrator'
+        remediation_action = 'Ask the owner for the target.'
+        continue_actions = @()
         escalation_condition = 'No safe frontier remains.'
         retry_budget = 0
+        retry_attempts = 0
     } | ConvertTo-Json -Compress
     $setOwnerGate = Invoke-Checkpoint @{
         Action = 'SetGate'
@@ -156,6 +186,7 @@ try {
         RunId = $runId
         ExpectedRevision = 3
         GateId = 'owner-route'
+        ClearanceEvidence = 'The owner selected the recorded publication target.'
     }
     Assert-True ($clearOwnerGate.revision -eq 4 -and (Invoke-Validation).valid) 'clearing run gate must restore hot recovery'
 
@@ -165,15 +196,73 @@ try {
         id = 'lane-a'
         status = 'correction'
         owner = '/root/writer'
+        dependencies = @()
+        worktree_path = '.tmp/worktrees/lane-a'
+        next_action = 'Apply bounded correction.'
+    })
+    $state.ownership_reservations = @([pscustomobject] @{
+        assignment_id = 'lane-a-writer-initial'
+        lane_id = 'lane-a'
+        agent_path = '/root/writer'
+        role = 'milestone-writer'
+        model = 'gpt-5.6-terra'
+        reasoning_effort = 'medium'
+        owned_paths = @('src/lane-a')
         next_action = 'Apply bounded correction.'
     })
     $replace = Invoke-Checkpoint @{
-        Action = 'Replace'
+        Action = 'Update'
         RunId = $runId
         ExpectedRevision = 4
         StateJson = ($state | ConvertTo-Json -Depth 20 -Compress)
+        CheckpointKind = @('Freeze', 'OwnershipReservation')
+        TransitionName = 'run:freeze-lane-a'
     }
     Assert-True ($replace.revision -eq 5) 'replace must commit one validated state revision'
+
+    $currentForReorder = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $reorderedState = [ordered] @{}
+    foreach ($propertyName in @($currentForReorder.PSObject.Properties.Name)[-1..-(
+        $currentForReorder.PSObject.Properties.Name.Count)]) {
+        $reorderedState[$propertyName] = $currentForReorder.$propertyName
+    }
+    $reorderedNoOp = Invoke-Checkpoint @{
+        Action = 'Update'
+        RunId = $runId
+        ExpectedRevision = 5
+        StateJson = ($reorderedState | ConvertTo-Json -Depth 20 -Compress)
+        CheckpointKind = @('Freeze')
+        TransitionName = 'run:semantic-no-op'
+    }
+    Assert-True ($reorderedNoOp.no_op -and $reorderedNoOp.revision -eq 5) 'JSON property order must not create a checkpoint revision'
+
+    $ambiguousOwnership = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $ambiguousOwnership.ownership_reservations = @(
+        @($ambiguousOwnership.ownership_reservations) +
+        [pscustomobject] @{
+            assignment_id = 'lane-a-writer-duplicate'
+            lane_id = 'lane-a'
+            agent_path = '/root/writer'
+            role = 'milestone-writer'
+            model = 'gpt-5.6-terra'
+            reasoning_effort = 'medium'
+            owned_paths = @('src/lane-a')
+            next_action = 'Duplicate ownership must be rejected.'
+        })
+    $ambiguousOwnershipRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Update'
+            RunId = $runId
+            ExpectedRevision = 5
+            StateJson = ($ambiguousOwnership | ConvertTo-Json -Depth 20 -Compress)
+            CheckpointKind = @('OwnershipReservation')
+            TransitionName = 'lane-a:duplicate-owner'
+        } | Out-Null
+    }
+    catch { $ambiguousOwnershipRejected = $_.Exception.Message -match 'Ownership reservation is invalid' }
+    Assert-True $ambiguousOwnershipRejected 'one lane must never have ambiguous current ownership'
+    Assert-True ((Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).revision -eq 5) 'rejected ownership must preserve the committed revision'
 
     $revision = 5
     foreach ($suffix in @('one', 'two', 'three')) {
@@ -184,6 +273,7 @@ try {
             MilestoneId = 'lane-a'
             CorrectionRole = 'milestone-writer'
             AssignmentId = "fix-$suffix"
+            TransitionName = 'lane-a:correction-dispatch'
         }
         $revision++
         Assert-True ($reserve.correction_allowed -and $reserve.revision -eq $revision) 'writer correction must reserve before dispatch'
@@ -205,11 +295,14 @@ try {
         MilestoneId = 'lane-a'
         CorrectionRole = 'milestone-writer'
         AssignmentId = 'fix-four'
+        TransitionName = 'lane-a:correction-dispatch'
     }
     $revision++
     Assert-True (-not $exhausted.correction_allowed) 'fourth writer correction must be rejected'
     $exhaustedState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
     Assert-True ($exhaustedState.lanes[0].status -eq 'needs-diagnosis') 'exhaustion must reroute only the affected lane'
+    Assert-True ([string]::IsNullOrWhiteSpace([string] $exhaustedState.lanes[0].owner)) 'exhaustion must release the current specialist'
+    Assert-True (@($exhaustedState.correction_counters[0].issued_assignment_ids).Count -eq 3) 'consumed correction assignment IDs must remain recorded'
     $repeatedExhaustion = Invoke-Checkpoint @{
         Action = 'ReserveCorrection'
         RunId = $runId
@@ -217,6 +310,7 @@ try {
         MilestoneId = 'lane-a'
         CorrectionRole = 'milestone-writer'
         AssignmentId = 'fix-five'
+        TransitionName = 'lane-a:correction-dispatch'
     }
     Assert-True ($repeatedExhaustion.no_op -and -not $repeatedExhaustion.correction_allowed) 'repeated over-budget dispatch must remain explicitly rejected without another revision'
 
@@ -235,6 +329,7 @@ try {
             RunId = $runId
             ExpectedRevision = ($revision - 1)
             Status = 'active'
+            TransitionName = 'run:activate'
         } | Out-Null
     }
     catch { $conflict = $_.Exception.Message -match 'Revision conflict' }
@@ -242,14 +337,16 @@ try {
 
     $committedPreviewHash = (Get-FileHash -LiteralPath (Join-Path $runDirectory 'preview.md') -Algorithm SHA256).Hash
     $invalidCandidate = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
-    $invalidCandidate.objective = 'x' * 13000
+    $invalidCandidate.durable_decisions = @(('x' * 13000))
     $candidateRejected = $false
     try {
         Invoke-Checkpoint @{
-            Action = 'Replace'
+            Action = 'Update'
             RunId = $runId
             ExpectedRevision = $revision
             StateJson = ($invalidCandidate | ConvertTo-Json -Depth 20 -Compress)
+            CheckpointKind = @('Freeze')
+            TransitionName = 'run:oversized-freeze'
         } | Out-Null
     }
     catch { $candidateRejected = $_.Exception.Message -match 'oversized' }
@@ -273,15 +370,66 @@ try {
     [System.IO.File]::WriteAllBytes($previewPath, $previewBytes)
     Assert-True ((Invoke-Validation).valid) 'restored projection bytes must validate'
 
+    $stateBytes = [System.IO.File]::ReadAllBytes($statePath)
+    Add-Content -LiteralPath $statePath -Value ' '
+    $stateDrift = Invoke-Validation
+    Assert-True (-not $stateDrift.valid -and $stateDrift.code -eq 'control-state-digest-mismatch') 'control-state drift must force cold reconstruction'
+    [System.IO.File]::WriteAllBytes($statePath, $stateBytes)
+    Assert-True ((Invoke-Validation).valid) 'restored control-state bytes must validate'
+
+    $activePath = Join-Path $runDirectory 'active'
+    $activeMarker = [System.IO.File]::ReadAllBytes($activePath)
+    Set-Content -LiteralPath $activePath -Value "kicktippai.orchestrate/v4 revision=$($revision - 1)"
+    $markerOutput = & $hook -RepositoryRoot $testRoot -InputJson (
+        New-HookInput -EventName 'SessionStart') | ConvertFrom-Json
+    Assert-True ($markerOutput.hookSpecificOutput.additionalContext -match 'activation-revision-mismatch') 'activation marker drift must select cold exact-session recovery'
+    [System.IO.File]::WriteAllBytes($activePath, $activeMarker)
+
     $preCompact = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput -EventName 'PreCompact')
     Assert-True ([string]::IsNullOrWhiteSpace([string] $preCompact)) 'valid pre-compaction checks must remain silent'
     $sessionStart = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput -EventName 'SessionStart') | ConvertFrom-Json
     Assert-True ($sessionStart.hookSpecificOutput.additionalContext -match 'HOT \$orchestrate RECOVERY') 'valid session recovery must inject the hot capsule'
 
+    $integratedState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $integratedState.lanes[0].status = 'integrated'
+    $integratedState.lanes[0].next_action = 'Retire the completed lane.'
+    $integratedLane = Invoke-Checkpoint @{
+        Action = 'Update'
+        RunId = $runId
+        ExpectedRevision = $revision
+        StateJson = ($integratedState | ConvertTo-Json -Depth 20 -Compress)
+        CheckpointKind = @('Integration')
+        TransitionName = 'lane-a:integrate'
+    }
+    $revision++
+    Assert-True ($integratedLane.revision -eq $revision) 'lane integration must be checkpointed'
+
+    $ready = Invoke-Checkpoint @{
+        Action = 'Transition'
+        RunId = $runId
+        ExpectedRevision = $revision
+        Status = 'ready'
+        TransitionName = 'run:ready'
+        NextRootAction = 'Start the admitted wave.'
+    }
+    $revision++
+    Assert-True ($ready.revision -eq $revision) 'preview must transition to ready'
+    $activeRun = Invoke-Checkpoint @{
+        Action = 'Transition'
+        RunId = $runId
+        ExpectedRevision = $revision
+        Status = 'active'
+        TransitionName = 'run:activate'
+        NextRootAction = 'Finish accepted lanes.'
+    }
+    $revision++
+    Assert-True ($activeRun.revision -eq $revision) 'ready must transition to active'
+
     $complete = Invoke-Checkpoint @{
         Action = 'Complete'
         RunId = $runId
         ExpectedRevision = $revision
+        TransitionName = 'run:complete'
     }
     Assert-True ($complete.status -eq 'complete') 'completion must be checkpointed'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $runDirectory 'active'))) 'completion must remove the active marker'

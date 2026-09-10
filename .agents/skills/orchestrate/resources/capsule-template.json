@@ -1,6 +1,7 @@
 {
-  "schema_version": 3,
+  "schema_version": 4,
   "state_revision": 1,
+  "control_state_sha256": "<64-character-sha256>",
   "session_id": "<run-id>",
   "run_id": "<run-id>",
   "updated_at_utc": "<ISO-8601 UTC>",
@@ -9,6 +10,7 @@
   "wave": "preview",
   "stop_condition": "<objective completion or explicit owner stop>",
   "durable_decisions": [],
+  "evidence_references": [],
   "gates": [],
   "freeze": {
     "preview_path": ".tmp/orchestration/<run-id>/preview.md",
@@ -45,7 +47,9 @@
     "owner_override": null,
     "worktree_reservations": [],
     "active_heavy_reservations": [],
-    "circuit_breaker_mode": "normal"
+    "circuit_breaker_mode": "normal",
+    "circuit_breaker_trigger": null,
+    "degraded_profiles": []
   },
   "retained_agents": [],
   "next_root_action": "<next safe control-plane action>",

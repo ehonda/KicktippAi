@@ -103,8 +103,13 @@ if ($Packet -eq 'instruction') {
     $candidates.Add('.agents/skills/orchestrate/SKILL.md')
     foreach ($candidate in (Get-PreviewDeclaredPaths -Kind 'instruction-inputs')) { $candidates.Add($candidate) }
     foreach ($contractPath in (Get-PreviewDeclaredPaths -Kind 'active-contract')) {
-        if ([System.IO.Path]::IsPathRooted($contractPath)) { continue }
-        $contractAbsolutePath = [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $contractPath))
+        $contractAbsolutePath = if ([System.IO.Path]::IsPathRooted($contractPath)) {
+            [System.IO.Path]::GetFullPath($contractPath)
+        }
+        else { [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $contractPath)) }
+        if (-not $contractAbsolutePath.StartsWith(
+            $repositoryPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) { continue }
         $directory = Split-Path -Parent $contractAbsolutePath
         while ($directory.StartsWith($RepositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
             $agentsPath = Join-Path $directory 'AGENTS.md'

@@ -48,8 +48,10 @@ For this repository the only canonical remote is `origin` at
 requires owner direction.
 
 Every later durability change uses the same checkpoint helper with the current
-expected revision. Preview, capsule, checksum, and manifests are projections;
-never edit them independently. A duplicate transition is a successful no-op.
+expected revision, a typed action/checkpoint kind, and a stable transition name
+when a gate could prohibit the transition. Preview, capsule, checksum, and
+manifests are projections; never edit them independently. A duplicate semantic
+transition is a successful no-op even when JSON property order differs.
 Do not keep a shared `current` pointer, select another run by recency, or store
 an orchestration event journal.
 
@@ -110,8 +112,13 @@ observations. Store full validation and calibrated heavy-operation evidence
 outside the recovery packet only when the operation contract requires it.
 
 Every gate uses a fixed category and records its scope, evidence, prohibited
-transitions, automatic remediation and retry budget, work that may continue,
-and escalation/clearance condition. Resource uncertainty gates only the
+transitions, automatic remediation owner/action, retry budget and attempts,
+work that may continue, and escalation/clearance condition. The checkpoint
+helper rejects an exact transition name present in any active gate; it does not
+infer that unrelated transitions are prohibited. Retry attempts may only
+increase, fixed gate identity/scope/budget cannot be rewritten in place, and
+clearing an active gate requires concise evidence satisfying its recorded
+clearance condition. Resource uncertainty gates only the
 affected worktree or heavy operation while evidence repair and unrelated work
 continue. Read-only diagnosis and bounded local build/test work inside an
 assigned authority envelope never need owner permission; platform approvals
@@ -135,8 +142,12 @@ needed; full history is only for an intentional identical configuration.
 
 Reserve a correction through the checkpoint helper before dispatch. Once
 substantive work begins it consumes the turn even if it fails or is abandoned;
-a failed dispatch that starts no turn releases the reservation. The helper
-rejects over-budget corrections and moves only that lane to `needs-diagnosis`.
+a failed dispatch that starts no turn releases the reservation. Started or
+consumed assignment IDs remain in the current milestone counter so reuse or an
+unreserved corrective dispatch is detectable; an unstarted failed dispatch
+releases its ID with the reservation. The helper rejects over-budget
+corrections, releases the current specialist, and moves only that lane to
+`needs-diagnosis`.
 
 Use `send_message` only for necessary mid-turn steering of an agent clearly
 still working. Use `followup_task` across idle/completion boundaries. Do not
@@ -175,10 +186,15 @@ previous commit is integrated or safely published. Never use the primary
 checkout to evade admission.
 
 When a worktree becomes terminal, run
-`scripts/Remove-OrchestrationWorktree.ps1` with its exact recorded branch/tip.
+`scripts/Remove-OrchestrationWorktree.ps1` with the exact run/revision, stable
+retirement transition name, and its control-state-recorded `removal-ready`
+branch/tip.
 The helper may remove only a clean, unowned, process/lease-free linked checkout
 whose tip remains reachable. It never deletes the branch or commit. A failed
-precondition parks the worktree for remediation.
+precondition removes nothing; use that evidence to checkpoint the reservation
+as `parked-recovery-only` with a remediation action before any later worktree
+transition. A successful removal likewise requires a checkpoint that releases
+the recorded reservation.
 
 Heavy admission has no operation-count cap. Each operation declares a profile,
 memory reservation, recoverability, external/live-effect classification, and
@@ -188,17 +204,25 @@ worker caps do not exceed logical processors.
 
 Prefer the configured 1.0 GiB memory floor. The 0.5 GiB experimental floor is
 allowed automatically only for mandatory, bounded, recoverable local
-validation with healthy paging/commit evidence and no external/live effects.
-An unmeasured or unbounded-fanout operation runs without another heavy
+validation with affirmative healthy paging and commit evidence and no
+external/live effects. Every request supplies the policy-defined profile,
+fingerprint, memory reservation or unmeasured classification, recoverability,
+effect class, worker cap, and whether that cap is controllable. An unmeasured
+or unbounded-fanout operation runs without another heavy
 operation for its first sample but may use the full controlled pool internally.
 After an operation completes, backfill only after a fresh snapshot and
 conservative accounting for all active reservations.
 
 On memory-related OOM, severe paging failure, or abnormal termination, run the
-circuit-breaker helper. Disable the experimental band, restore the preferred
-floor, make the offending profile exclusive with reduced fanout, and allow one
-necessary recoverable retry before diagnosis. Other work continues. Only
-owner-reviewed analysis may clear aggressive-mode degradation.
+circuit-breaker helper with the exact run and expected revision. It checkpoints
+the trigger and offending profile in `control-state.json`; there is no separate
+machine or policy-state file. Disable the experimental band, restore the
+preferred floor, make the offending profile exclusive with reduced fanout, and
+reserve the one necessary recoverable retry through the checkpoint helper
+before launch; a second reservation is rejected and routes the profile to
+diagnosis. Other work continues.
+Only owner-reviewed analysis may clear aggressive-mode degradation through the
+same checkpoint helper.
 
 Never kill unrelated processes or delete caches, build trees, worktrees, or
 user files merely to regain capacity.

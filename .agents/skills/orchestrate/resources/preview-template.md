@@ -13,6 +13,10 @@
 
 <transition-scoped gates, ownership, worktree, and heavy reservations>
 
+## Evidence references
+
+<current compact references to validation, review, and publication evidence>
+
 ## Integration and next actions
 
 <publication topology plus exact root and delegated next actions>

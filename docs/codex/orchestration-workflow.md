@@ -210,11 +210,13 @@ summed worker caps fit the logical-processor budget. Mandatory bounded,
 recoverable local-only validation may use a 0.50 GiB absolute experimental
 floor. The provisional measured project-gate reservation is 0.85 GiB.
 Unmeasured work initially runs without another heavy profile but may use the
-full controlled pool internally. Qualifying memory failure trips a
-primary-checkout circuit breaker shared through linked-worktree locators; it
-disables the experimental band, restores the 1.00 GiB floor, and constrains the
-offending profile to exclusive low-fanout execution pending owner-reviewed
-analysis. The warning is calibration evidence rather than a denial. Detailed operation type,
+full controlled pool internally. Qualifying memory failure atomically records
+the circuit breaker and offending profile in the exact run's primary-checkout
+`control-state.json`; linked worktrees resolve that file through their verified
+primary-checkout locator. There is no separately authored resource-policy state.
+The breaker disables the experimental band, restores the 1.00 GiB floor, and
+constrains the offending profile to exclusive low-fanout execution pending
+owner-reviewed analysis. The warning is calibration evidence rather than a denial. Detailed operation type,
 start/min/post memory, paging signals, duration, outcome, symptoms, and causal
 queue delay stay outside recovery context; only changed
 verdicts, warning bands, overrides, reservations, or lease owners change the

@@ -62,6 +62,7 @@ $activeExclusive = @($heavyReservations | Where-Object {
 $resourceArguments = @{
     Admission = 'Snapshot'
     RepositoryRoot = $RepositoryRoot
+    RunId = $RunId
     OutstandingWorktreeReservationsGiB = $outstandingReservationGiB
     ActiveHeavyProfiles = $activeHeavyProfiles
     ActiveMemoryReservationsGiB = $activeMemoryReservationsGiB

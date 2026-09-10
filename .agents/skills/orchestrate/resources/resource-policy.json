@@ -13,6 +13,35 @@
     "provisionalProjectGateReservationGiB": 0.85,
     "maximumLogicalProcessorFraction": 1.0,
     "unmeasuredOperationsAreExclusive": true,
+    "operationProfile": {
+      "requiredRequestFields": [
+        "profile",
+        "fingerprint",
+        "memoryReservationGiB",
+        "recoverable",
+        "effectClass",
+        "maximumWorkerFanout",
+        "fanoutControllable"
+      ],
+      "allowedEffectClasses": [
+        "local-only",
+        "external-or-live"
+      ],
+      "requiredOutcomeEvidence": [
+        "profile",
+        "fingerprint",
+        "startedAvailableMemoryGiB",
+        "minimumAvailableMemoryGiB",
+        "finishedAvailableMemoryGiB",
+        "commitHealth",
+        "pagingHealth",
+        "durationSeconds",
+        "outcome",
+        "memorySymptoms",
+        "causalQueueDelaySeconds"
+      ],
+      "durableReservationReductionRequiresOwnerReviewedRepositoryChange": true
+    },
     "degraded": {
       "availableMemoryFloorGiB": 1.0,
       "maximumConcurrentProfiles": 1,

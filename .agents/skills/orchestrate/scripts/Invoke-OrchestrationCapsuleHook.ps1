@@ -14,7 +14,7 @@ $ErrorActionPreference = 'Stop'
 $maximumCapsuleBytes = 8192
 $maximumPreviewBytes = 12288
 $previewWarningBytes = 8192
-$activationMarker = 'kicktippai.orchestrate/v3'
+$activationMarkerPrefix = 'kicktippai.orchestrate/v4'
 $canonicalPushUrl = 'https://github.com/ehonda/KicktippAi.git'
 $allowedStatuses = @('preview', 'awaiting-owner', 'ready', 'active', 'complete', 'stopped')
 $allowedGateCategories = @(
@@ -192,9 +192,9 @@ function Test-CapsuleStructure {
     }
 
     $requiredProperties = @(
-        'schema_version', 'state_revision', 'session_id', 'run_id',
+        'schema_version', 'state_revision', 'control_state_sha256', 'session_id', 'run_id',
         'updated_at_utc', 'status', 'objective', 'wave', 'stop_condition',
-        'durable_decisions', 'gates', 'freeze', 'git',
+        'durable_decisions', 'evidence_references', 'gates', 'freeze', 'git',
         'ownership_reservations', 'correction_counters', 'resource_state',
         'retained_agents', 'next_root_action',
         'delegated_next_actions')
@@ -205,11 +205,14 @@ function Test-CapsuleStructure {
         }
     }
 
-    if ([string] $capsule.schema_version -ne '3') {
+    if ([string] $capsule.schema_version -ne '4') {
         return New-ValidationResult $false 'unsupported-schema' 'capsule.json has an unsupported schema_version.' $null
     }
     if ([long] $capsule.state_revision -lt 1) {
         return New-ValidationResult $false 'invalid-state-revision' 'capsule.json has an invalid state_revision.' $null
+    }
+    if ([string] $capsule.control_state_sha256 -notmatch '^[A-Fa-f0-9]{64}$') {
+        return New-ValidationResult $false 'invalid-control-state-digest' 'capsule.json has an invalid control-state digest.' $null
     }
     if (
         [string] $capsule.session_id -ne $ExpectedRunId -or
@@ -231,7 +234,7 @@ function Test-CapsuleStructure {
     }
 
     foreach ($field in @(
-        'durable_decisions', 'gates', 'ownership_reservations',
+        'durable_decisions', 'evidence_references', 'gates', 'ownership_reservations',
         'correction_counters', 'retained_agents',
         'delegated_next_actions')) {
         if (-not ($capsule.$field -is [System.Array])) {
@@ -256,7 +259,8 @@ function Test-CapsuleStructure {
         resource_state = @(
             'worktree_admission', 'heavy_admission', 'disk_warning_band',
             'memory_warning_band', 'owner_override', 'worktree_reservations',
-            'active_heavy_reservations', 'circuit_breaker_mode')
+            'active_heavy_reservations', 'circuit_breaker_mode',
+            'circuit_breaker_trigger', 'degraded_profiles')
     }
     foreach ($objectField in $requiredNestedProperties.Keys) {
         $nestedNames = @($capsule.$objectField.PSObject.Properties.Name)
@@ -293,7 +297,6 @@ function Test-CapsuleStructure {
     if (
         [string] $capsule.git.remote -cne 'origin' -or
         [string] $capsule.git.push_url -cne $canonicalPushUrl -or
-        [string] $capsule.git.integration_branch -cne 'main' -or
         [string] $capsule.git.allowed_branch_prefix -notmatch '^codex/[A-Za-z0-9][A-Za-z0-9._-]*-$') {
         return New-ValidationResult $false 'invalid-git-target' 'git target fields do not match the canonical repository allowlist.' $null
     }
@@ -320,13 +323,48 @@ function Test-CapsuleStructure {
     if (-not ($capsule.resource_state.worktree_reservations -is [System.Array])) {
         return New-ValidationResult $false 'invalid-resource-state' 'resource_state.worktree_reservations must be an array.' $null
     }
+    if (
+        [string] $capsule.git.integration_branch -cne 'main' -and
+        -not ([string] $capsule.git.integration_branch).StartsWith(
+            [string] $capsule.git.allowed_branch_prefix,
+            [System.StringComparison]::Ordinal)) {
+        return New-ValidationResult $false 'invalid-git-target' 'git.integration_branch is outside the run branch allowlist.' $null
+    }
     if (-not ($capsule.resource_state.active_heavy_reservations -is [System.Array]) -or
+        -not ($capsule.resource_state.degraded_profiles -is [System.Array]) -or
         [string] $capsule.resource_state.circuit_breaker_mode -notin @('normal', 'degraded')) {
         return New-ValidationResult $false 'invalid-resource-state' 'resource_state heavy reservations or circuit-breaker mode is invalid.' $null
     }
+    if ([string] $capsule.resource_state.circuit_breaker_mode -eq 'normal') {
+        if ($null -ne $capsule.resource_state.circuit_breaker_trigger -or
+            @($capsule.resource_state.degraded_profiles).Count -ne 0) {
+            return New-ValidationResult $false 'invalid-resource-state' 'Normal circuit-breaker mode retains degraded state.' $null
+        }
+    }
+    else {
+        $trigger = $capsule.resource_state.circuit_breaker_trigger
+        $profile = @($capsule.resource_state.degraded_profiles)[0]
+        if (
+            $null -eq $trigger -or
+            @($capsule.resource_state.degraded_profiles).Count -ne 1 -or
+            [string]::IsNullOrWhiteSpace([string] $trigger.profile) -or
+            [string]::IsNullOrWhiteSpace([string] $trigger.fingerprint) -or
+            [string] $profile.profile -cne [string] $trigger.profile -or
+            [string] $profile.fingerprint -cne [string] $trigger.fingerprint -or
+            -not [bool] $profile.exclusive -or
+            [int] $profile.maximum_worker_fanout -lt 1 -or
+            [int] $profile.recoverable_retry_limit -lt 1 -or
+            [int] $profile.recoverable_retries_used -lt 0 -or
+            [int] $profile.recoverable_retries_used -gt
+                [int] $profile.recoverable_retry_limit) {
+            return New-ValidationResult $false 'invalid-resource-state' 'Degraded circuit-breaker state is invalid.' $null
+        }
+    }
     foreach ($worktree in @($capsule.resource_state.worktree_reservations)) {
         $worktreeProperties = @($worktree.PSObject.Properties.Name)
-        foreach ($field in @('path', 'class', 'growth_reservation_gib', 'owner')) {
+        foreach ($field in @(
+            'path', 'class', 'growth_reservation_gib', 'owner', 'branch', 'tip',
+            'remediation')) {
             if ($worktreeProperties -notcontains $field) {
                 return New-ValidationResult $false 'invalid-resource-state' "worktree_reservations entries require '$field'." $null
             }
@@ -336,7 +374,11 @@ function Test-CapsuleStructure {
             [string] $worktree.class -notin @(
                 'active-build-capable', 'parked-recovery-only',
                 'removal-ready', 'uncertain') -or
-            [double] $worktree.growth_reservation_gib -lt 0) {
+            [double] $worktree.growth_reservation_gib -lt 0 -or
+            [string]::IsNullOrWhiteSpace([string] $worktree.branch) -or
+            [string] $worktree.tip -notmatch '^[A-Fa-f0-9]{40}$' -or
+            ([string] $worktree.class -eq 'parked-recovery-only' -and
+             [string]::IsNullOrWhiteSpace([string] $worktree.remediation))) {
             return New-ValidationResult $false 'invalid-resource-state' 'resource_state contains an invalid worktree reservation.' $null
         }
         $expectedReservation = if ([string] $worktree.class -in @('active-build-capable', 'uncertain')) { 1.25 } else { 0.0 }
@@ -367,7 +409,8 @@ function Test-CapsuleStructure {
     foreach ($gate in @($capsule.gates)) {
         foreach ($field in @(
             'id', 'category', 'scope', 'evidence', 'prohibited_transitions',
-            'remediation', 'continue_actions', 'escalation_condition', 'retry_budget')) {
+            'remediation_owner', 'remediation_action', 'continue_actions',
+            'escalation_condition', 'retry_budget', 'retry_attempts')) {
             if ($gate.PSObject.Properties.Name -notcontains $field) {
                 return New-ValidationResult $false 'invalid-gate' "capsule gate requires '$field'." $null
             }
@@ -377,18 +420,23 @@ function Test-CapsuleStructure {
             [string] $gate.category -notin $allowedGateCategories -or
             [string]::IsNullOrWhiteSpace([string] $gate.scope) -or
             [string]::IsNullOrWhiteSpace([string] $gate.evidence) -or
-            [string]::IsNullOrWhiteSpace([string] $gate.remediation) -or
+            [string]::IsNullOrWhiteSpace([string] $gate.remediation_owner) -or
+            [string]::IsNullOrWhiteSpace([string] $gate.remediation_action) -or
             [string]::IsNullOrWhiteSpace([string] $gate.escalation_condition) -or
             -not ($gate.prohibited_transitions -is [System.Array]) -or
             -not ($gate.continue_actions -is [System.Array]) -or
-            [int] $gate.retry_budget -lt 0) {
+            [int] $gate.retry_budget -lt 0 -or
+            [int] $gate.retry_attempts -lt 0 -or
+            [int] $gate.retry_attempts -gt [int] $gate.retry_budget) {
             return New-ValidationResult $false 'invalid-gate' 'capsule.json contains an invalid gate.' $null
         }
     }
 
     $counterKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($counter in @($capsule.correction_counters)) {
-        foreach ($field in @('milestone_id', 'role', 'used', 'pending_assignment_id')) {
+        foreach ($field in @(
+            'milestone_id', 'role', 'used', 'issued_assignment_ids',
+            'pending_assignment_id')) {
             if ($counter.PSObject.Properties.Name -notcontains $field) {
                 return New-ValidationResult $false 'invalid-correction-counter' "capsule correction counter requires '$field'." $null
             }
@@ -399,8 +447,13 @@ function Test-CapsuleStructure {
             [string] $counter.role -notin @('milestone-writer', 'implementation-reviewer') -or
             [int] $counter.used -lt 0 -or [int] $counter.used -gt $maximum -or
             -not $counterKeys.Add("$($counter.milestone_id)`0$($counter.role)") -or
+            -not ($counter.issued_assignment_ids -is [System.Array]) -or
+            @($counter.issued_assignment_ids).Count -ne [int] $counter.used -or
+            @($counter.issued_assignment_ids | Sort-Object -Unique).Count -ne
+                @($counter.issued_assignment_ids).Count -or
             ($null -ne $counter.pending_assignment_id -and
-             [string]::IsNullOrWhiteSpace([string] $counter.pending_assignment_id))) {
+             ([string]::IsNullOrWhiteSpace([string] $counter.pending_assignment_id) -or
+              @($counter.issued_assignment_ids) -cnotcontains [string] $counter.pending_assignment_id))) {
             return New-ValidationResult $false 'invalid-correction-counter' 'capsule.json contains an invalid correction counter.' $null
         }
     }
@@ -418,7 +471,9 @@ function Test-CapsuleStructure {
 
     foreach ($reservation in @($capsule.ownership_reservations)) {
         $reservationProperties = @($reservation.PSObject.Properties.Name)
-        foreach ($field in @('agent_path', 'role', 'model', 'reasoning_effort', 'owned_paths', 'next_action')) {
+        foreach ($field in @(
+            'assignment_id', 'lane_id', 'agent_path', 'role', 'model',
+            'reasoning_effort', 'owned_paths', 'next_action')) {
             if (
                 $reservationProperties -notcontains $field -or
                 ($field -ne 'owned_paths' -and
@@ -435,7 +490,10 @@ function Test-CapsuleStructure {
     }
 
     foreach ($reservation in @($capsule.resource_state.active_heavy_reservations)) {
-        foreach ($field in @('id', 'owner', 'profile', 'memory_reservation_gib', 'worker_cap')) {
+        foreach ($field in @(
+            'id', 'owner', 'profile', 'fingerprint', 'memory_reservation_gib',
+            'recoverable', 'effect_class', 'worker_cap', 'fanout_controllable',
+            'exclusive')) {
             if ($reservation.PSObject.Properties.Name -notcontains $field) {
                 return New-ValidationResult $false 'invalid-heavy-reservation' "active heavy reservation requires '$field'." $null
             }
@@ -444,8 +502,12 @@ function Test-CapsuleStructure {
             [string]::IsNullOrWhiteSpace([string] $reservation.id) -or
             [string]::IsNullOrWhiteSpace([string] $reservation.owner) -or
             [string]::IsNullOrWhiteSpace([string] $reservation.profile) -or
+            [string]::IsNullOrWhiteSpace([string] $reservation.fingerprint) -or
             [double] $reservation.memory_reservation_gib -le 0 -or
-            [int] $reservation.worker_cap -lt 1) {
+            [string] $reservation.effect_class -notin @('local-only', 'external-or-live') -or
+            [int] $reservation.worker_cap -lt 1 -or
+            (-not [bool] $reservation.fanout_controllable -and
+             -not [bool] $reservation.exclusive)) {
             return New-ValidationResult $false 'invalid-heavy-reservation' 'capsule.json contains an invalid active heavy reservation.' $null
         }
     }
@@ -682,8 +744,14 @@ function Test-RecoveryPackets {
     }
 
     foreach ($contractPath in $declaredActiveContracts) {
-        if ([System.IO.Path]::IsPathRooted($contractPath)) { continue }
         $contractAbsolutePath = Resolve-ManifestEntryPath -ManifestPath $contractPath
+        $repositoryPrefix = $RepositoryRoot.TrimEnd(
+            [System.IO.Path]::DirectorySeparatorChar,
+            [System.IO.Path]::AltDirectorySeparatorChar) +
+            [System.IO.Path]::DirectorySeparatorChar
+        if (-not $contractAbsolutePath.StartsWith(
+            $repositoryPrefix,
+            [System.StringComparison]::OrdinalIgnoreCase)) { continue }
         $directory = Split-Path -Parent $contractAbsolutePath
         while ($directory.StartsWith($RepositoryRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
             $agentsPath = Join-Path $directory 'AGENTS.md'
@@ -722,6 +790,12 @@ function Test-RecoveryState {
     if (-not $controlValidation.Valid) { return $controlValidation }
     $capsuleValidation = Test-Capsule -Paths $Paths -ExpectedRunId $ExpectedRunId -SkipChecksum:$SkipChecksum
     if (-not $capsuleValidation.Valid) { return $capsuleValidation }
+    $actualControlStateHash = (
+        Get-FileHash -LiteralPath $StatePath -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actualControlStateHash -cne
+        ([string] $capsuleValidation.Capsule.control_state_sha256).ToLowerInvariant()) {
+        return New-ValidationResult $false 'control-state-digest-mismatch' 'Control state does not match the capsule commit record.' $capsuleValidation.Capsule $controlValidation.ControlState
+    }
     if (
         [long] $capsuleValidation.Capsule.state_revision -ne
             [long] $controlValidation.ControlState.revision -or
@@ -804,7 +878,9 @@ if ($Mode -eq 'Seal') {
             }
         }
         else {
-            Write-AtomicUtf8File -Path $paths.Active -Content ($activationMarker + [Environment]::NewLine)
+            Write-AtomicUtf8File -Path $paths.Active -Content (
+                "$activationMarkerPrefix revision=$($validation.Capsule.state_revision)" +
+                [Environment]::NewLine)
         }
     }
 
@@ -870,7 +946,10 @@ if (-not (Test-Path -LiteralPath $paths.Active -PathType Leaf)) {
 }
 
 $marker = (Get-Content -LiteralPath $paths.Active -Raw).Trim()
-if ($marker -ne $activationMarker) {
+$markerMatch = [regex]::Match(
+    $marker,
+    '^kicktippai\.orchestrate/v4 revision=(?<revision>[1-9][0-9]*)$')
+if (-not $markerMatch.Success) {
     $validation = New-ValidationResult $false 'invalid-activation-marker' 'The exact-session orchestration activation marker is corrupt.' $null
 }
 else {
@@ -879,6 +958,11 @@ else {
     }
     else {
         $validation = Test-RecoveryState -Paths $paths -ExpectedRunId $sessionId
+        if ($validation.Valid -and
+            [long] $markerMatch.Groups['revision'].Value -ne
+                [long] $validation.Capsule.state_revision) {
+            $validation = New-ValidationResult $false 'activation-revision-mismatch' 'The activation marker does not identify the committed state revision.' $validation.Capsule $validation.ControlState
+        }
     }
 }
 
