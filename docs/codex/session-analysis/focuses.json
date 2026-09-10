@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-09",
+  "updated_at": "2026-09-10",
   "focuses": [
     {
       "id": "astra-high-architecture-lead-next-p1",
@@ -418,6 +418,37 @@
           "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
           "covered_at": "2026-09-09"
         },
+        "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "subagent-coordination-effectiveness",
+      "questions": [
+        "What role and handoff graph did each milestone actually follow across architecture, specification, implementation, review, integration, cumulative validation, diagnosis, final acceptance, and CI?",
+        "What were the first-pass build, test, implementation-review, cumulative-validation, and final-acceptance outcomes, and where did correction cycles, reruns, stale evidence, or incomplete handoffs add time or tokens?",
+        "How did agent reuse, material role changes, correction-budget enforcement, and model fit affect downstream stability and ownership?",
+        "How did architecture and specification quality shape seam clarity, lane independence, downstream release, and implementation-review efficiency, and what concrete orchestration changes follow?"
+      ],
+      "created_at": "2026-09-10",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "Every orchestration-session analysis; synthesize the complete coordination system in addition to narrower standing focuses."
+      },
+      "cadence": "standing",
+      "status": "active",
+      "evidence_source_hints": [
+        "agent model and role records",
+        "bounded transcript events",
+        "Git commits and diffs",
+        "handoff and validation evidence",
+        "PR and CI exact-SHA state",
+        "review and correction outcomes"
+      ],
+      "resolution": {
+        "last_covered_by": null,
         "retired_by": null,
         "superseded_by": null
       }

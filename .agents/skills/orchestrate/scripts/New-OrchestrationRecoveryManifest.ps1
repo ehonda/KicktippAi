@@ -6,8 +6,13 @@ param(
     [ValidateSet('instruction', 'hook', 'active-contract')]
     [string] $Packet,
     [Parameter(Mandatory)]
+    [ValidateRange(1, [long]::MaxValue)]
+    [long] $StateRevision,
+    [Parameter(Mandatory)]
     [string[]] $Path,
-    [string] $RepositoryRoot
+    [string] $RepositoryRoot,
+    [string] $OutputDirectory,
+    [string] $PreviewPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -38,6 +43,19 @@ $expectedPrefix = $orchestrationRoot.TrimEnd(
 if (-not $runDirectory.StartsWith($expectedPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
     throw 'The orchestration run directory escaped the repository orchestration root.'
 }
+if ([string]::IsNullOrWhiteSpace($OutputDirectory)) { $OutputDirectory = $runDirectory }
+else { $OutputDirectory = [System.IO.Path]::GetFullPath($OutputDirectory) }
+$runPrefix = $runDirectory.TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+if (-not $OutputDirectory.Equals($runDirectory, [System.StringComparison]::OrdinalIgnoreCase) -and
+    -not $OutputDirectory.StartsWith($runPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'The manifest output directory must stay inside the exact run directory.'
+}
+if ([string]::IsNullOrWhiteSpace($PreviewPath)) { $PreviewPath = Join-Path $runDirectory 'preview.md' }
+else { $PreviewPath = [System.IO.Path]::GetFullPath($PreviewPath) }
+if (-not $PreviewPath.Equals((Join-Path $runDirectory 'preview.md'), [System.StringComparison]::OrdinalIgnoreCase) -and
+    -not $PreviewPath.StartsWith($runPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
+    throw 'The preview input must stay inside the exact run directory.'
+}
 
 $repositoryPrefix = $RepositoryRoot.TrimEnd(
     [System.IO.Path]::DirectorySeparatorChar,
@@ -47,8 +65,7 @@ $repositoryPrefix = $RepositoryRoot.TrimEnd(
 function Get-PreviewDeclaredPaths {
     param([Parameter(Mandatory)][string] $Kind)
 
-    $previewPath = Join-Path $runDirectory 'preview.md'
-    if (-not (Test-Path -LiteralPath $previewPath -PathType Leaf)) {
+    if (-not (Test-Path -LiteralPath $PreviewPath -PathType Leaf)) {
         return @()
     }
     $start = "<!-- orchestration-${Kind}:start -->"
@@ -56,7 +73,7 @@ function Get-PreviewDeclaredPaths {
     $inside = $false
     $found = $false
     $result = [System.Collections.Generic.List[string]]::new()
-    foreach ($line in [System.IO.File]::ReadAllLines($previewPath)) {
+    foreach ($line in [System.IO.File]::ReadAllLines($PreviewPath)) {
         $trimmed = $line.Trim()
         if ($trimmed -ceq $start) {
             if ($found -or $inside) { throw "preview.md contains duplicate $Kind packet markers." }
@@ -106,8 +123,13 @@ elseif ($Packet -eq 'hook') {
         '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1',
         '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1',
         '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1',
+        '.agents/skills/orchestrate/scripts/Set-OrchestrationCheckpoint.ps1',
         '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1',
+        '.agents/skills/orchestrate/scripts/Remove-OrchestrationWorktree.ps1',
         'New-AgentWorktree.ps1',
+        '.agents/skills/orchestrate/resources/control-state-template.json',
+        '.agents/skills/orchestrate/resources/capsule-template.json',
+        '.agents/skills/orchestrate/resources/preview-template.md',
         '.agents/skills/orchestrate/resources/resource-policy.json')) {
         $candidates.Add($candidate)
     }
@@ -127,10 +149,6 @@ for ($candidateIndex = 0; $candidateIndex -lt $candidates.Count; $candidateIndex
     else {
         [System.IO.Path]::GetFullPath((Join-Path $RepositoryRoot $candidate))
     }
-    if (-not (Test-Path -LiteralPath $absolutePath -PathType Leaf)) {
-        throw "Recovery packet input does not exist: $candidate"
-    }
-
     $identifier = if ($absolutePath.StartsWith($repositoryPrefix, [System.StringComparison]::OrdinalIgnoreCase)) {
         [System.IO.Path]::GetRelativePath($RepositoryRoot, $absolutePath).Replace('\', '/')
     }
@@ -142,10 +160,18 @@ for ($candidateIndex = 0; $candidateIndex -lt $candidates.Count; $candidateIndex
         continue
     }
 
+    $materialPath = if ($identifier -ceq ".tmp/orchestration/$RunId/preview.md") {
+        $PreviewPath
+    }
+    else { $absolutePath }
+    if (-not (Test-Path -LiteralPath $materialPath -PathType Leaf)) {
+        throw "Recovery packet material does not exist: $identifier"
+    }
+
     $entries.Add([pscustomobject] [ordered] @{
         id = $identifier
         path = $identifier
-        sha256 = (Get-FileHash -LiteralPath $absolutePath -Algorithm SHA256).Hash.ToLowerInvariant()
+        sha256 = (Get-FileHash -LiteralPath $materialPath -Algorithm SHA256).Hash.ToLowerInvariant()
     })
 
     if ($Packet -eq 'instruction') {
@@ -173,12 +199,13 @@ if (@($orderedEntries.path | Select-Object -Unique).Count -ne $orderedEntries.Co
 }
 
 $manifest = [ordered] @{
-    schema_version = 1
+    schema_version = 2
+    state_revision = $StateRevision
     packet = $Packet
     entries = $orderedEntries
 }
-$manifestPath = Join-Path $runDirectory "${Packet}-manifest.json"
-New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
+$manifestPath = Join-Path $OutputDirectory "${Packet}-manifest.json"
+New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $temporaryPath = "$manifestPath.$([Guid]::NewGuid().ToString('N')).tmp"
 try {
     $json = $manifest | ConvertTo-Json -Depth 5 -Compress

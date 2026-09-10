@@ -6,7 +6,8 @@ param(
     [string] $RunId,
     [string] $Operation,
     [string] $Reason,
-    [string] $ReviewedBy
+    [string] $ReviewedBy,
+    [string] $PolicyPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -17,6 +18,26 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 else {
     $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
 }
+if ([string]::IsNullOrWhiteSpace($PolicyPath)) {
+    $PolicyPath = Join-Path $RepositoryRoot '.agents/skills/orchestrate/resources/resource-policy.json'
+}
+else { $PolicyPath = [System.IO.Path]::GetFullPath($PolicyPath) }
+
+if (-not (Test-Path -LiteralPath $PolicyPath -PathType Leaf)) {
+    throw "The resource policy is missing: $PolicyPath"
+}
+try { $policy = Get-Content -LiteralPath $PolicyPath -Raw | ConvertFrom-Json }
+catch { throw "The resource policy is unreadable: $PolicyPath" }
+if (
+    [int] $policy.schemaVersion -ne 4 -or
+    $null -eq $policy.heavyOperation.degraded -or
+    [double] $policy.heavyOperation.degraded.availableMemoryFloorGiB -le 0 -or
+    [int] $policy.heavyOperation.degraded.maximumConcurrentProfiles -lt 1 -or
+    [int] $policy.heavyOperation.degraded.maximumWorkerFanout -lt 1 -or
+    [int] $policy.heavyOperation.degraded.recoverableRetryLimit -lt 0) {
+    throw 'The resource policy does not define a valid schema-v4 degraded profile.'
+}
+$degradedPolicy = $policy.heavyOperation.degraded
 
 function Resolve-OrchestrationPrimaryCheckout {
     param([Parameter(Mandatory)][string] $CheckoutRoot)
@@ -104,9 +125,13 @@ if ($Action -eq 'Trip') {
     }
     $triggeredAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
     $state = [ordered] @{
-        schema_version = 1
+        schema_version = 2
         status = 'active'
-        effective_floor_gib = 1.1
+        mode = 'degraded'
+        effective_floor_gib = [double] $degradedPolicy.availableMemoryFloorGiB
+        maximum_concurrent_profiles = [int] $degradedPolicy.maximumConcurrentProfiles
+        maximum_worker_fanout = [int] $degradedPolicy.maximumWorkerFanout
+        recoverable_retry_limit = [int] $degradedPolicy.recoverableRetryLimit
         updated_at_utc = $triggeredAtUtc
         trigger = [ordered] @{
             run_id = $RunId
@@ -123,9 +148,13 @@ else {
     }
     if (
         $null -eq $existingState -or
-        [int] $existingState.schema_version -ne 1 -or
+        [int] $existingState.schema_version -ne 2 -or
         [string] $existingState.status -ne 'active' -or
-        [double] $existingState.effective_floor_gib -ne 1.1 -or
+        [string] $existingState.mode -ne 'degraded' -or
+        [double] $existingState.effective_floor_gib -ne [double] $degradedPolicy.availableMemoryFloorGiB -or
+        [int] $existingState.maximum_concurrent_profiles -ne [int] $degradedPolicy.maximumConcurrentProfiles -or
+        [int] $existingState.maximum_worker_fanout -ne [int] $degradedPolicy.maximumWorkerFanout -or
+        [int] $existingState.recoverable_retry_limit -ne [int] $degradedPolicy.recoverableRetryLimit -or
         -not (Test-OrchestrationTimestamp -Value ([string] $existingState.updated_at_utc)) -or
         $null -eq $existingState.trigger -or
         [string]::IsNullOrWhiteSpace([string] $existingState.trigger.run_id) -or
@@ -137,9 +166,13 @@ else {
     }
     $clearedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
     $state = [ordered] @{
-        schema_version = 1
+        schema_version = 2
         status = 'cleared'
-        effective_floor_gib = 1.0
+        mode = 'normal'
+        effective_floor_gib = [double] $policy.heavyOperation.preferredAvailableMemoryFloorGiB
+        maximum_concurrent_profiles = $null
+        maximum_worker_fanout = $null
+        recoverable_retry_limit = $null
         updated_at_utc = $clearedAtUtc
         trigger = $existingState.trigger
         clearance = [ordered] @{

@@ -5,8 +5,21 @@ param(
     [string] $RepositoryRoot,
     [string] $ConfigPath,
     [string] $StatePath,
+    [ValidateRange(0, [double]::MaxValue)]
+    [double] $ActiveMemoryReservationsGiB = 0,
     [ValidateRange(0, [int]::MaxValue)]
-    [int] $ActiveHeavyOperations = 0,
+    [int] $ActiveWorkerFanout = 0,
+    [ValidateRange(0, [int]::MaxValue)]
+    [int] $ActiveHeavyProfiles = 0,
+    [ValidateRange(0, [double]::MaxValue)]
+    [double] $RequestedMemoryReservationGiB = 0,
+    [ValidateRange(0, [int]::MaxValue)]
+    [int] $RequestedWorkerFanout = 0,
+    [switch] $MandatoryRecoverableLocal,
+    [switch] $HasExternalOrLiveSideEffects,
+    [switch] $UnmeasuredOperation,
+    [switch] $ActiveExclusiveOperation,
+    [switch] $Backfill,
     [ValidateRange(0, [double]::MaxValue)]
     [double] $OutstandingWorktreeReservationsGiB = 0,
     [switch] $WorktreeInventoryConfirmed,
@@ -98,7 +111,7 @@ else {
 }
 
 $policy = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
-if ($policy.schemaVersion -ne 3) {
+if ($policy.schemaVersion -ne 4) {
     throw "Unsupported orchestration resource policy schema: $($policy.schemaVersion)"
 }
 
@@ -106,22 +119,33 @@ $activeReservationGiB = [double] $policy.worktree.activeBuildCapableGrowthReserv
 $uncertainReservationGiB = [double] $policy.worktree.uncertainGrowthReservationGiB
 $minimumEffectiveFreeGiB = [double] $policy.worktree.minimumEffectiveFreeGiBAfterReservation
 $minimumFreeDiskPercentWarning = [double] $policy.worktree.minimumFreeDiskPercentWarning
-$heavyLimit = [int] $policy.heavyOperation.concurrentLimit
-$configuredMemoryFloorGiB = [double] $policy.heavyOperation.minimumAvailableMemoryGiB
-$experimentalBandUpperGiB = [double] $policy.heavyOperation.experimentalBandUpperGiB
-$circuitBreakerFloorGiB = [double] $policy.heavyOperation.circuitBreakerFloorGiB
+$preferredMemoryFloorGiB = [double] $policy.heavyOperation.preferredAvailableMemoryFloorGiB
+$absoluteMemoryFloorGiB = [double] $policy.heavyOperation.absoluteAvailableMemoryFloorGiB
 $warningAvailableMemoryGiB = [double] $policy.heavyOperation.warningAvailableMemoryGiB
+$projectGateReservationGiB = [double] $policy.heavyOperation.provisionalProjectGateReservationGiB
+$maximumLogicalProcessorFraction = [double] $policy.heavyOperation.maximumLogicalProcessorFraction
+$unmeasuredExclusive = [bool] $policy.heavyOperation.unmeasuredOperationsAreExclusive
+$degradedMemoryFloorGiB = [double] $policy.heavyOperation.degraded.availableMemoryFloorGiB
+$degradedMaximumProfiles = [int] $policy.heavyOperation.degraded.maximumConcurrentProfiles
+$degradedMaximumWorkerFanout = [int] $policy.heavyOperation.degraded.maximumWorkerFanout
+$degradedRetryLimit = [int] $policy.heavyOperation.degraded.recoverableRetryLimit
 
 if (
     $activeReservationGiB -le 0 -or
     $uncertainReservationGiB -le 0 -or
     $minimumEffectiveFreeGiB -le 0 -or
     $minimumFreeDiskPercentWarning -le 0 -or
-    $heavyLimit -lt 1 -or
-    $configuredMemoryFloorGiB -le 0 -or
-    $experimentalBandUpperGiB -lt $configuredMemoryFloorGiB -or
-    $circuitBreakerFloorGiB -lt $experimentalBandUpperGiB -or
-    $warningAvailableMemoryGiB -lt $circuitBreakerFloorGiB) {
+    $preferredMemoryFloorGiB -le 0 -or
+    $absoluteMemoryFloorGiB -le 0 -or
+    $absoluteMemoryFloorGiB -ge $preferredMemoryFloorGiB -or
+    $warningAvailableMemoryGiB -lt $preferredMemoryFloorGiB -or
+    $projectGateReservationGiB -le 0 -or
+    $maximumLogicalProcessorFraction -le 0 -or
+    $maximumLogicalProcessorFraction -gt 1 -or
+    $degradedMemoryFloorGiB -lt $preferredMemoryFloorGiB -or
+    $degradedMaximumProfiles -lt 1 -or
+    $degradedMaximumWorkerFanout -lt 1 -or
+    $degradedRetryLimit -lt 1) {
     throw 'The orchestration resource policy contains invalid limits.'
 }
 
@@ -229,7 +253,7 @@ elseif ($statePathResolutionValid -and (Test-Path -LiteralPath $StatePath -PathT
     try {
         $state = Get-Content -LiteralPath $StatePath -Raw | ConvertFrom-Json
         if (
-            [int] $state.schema_version -ne 1 -or
+            [int] $state.schema_version -ne 2 -or
             [string] $state.status -notin @('active', 'cleared') -or
             -not (Test-OrchestrationTimestamp -Value ([string] $state.updated_at_utc)) -or
             $null -eq $state.trigger -or
@@ -238,10 +262,15 @@ elseif ($statePathResolutionValid -and (Test-Path -LiteralPath $StatePath -PathT
             -not (Test-OrchestrationTimestamp -Value ([string] $state.trigger.at_utc)) -or
             [string]::IsNullOrWhiteSpace([string] $state.trigger.reason) -or
             ([string] $state.status -eq 'active' -and
-                ([double] $state.effective_floor_gib -ne $circuitBreakerFloorGiB -or
+                ([string] $state.mode -ne 'degraded' -or
+                 [double] $state.effective_floor_gib -ne $degradedMemoryFloorGiB -or
+                 [int] $state.maximum_concurrent_profiles -ne $degradedMaximumProfiles -or
+                 [int] $state.maximum_worker_fanout -ne $degradedMaximumWorkerFanout -or
+                 [int] $state.recoverable_retry_limit -ne $degradedRetryLimit -or
                  $null -ne $state.clearance)) -or
             ([string] $state.status -eq 'cleared' -and
-                ([double] $state.effective_floor_gib -ne $configuredMemoryFloorGiB -or
+                ([string] $state.mode -ne 'normal' -or
+                 [double] $state.effective_floor_gib -ne $preferredMemoryFloorGiB -or
                  $null -eq $state.clearance -or
                  -not (Test-OrchestrationTimestamp -Value ([string] $state.clearance.at_utc)) -or
                  [string]::IsNullOrWhiteSpace([string] $state.clearance.reviewed_by) -or
@@ -258,10 +287,13 @@ elseif ($statePathResolutionValid -and (Test-Path -LiteralPath $StatePath -PathT
 }
 
 $effectiveMemoryFloorGiB = if ($circuitBreakerActive) {
-    [Math]::Max($configuredMemoryFloorGiB, $circuitBreakerFloorGiB)
+    $degradedMemoryFloorGiB
+}
+elseif ($MandatoryRecoverableLocal -and -not $HasExternalOrLiveSideEffects) {
+    $absoluteMemoryFloorGiB
 }
 else {
-    $configuredMemoryFloorGiB
+    $preferredMemoryFloorGiB
 }
 
 $proposedReservationGiB = switch ($ProposedWorktreeClass) {
@@ -319,6 +351,58 @@ else {
     $worktreeReason = "Allowed: $linkedTaskWorktrees linked task worktrees are inventoried; outstanding ($outstandingReservationsGiB GiB) and proposed ($proposedReservationGiB GiB) reservations leave $postReservationFreeGiB GiB."
 }
 
+$isHeavyRequest = $Admission -eq 'Heavy'
+$logicalProcessorBudget = if ($null -eq $logicalProcessors) {
+    $null
+}
+else {
+    [Math]::Max(1, [Math]::Floor([int] $logicalProcessors * $maximumLogicalProcessorFraction))
+}
+$effectiveRequestedMemoryGiB = if (-not $isHeavyRequest) {
+    0.0
+}
+elseif ($RequestedMemoryReservationGiB -gt 0) {
+    [double] $RequestedMemoryReservationGiB
+}
+elseif ($UnmeasuredOperation -and $null -ne $availableMemoryGiB) {
+    [Math]::Max(0.0, [double] $availableMemoryGiB - $effectiveMemoryFloorGiB - $ActiveMemoryReservationsGiB)
+}
+else {
+    $projectGateReservationGiB
+}
+$effectiveRequestedWorkerFanout = if (-not $isHeavyRequest) {
+    0
+}
+elseif ($RequestedWorkerFanout -gt 0) {
+    $RequestedWorkerFanout
+}
+elseif ($UnmeasuredOperation -and $null -ne $logicalProcessorBudget) {
+    [Math]::Max(1, [int] $logicalProcessorBudget - $ActiveWorkerFanout)
+}
+else {
+    1
+}
+$exclusiveRequest = $circuitBreakerActive -or ($UnmeasuredOperation -and $unmeasuredExclusive)
+$memoryPoolGiB = if ($null -eq $availableMemoryGiB) {
+    $null
+}
+else {
+    [Math]::Round([double] $availableMemoryGiB - $effectiveMemoryFloorGiB, 2)
+}
+$postAdmissionMemoryGiB = if ($null -eq $memoryPoolGiB) {
+    $null
+}
+else {
+    [Math]::Round(
+        $memoryPoolGiB - $ActiveMemoryReservationsGiB - $effectiveRequestedMemoryGiB, 2)
+}
+$postAdmissionWorkerCapacity = if ($null -eq $logicalProcessorBudget) {
+    $null
+}
+else {
+    [int] $logicalProcessorBudget - $ActiveWorkerFanout - $effectiveRequestedWorkerFanout
+}
+
 $heavyAllowed = $false
 $heavyReason = ''
 if (-not $circuitBreakerStateValid) {
@@ -328,19 +412,41 @@ elseif ($null -eq $availableMemoryGiB -or $null -eq $logicalProcessors) {
     $heavyReason = 'Denied: available-memory or logical-processor measurements are unavailable.'
 }
 elseif ([double] $availableMemoryGiB -lt $effectiveMemoryFloorGiB) {
-    $heavyReason = "Denied: $availableMemoryGiB GiB available memory is below the $effectiveMemoryFloorGiB GiB effective floor."
+    $heavyReason = "Denied: $availableMemoryGiB GiB available memory is below the $effectiveMemoryFloorGiB GiB floor."
 }
-elseif ($ActiveHeavyOperations -ge $heavyLimit) {
-    $heavyReason = "Denied: $ActiveHeavyOperations active heavy operations meet the current limit of $heavyLimit."
+elseif ($isHeavyRequest -and $HasExternalOrLiveSideEffects -and $MandatoryRecoverableLocal) {
+    $heavyReason = 'Denied: the experimental floor cannot be used for external or live side effects.'
+}
+elseif ($isHeavyRequest -and $ActiveExclusiveOperation) {
+    $heavyReason = 'Denied: an active exclusive operation prevents backfill.'
+}
+elseif ($isHeavyRequest -and $exclusiveRequest -and $ActiveHeavyProfiles -gt 0) {
+    $heavyReason = 'Denied: this unmeasured or degraded operation requires exclusive heavy admission.'
+}
+elseif ($isHeavyRequest -and $circuitBreakerActive -and
+        ($ActiveHeavyProfiles -ge $degradedMaximumProfiles -or
+         $effectiveRequestedWorkerFanout -gt $degradedMaximumWorkerFanout)) {
+    $heavyReason = 'Denied: degraded mode permits only one low-fanout heavy profile.'
+}
+elseif ($isHeavyRequest -and $postAdmissionMemoryGiB -lt 0) {
+    $heavyReason = "Denied: active ($ActiveMemoryReservationsGiB GiB) and requested ($effectiveRequestedMemoryGiB GiB) reservations exceed the $memoryPoolGiB GiB memory pool."
+}
+elseif ($isHeavyRequest -and $postAdmissionWorkerCapacity -lt 0) {
+    $heavyReason = "Denied: active ($ActiveWorkerFanout) and requested ($effectiveRequestedWorkerFanout) workers exceed the $logicalProcessorBudget logical-processor budget."
 }
 else {
     $heavyAllowed = $true
-    $heavyReason = "Allowed: $ActiveHeavyOperations of $heavyLimit heavy-operation leases are active."
+    $heavyReason = if ($isHeavyRequest) {
+        "Allowed: reservations leave $postAdmissionMemoryGiB GiB and $postAdmissionWorkerCapacity worker slots in the applicable pools."
+    }
+    else {
+        "Snapshot: the measured host is above the $effectiveMemoryFloorGiB GiB applicable floor."
+    }
 }
 
 $experimentalMemoryBand = (
-    $heavyAllowed -and
-    [double] $availableMemoryGiB -lt $experimentalBandUpperGiB)
+    $heavyAllowed -and $isHeavyRequest -and
+    $effectiveMemoryFloorGiB -eq $absoluteMemoryFloorGiB)
 
 $heavyProcesses = @()
 if (-not $useSyntheticSample) {
@@ -380,13 +486,25 @@ $snapshot = [pscustomobject] [ordered] @{
     HeavyOperationAdmission = [pscustomobject] [ordered] @{
         Allowed = $heavyAllowed
         Reason = $heavyReason
-        ActiveLeases = $ActiveHeavyOperations
-        CurrentLimit = $heavyLimit
-        ConfiguredHardFloorGiB = $configuredMemoryFloorGiB
-        EffectiveHardFloorGiB = $effectiveMemoryFloorGiB
-        ExperimentalBandUpperGiB = $experimentalBandUpperGiB
-        InExperimentalBand = $experimentalMemoryBand
-        ExperimentalUse = if ($experimentalMemoryBand) { 'recoverable-local-only' } else { $null }
+        ActiveProfiles = $ActiveHeavyProfiles
+        ActiveReservedMemoryGiB = $ActiveMemoryReservationsGiB
+        RequestedReservedMemoryGiB = $effectiveRequestedMemoryGiB
+        MemoryPoolGiB = $memoryPoolGiB
+        PostAdmissionMemoryGiB = $postAdmissionMemoryGiB
+        ActiveWorkerFanout = $ActiveWorkerFanout
+        RequestedWorkerFanout = $effectiveRequestedWorkerFanout
+        LogicalProcessorBudget = $logicalProcessorBudget
+        PostAdmissionWorkerCapacity = $postAdmissionWorkerCapacity
+        PreferredFloorGiB = $preferredMemoryFloorGiB
+        AbsoluteFloorGiB = $absoluteMemoryFloorGiB
+        EffectiveFloorGiB = $effectiveMemoryFloorGiB
+        UsesExperimentalFloor = $experimentalMemoryBand
+        ExperimentalUse = if ($experimentalMemoryBand) { 'mandatory-recoverable-local-only' } else { $null }
+        ExclusiveRequest = $exclusiveRequest
+        ActiveExclusiveOperation = [bool] $ActiveExclusiveOperation
+        Backfill = [bool] $Backfill
+        UnmeasuredOperation = [bool] $UnmeasuredOperation
+        ProvisionalProjectGateReservationGiB = $projectGateReservationGiB
         WarningThresholdGiB = $warningAvailableMemoryGiB
         CircuitBreakerActive = $circuitBreakerActive
         CircuitBreakerReason = $circuitBreakerReason

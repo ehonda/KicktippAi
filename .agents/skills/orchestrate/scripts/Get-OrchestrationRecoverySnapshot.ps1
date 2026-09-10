@@ -47,12 +47,26 @@ $outstandingReservationGiB = if ($validation.valid) {
 else {
     0.0
 }
-$activeHeavyOperations = if ($validation.valid -and $null -ne $validation.capsule.active_heavy_lease) { 1 } else { 0 }
+$heavyReservations = if ($validation.valid) {
+    @($validation.capsule.resource_state.active_heavy_reservations)
+}
+else { @() }
+$activeHeavyProfiles = @($heavyReservations).Count
+$activeMemoryReservationsGiB = [double] (
+    ($heavyReservations | Measure-Object -Property memory_reservation_gib -Sum).Sum)
+$activeWorkerFanout = [int] (
+    ($heavyReservations | Measure-Object -Property worker_cap -Sum).Sum)
+$activeExclusive = @($heavyReservations | Where-Object {
+    $_.PSObject.Properties.Name -contains 'exclusive' -and [bool] $_.exclusive
+}).Count -gt 0
 $resourceArguments = @{
     Admission = 'Snapshot'
     RepositoryRoot = $RepositoryRoot
     OutstandingWorktreeReservationsGiB = $outstandingReservationGiB
-    ActiveHeavyOperations = $activeHeavyOperations
+    ActiveHeavyProfiles = $activeHeavyProfiles
+    ActiveMemoryReservationsGiB = $activeMemoryReservationsGiB
+    ActiveWorkerFanout = $activeWorkerFanout
+    ActiveExclusiveOperation = $activeExclusive
 }
 if ($validation.valid -and $worktreeAvailable) {
     $resourceArguments.WorktreeInventoryConfirmed = $true
@@ -80,7 +94,7 @@ $snapshot = [pscustomobject] [ordered] @{
         outstanding_growth_reservation_gib = $outstandingReservationGiB
     }
     resource = $resource
-    durable_heavy_lease = if ($validation.valid) { $validation.capsule.active_heavy_lease } else { $null }
+    durable_heavy_reservations = @($heavyReservations)
 }
 
 if ($AsJson) {

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "worktree": {
     "activeBuildCapableGrowthReservationGiB": 1.25,
     "uncertainGrowthReservationGiB": 1.25,
@@ -7,10 +7,17 @@
     "minimumFreeDiskPercentWarning": 15.0
   },
   "heavyOperation": {
-    "concurrentLimit": 1,
-    "minimumAvailableMemoryGiB": 1.0,
-    "experimentalBandUpperGiB": 1.1,
-    "circuitBreakerFloorGiB": 1.1,
-    "warningAvailableMemoryGiB": 1.5
+    "preferredAvailableMemoryFloorGiB": 1.0,
+    "absoluteAvailableMemoryFloorGiB": 0.5,
+    "warningAvailableMemoryGiB": 1.5,
+    "provisionalProjectGateReservationGiB": 0.85,
+    "maximumLogicalProcessorFraction": 1.0,
+    "unmeasuredOperationsAreExclusive": true,
+    "degraded": {
+      "availableMemoryFloorGiB": 1.0,
+      "maximumConcurrentProfiles": 1,
+      "maximumWorkerFanout": 1,
+      "recoverableRetryLimit": 1
+    }
   }
 }
