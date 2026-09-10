@@ -2,11 +2,16 @@
 
 This document records why KicktippAi changed its explicit `$orchestrate`
 workflow after the first P1 run and which parts remain pilot hypotheses. The
-procedural source of truth is the repository-root `AGENTS.md` and
-`.agents/skills/orchestrate/SKILL.md`; the post-P1 refinement is frozen in
+document is supplemental and is not loaded by the skill. The sole procedural
+source of truth is `.agents/skills/orchestrate/SKILL.md` and its transitively
+imported normative references. The first post-P1 refinement is frozen in
 [`orchestration-workflow-improvements-spec.md`](orchestration-workflow-improvements-spec.md)
-and adopted for Bundesliga by ADR-0075. Earlier numeric limits below are
-historical evidence where the refinement is stated explicitly.
+and adopted for Bundesliga by ADR-0075. The P1-04-05 evidence and current
+redesign are recorded in
+[`p1-04-05-orchestration-redesign-rationale.md`](p1-04-05-orchestration-redesign-rationale.md)
+and
+[`p1-04-05-orchestration-redesign-spec.md`](p1-04-05-orchestration-redesign-spec.md).
+Earlier numeric limits below are historical evidence where stated explicitly.
 
 ## Evidence that motivated the change
 
@@ -89,11 +94,11 @@ complete the phase foundation, then fully interview one task or cohesive
 milestone at a time. The owner may stop between those units and release the
 already frozen independent graph; deferred nodes are `needs-interview`.
 
-The replace-in-place current graph remains in
-`.tmp/orchestration/<run-id>/preview.md`; raw interview dialogue and history do
-not. The compact, sealed recovery snapshot remains in sibling `capsule.json`,
-with separate instruction, hook, and active-contract manifests enabling bounded
-hot recovery. Stable phase ordering, authority, and review results are
+The only independently authored current state is
+`.tmp/orchestration/<run-id>/control-state.json`. One revision-checked
+checkpoint operation derives `preview.md`, `capsule.json`, its checksum, and
+the instruction, hook, and active-contract manifests. Raw dialogue and history
+remain outside recovery state. Stable phase ordering, authority, and review results are
 promoted into the competition's tracked execution packet only after review.
 High-risk architecture belongs in a dedicated design artifact rather than an
 ever-growing task checklist. The restarted P1 run—not this policy change—will
@@ -121,19 +126,20 @@ accepted outcome, durable decisions, and external authority remain unchanged.
 
 ## Execution, review, and publication
 
-Writer concurrency follows dependency independence and machine admission, not
-available agent slots. Ordinary lane branches remain local. Focused lane checks
-happen before handoff; independent review and full CI attach to frozen
-milestones and exceptional high-risk lanes. A reconciliation thread may be
-reused while its context remains applicable.
+Writer concurrency follows dependency independence and measured machine
+admission, not available agent slots. Writers build changed projects and run
+complete directly affected test-project suites before handoff. A fresh
+implementation reviewer precedes serialized root integration; cumulative
+validation and bounded triage run on each coherent combined tip; a fresh final
+reviewer precedes publication. Ordinary lane branches remain local.
 
 The project config allows eight spawned-agent threads, excluding the primary.
 This does not create a target occupancy. There is no universal writer or
 linked-worktree count; the root selects a wave throttle from graph readiness,
 path ownership, disk reservations, review/integration routes, and external
-leases. The one-heavy-operation limit remains separate. Useful independent
-ready work should be admitted; speculative work should not be invented to fill
-capacity.
+leases. Heavy work uses memory reservations and bounded CPU fanout rather than
+an operation-count limit. Useful independent ready work should be admitted;
+speculative work should not be invented to fill capacity.
 
 Sol/xhigh remains the independent-review default during this pilot. Sol/high
 may review a frozen exact artifact only when the root records bounded paths and
@@ -198,19 +204,25 @@ The current profile classifies active/build-capable and uncertain worktrees
 with a provisional 1.25 GiB future-growth reservation; parked/recovery-only and
 removal-ready worktrees reserve no growth. Count is inventory. Admission
 requires at least 14 GiB measured free after outstanding and proposed
-reservations and warns below 15% after reservations. Heavy work has one lease,
-uses a 1.00 GiB floor, and warns below 1.50 GiB. The 1.00–1.10 GiB band permits
-only recoverable local work; qualifying memory failure trips a primary-checkout
-circuit breaker shared through linked-worktree locators, cross-checked against
-each worktree's Git common directory, that restores 1.10 GiB pending
-owner-reviewed analysis. The
-warning is calibration evidence rather than a denial. Detailed operation type,
+reservations and warns below 15% after reservations. Heavy bundles are admitted
+when summed memory reservations fit above the 1.00 GiB preferred floor and
+summed worker caps fit the logical-processor budget. Mandatory bounded,
+recoverable local-only validation may use a 0.50 GiB absolute experimental
+floor. The provisional measured project-gate reservation is 0.85 GiB.
+Unmeasured work initially runs without another heavy profile but may use the
+full controlled pool internally. Qualifying memory failure atomically records
+the circuit breaker and offending profile in the exact run's primary-checkout
+`control-state.json`; linked worktrees resolve that file through their verified
+primary-checkout locator. There is no separately authored resource-policy state.
+The breaker disables the experimental band, restores the 1.00 GiB floor, and
+constrains the offending profile to exclusive low-fanout execution pending
+owner-reviewed analysis. The warning is calibration evidence rather than a denial. Detailed operation type,
 start/min/post memory, paging signals, duration, outcome, symptoms, and causal
 queue delay stay outside recovery context; only changed
 verdicts, warning bands, overrides, reservations, or lease owners change the
-capsule. No-change samples are capsule-silent.
-Missing required measurements still fail closed; an explicit run-scoped owner
-override remains available for a measured exceptional shortfall.
+generated recovery state. No-change samples are checkpoint-silent. Missing
+required measurements gate only the affected admission and trigger bounded
+evidence remediation; unrelated work continues.
 
 ## Validated MultiAgent V2 lifecycle
 
@@ -266,6 +278,13 @@ publication and CI count, owner waits, and escaped defects. Generic event-wait
 frequency and raw token burn are contextual utilization measures, not
 standalone efficiency KPIs. Early results guide parameter changes; they are not
 hard pass/fail targets.
+
+Every orchestration analysis also applies the standing
+`subagent-coordination-effectiveness` focus. It reconstructs the milestone
+role/handoff graph, first-pass validation and review outcomes, correction and
+rerun paths, stale evidence, role reuse/model fit, and the effect of
+architecture/specification quality on lane independence and downstream
+stability. This does not add an orchestration event journal.
 
 The initial capsule and Codex-hook design, failure behavior, alternatives, and
 next-run evaluation plan are recorded in

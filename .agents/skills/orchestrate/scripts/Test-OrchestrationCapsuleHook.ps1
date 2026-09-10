@@ -2,331 +2,453 @@
 param()
 
 $ErrorActionPreference = 'Stop'
-$hook = Join-Path $PSScriptRoot 'Invoke-OrchestrationCapsuleHook.ps1'
-$manifestHelper = Join-Path $PSScriptRoot 'New-OrchestrationRecoveryManifest.ps1'
-$recoverySnapshotHelper = Join-Path $PSScriptRoot 'Get-OrchestrationRecoverySnapshot.ps1'
-$testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "orchestration-capsule-$([Guid]::NewGuid().ToString('N'))"
-$runId = 'test-session-123'
-$runDirectory = Join-Path $testRoot ".tmp/orchestration/$runId"
+$sourceRepository = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
+$testRoot = Join-Path ([System.IO.Path]::GetTempPath()) "orchestration-checkpoint-$([Guid]::NewGuid().ToString('N'))"
+$runId = 'checkpoint-test'
 
 function Assert-True {
-    param(
-        [Parameter(Mandatory)] $Condition,
-        [Parameter(Mandatory)][string] $Message
-    )
+    param([Parameter(Mandatory)] $Condition, [Parameter(Mandatory)][string] $Message)
+    if (-not $Condition) { throw "Assertion failed: $Message" }
+}
 
-    if (-not $Condition) {
-        throw "Assertion failed: $Message"
-    }
+function Invoke-Checkpoint {
+    param([Parameter(Mandatory)][hashtable] $Arguments)
+    $Arguments.RepositoryRoot = $testRoot
+    $Arguments.AsJson = $true
+    return (& $checkpoint @Arguments | ConvertFrom-Json)
+}
+
+function Invoke-Validation {
+    return (& $hook -Mode Validate -RunId $runId -RepositoryRoot $testRoot | ConvertFrom-Json)
 }
 
 function New-HookInput {
     param([Parameter(Mandatory)][string] $EventName)
-
-    [pscustomobject] @{
+    return [pscustomobject] @{
         session_id = $runId
-        transcript_path = $null
-        cwd = $testRoot
         hook_event_name = $EventName
-        model = 'gpt-5.6-sol'
         source = if ($EventName -eq 'SessionStart') { 'compact' } else { $null }
         trigger = if ($EventName -eq 'PreCompact') { 'auto' } else { $null }
     } | ConvertTo-Json -Compress
 }
 
-function New-ValidCapsule {
-    param([string] $Status = 'active')
-
-    [ordered] @{
-        schema_version = 2
-        session_id = $runId
-        run_id = $runId
-        updated_at_utc = '2026-09-06T12:00:00Z'
-        status = $Status
-        objective = 'Verify recovery capsule behavior.'
-        wave = 'test'
-        stop_condition = 'All assertions pass.'
-        durable_decisions = @('Use exact-session recovery.')
-        owner_gates = @()
-        blockers = @()
-        freeze = [ordered] @{
-            preview_path = ".tmp/orchestration/$runId/preview.md"
-            instruction_manifest = [ordered] @{
-                path = ".tmp/orchestration/$runId/instruction-manifest.json"
-                sha256 = (Get-FileHash -LiteralPath (Join-Path $runDirectory 'instruction-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
-            }
-            hook_manifest = [ordered] @{
-                path = ".tmp/orchestration/$runId/hook-manifest.json"
-                sha256 = (Get-FileHash -LiteralPath (Join-Path $runDirectory 'hook-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
-            }
-            active_contract_manifest = [ordered] @{
-                path = ".tmp/orchestration/$runId/active-contract-manifest.json"
-                sha256 = (Get-FileHash -LiteralPath (Join-Path $runDirectory 'active-contract-manifest.json') -Algorithm SHA256).Hash.ToLowerInvariant()
-            }
-            deferred_nodes = @()
-        }
-        git = [ordered] @{
-            remote = 'origin'
-            push_url = 'https://github.com/ehonda/KicktippAi.git'
-            integration_branch = 'main'
-            allowed_branch_prefix = 'codex/test-'
-            initial_sha = '0123456789012345678901234567890123456789'
-            latest_integrated_sha = ''
-            latest_pushed_sha = ''
-            reviewed_unpublished_sha = ''
-        }
-        ownership_reservations = @()
-        resource_state = [ordered] @{
-            worktree_admission = 'allowed'
-            heavy_admission = 'allowed'
-            disk_warning_band = 'normal'
-            memory_warning_band = 'warning'
-            owner_override = $null
-            worktree_reservations = @([ordered] @{
-                path = '.tmp/worktrees/test'
-                class = 'active-build-capable'
-                growth_reservation_gib = 1.25
-                owner = '/root/writer'
-            })
-        }
-        active_heavy_lease = $null
-        retained_agents = @([ordered] @{
-            agent_path = '/root/reviewer'
-            role = 'review'
-            reason = 'One near-term review follow-up.'
-            release_trigger = 'Acceptance, role change, or context-cost limit.'
-            context_cost_limit = 'maximum 2 completed follow-up turns'
-        })
-        next_root_action = 'Inspect live state.'
-        delegated_next_actions = @('Keep implementation delegated.')
-    }
-}
-
 try {
     New-Item -ItemType Directory -Path $testRoot | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $testRoot '.codex') -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $testRoot '.agents/skills/orchestrate/scripts') -Force | Out-Null
-    New-Item -ItemType Directory -Path (Join-Path $testRoot '.agents/skills/orchestrate/resources') -Force | Out-Null
-    Set-Content -LiteralPath (Join-Path $testRoot 'AGENTS.md') -Value "# Test instructions`n`n@AUTO-REVIEW.md" -Encoding utf8
-    Set-Content -LiteralPath (Join-Path $testRoot 'AUTO-REVIEW.md') -Value '# Included review policy' -Encoding utf8
-    Set-Content -LiteralPath (Join-Path $testRoot '.agents/skills/orchestrate/SKILL.md') -Value '# Test skill' -Encoding utf8
-    Set-Content -LiteralPath (Join-Path $testRoot '.codex/hooks.json') -Value '{"hooks":{}}' -Encoding utf8
-    Copy-Item -LiteralPath $hook -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1')
-    Copy-Item -LiteralPath $recoverySnapshotHelper -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1')
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Get-OrchestrationResourceSnapshot.ps1') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1')
-    Copy-Item -LiteralPath $manifestHelper -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1')
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Set-OrchestrationMemoryCircuitBreaker.ps1') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1')
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../../../../New-AgentWorktree.ps1') -Destination (Join-Path $testRoot 'New-AgentWorktree.ps1')
-    Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../resources/resource-policy.json') -Destination (Join-Path $testRoot '.agents/skills/orchestrate/resources/resource-policy.json')
+    foreach ($relativeDirectory in @('.agents/skills', '.codex')) {
+        New-Item -ItemType Directory -Path (Join-Path $testRoot $relativeDirectory) -Force | Out-Null
+    }
+    Copy-Item -LiteralPath (Join-Path $sourceRepository '.agents/skills/orchestrate') -Destination (Join-Path $testRoot '.agents/skills') -Recurse
+    Copy-Item -LiteralPath (Join-Path $sourceRepository '.codex/hooks.json') -Destination (Join-Path $testRoot '.codex/hooks.json')
+    foreach ($relativeFile in @('New-AgentWorktree.ps1', 'KicktippAi.slnx')) {
+        Copy-Item -LiteralPath (Join-Path $sourceRepository $relativeFile) -Destination (Join-Path $testRoot $relativeFile)
+    }
+    [System.IO.File]::WriteAllText(
+        (Join-Path $testRoot 'AGENTS.md'),
+        "# Test instructions$([Environment]::NewLine)$([Environment]::NewLine)@AUTO-REVIEW.md$([Environment]::NewLine)",
+        [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::WriteAllText(
+        (Join-Path $testRoot 'AUTO-REVIEW.md'),
+        "# Test review instructions$([Environment]::NewLine)",
+        [System.Text.UTF8Encoding]::new($false))
     & git -C $testRoot init --quiet
-    $plainOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart')
-    Assert-True ([string]::IsNullOrWhiteSpace($plainOutput)) 'plain sessions must receive no hook output'
+    if ($LASTEXITCODE -ne 0) { throw 'Could not initialize checkpoint test repository.' }
 
-    New-Item -ItemType Directory -Path $runDirectory -Force | Out-Null
-    Set-Content -LiteralPath (Join-Path $runDirectory 'active') -Value 'kicktippai.orchestrate/v2' -NoNewline
+    $checkpoint = Join-Path $testRoot '.agents/skills/orchestrate/scripts/Set-OrchestrationCheckpoint.ps1'
+    $hook = Join-Path $testRoot '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1'
+    $runDirectory = Join-Path $testRoot ".tmp/orchestration/$runId"
 
-    $unsupportedEventOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'UserPromptSubmit')
-    Assert-True ([string]::IsNullOrWhiteSpace($unsupportedEventOutput)) 'stale prompt-hook invocations must remain silent'
+    $plain = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput -EventName 'SessionStart')
+    Assert-True ([string]::IsNullOrWhiteSpace([string] $plain)) 'ordinary sessions must remain silent'
 
-    $missingOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    $missingContext = $missingOutput.hookSpecificOutput.additionalContext
-    Assert-True ($missingContext -match 'missing-capsule') 'missing capsules must be forwarded after compaction'
-    Assert-True ($missingContext -match '\$orchestrate') 'recovery must explicitly continue under the orchestration skill'
-    Assert-True ($missingContext -match 'never select another run by recency') 'recovery must reject recency fallback'
+    $initial = Invoke-Checkpoint @{
+        Action = 'Initialize'
+        RunId = $runId
+        ExpectedRevision = 0
+        Objective = 'Exercise transactional recovery state.'
+        StopCondition = 'All assertions pass.'
+        InitialSha = ('1' * 40)
+        AllowedBranchPrefix = 'codex/checkpoint-test-'
+        NextRootAction = 'Freeze the first lane.'
+    }
+    Assert-True ($initial.revision -eq 1 -and $initial.changed) 'initialization must commit revision 1'
+    foreach ($name in @(
+        'control-state.json', 'preview.md', 'capsule.json', 'capsule.sha256',
+        'instruction-manifest.json', 'hook-manifest.json',
+        'active-contract-manifest.json', 'active')) {
+        Assert-True (Test-Path -LiteralPath (Join-Path $runDirectory $name) -PathType Leaf) "initialization must create $name"
+    }
 
-    $preCompactOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'PreCompact') | ConvertFrom-Json
-    Assert-True ($preCompactOutput.continue) 'a missing capsule must not strand automatic compaction'
-    Assert-True ($preCompactOutput.systemMessage -match 'missing-capsule') 'pre-compaction validation must surface the failure'
+    $validation = Invoke-Validation
+    Assert-True ($validation.valid -and $validation.recovery_mode -eq 'hot') 'fresh state must validate hot'
+    Assert-True ($validation.control_state.revision -eq 1) 'validation must expose control revision'
+    Assert-True ($validation.capsule.state_revision -eq 1) 'capsule revision must match control state'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Value '{not-json' -NoNewline
-    Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.sha256') -Value ('0' * 64) -NoNewline
-    $corruptOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($corruptOutput.hookSpecificOutput.additionalContext -match 'malformed-json') 'malformed JSON must be forwarded'
+    $instructionManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'instruction-manifest.json') -Raw | ConvertFrom-Json
+    foreach ($path in @(
+        '.agents/skills/orchestrate/SKILL.md',
+        '.agents/skills/orchestrate/references/operations-protocol.md',
+        '.agents/skills/orchestrate/references/roles-and-handoffs.md',
+        '.agents/skills/orchestrate/references/validation-and-integration.md')) {
+        Assert-True (@($instructionManifest.entries.path) -ccontains $path) "instruction graph must include $path"
+    }
+    Assert-True (@($instructionManifest.entries.path | Where-Object { $_ -like 'docs/codex/*' }).Count -eq 0) 'supplemental docs must not be runtime inputs'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Value ('x' * 8193) -NoNewline
-    $oversizedOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($oversizedOutput.hookSpecificOutput.additionalContext -match 'oversized-capsule') 'oversized capsules must be forwarded'
-
-    New-Item -ItemType Directory -Path (Join-Path $testRoot 'nested') | Out-Null
-    Set-Content -LiteralPath (Join-Path $testRoot 'nested/AGENTS.md') -Value '# Nested instructions' -Encoding utf8
-    Set-Content -LiteralPath (Join-Path $testRoot 'nested/contract.md') -Value '# Active contract' -Encoding utf8
-    $previewContent = @'
-# Current frozen graph
-
-<!-- orchestration-instruction-inputs:start -->
-<!-- orchestration-instruction-inputs:end -->
-
-<!-- orchestration-active-contract:start -->
-nested/contract.md
-<!-- orchestration-active-contract:end -->
-'@
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value $previewContent -Encoding utf8
-    & $manifestHelper -RunId $runId -Packet instruction -RepositoryRoot $testRoot -Path @(
-        'AGENTS.md', '.agents/skills/orchestrate/SKILL.md') | Out-Null
-    & $manifestHelper -RunId $runId -Packet hook -RepositoryRoot $testRoot -Path @(
-        '.codex/hooks.json', '.agents/skills/orchestrate/scripts/Invoke-OrchestrationCapsuleHook.ps1') | Out-Null
-    & $manifestHelper -RunId $runId -Packet active-contract -RepositoryRoot $testRoot -Path @(
-        ".tmp/orchestration/$runId/preview.md") | Out-Null
-
-    $instructionManifestPath = Join-Path $runDirectory 'instruction-manifest.json'
-    $instructionManifest = Get-Content -LiteralPath $instructionManifestPath -Raw | ConvertFrom-Json
-    Assert-True (@($instructionManifest.entries.path) -ccontains 'AUTO-REVIEW.md') 'instruction manifests must expand transitive includes'
-    Assert-True (@($instructionManifest.entries.path) -ccontains 'nested/AGENTS.md') 'instruction manifests must discover applicable nested instructions'
     $hookManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'hook-manifest.json') -Raw | ConvertFrom-Json
-    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationRecoverySnapshot.ps1') 'hook manifests must include the hot recovery helper'
-    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1') 'hook manifests must include the recovery resource dependency'
-    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1') 'hook manifests must include the packet-construction control'
-    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1') 'hook manifests must include the memory circuit-breaker control'
-    Assert-True (@($hookManifest.entries.path) -ccontains 'New-AgentWorktree.ps1') 'hook manifests must include the worktree-admission control'
-    Assert-True (@($hookManifest.entries.path) -ccontains '.agents/skills/orchestrate/resources/resource-policy.json') 'hook manifests must include the recovery resource policy dependency'
-    $activeManifest = Get-Content -LiteralPath (Join-Path $runDirectory 'active-contract-manifest.json') -Raw | ConvertFrom-Json
-    Assert-True (@($activeManifest.entries.path) -ccontains 'nested/contract.md') 'active manifests must include preview-declared contracts'
-
-    $completeInstructionManifest = Get-Content -LiteralPath $instructionManifestPath -Raw
-    $instructionManifest.entries = @($instructionManifest.entries | Where-Object { [string] $_.path -ne 'AUTO-REVIEW.md' })
-    $instructionManifest | ConvertTo-Json -Depth 5 -Compress | Set-Content -LiteralPath $instructionManifestPath -Encoding utf8
-    New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    $incompleteInstructionRejected = $false
-    try {
-        & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    }
-    catch {
-        $incompleteInstructionRejected = $_.Exception.Message -match 'incomplete-manifest'
-    }
-    Assert-True $incompleteInstructionRejected 'sealing must reject a manifest that omits a transitive instruction include'
-    [System.IO.File]::WriteAllText($instructionManifestPath, $completeInstructionManifest, [System.Text.UTF8Encoding]::new($false))
-
-    New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    Assert-True (Test-Path -LiteralPath (Join-Path $runDirectory 'capsule.sha256')) 'seal mode must create the checksum'
-
-    $validOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    $validContext = $validOutput.hookSpecificOutput.additionalContext
-    Assert-True ($validContext -match 'HOT \$orchestrate RECOVERY') 'valid packet recovery must select the hot path'
-    Assert-True ($validContext -match 'VALIDATED ORCHESTRATION CAPSULE') 'valid recovery must inject the capsule'
-    Assert-True ($validContext -match 'Inspect live state') 'valid recovery must retain the next root action'
-    Assert-True ($validContext -match 'Do not reread unchanged policies') 'hot recovery must prohibit broad unchanged rereads'
-    $recoverySnapshot = & $recoverySnapshotHelper -RunId $runId -RepositoryRoot $testRoot -AsJson | ConvertFrom-Json
-    Assert-True ($recoverySnapshot.recovery.mode -eq 'hot') 'the compact recovery helper must preserve packet validation'
-    Assert-True ($recoverySnapshot.worktrees.outstanding_growth_reservation_gib -eq 1.25) 'the compact recovery helper must reconcile capsule worktree reservations'
-
-    $legacyCapsule = New-ValidCapsule
-    $legacyCapsule['hook_trust'] = [ordered] @{
-        schema_version = 1
-        repository = 'https://github.com/ehonda/KicktippAi.git'
-        session_id = $runId
-        hook_definition_sha256 = ('a' * 64)
-        script_sha256 = ('b' * 64)
-    }
-    $legacyCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    $legacyOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($legacyOutput.hookSpecificOutput.additionalContext -match 'HOT \$orchestrate RECOVERY') 'legacy capsules with hook_trust must remain compatible'
-
-    foreach ($runtimeControlPath in @(
-        '.agents/skills/orchestrate/scripts/New-OrchestrationRecoveryManifest.ps1',
-        '.agents/skills/orchestrate/scripts/Set-OrchestrationMemoryCircuitBreaker.ps1',
-        'New-AgentWorktree.ps1',
+    foreach ($path in @(
+        '.agents/skills/orchestrate/scripts/Set-OrchestrationCheckpoint.ps1',
+        '.agents/skills/orchestrate/scripts/Remove-OrchestrationWorktree.ps1',
+        '.agents/skills/orchestrate/resources/control-state-template.json',
         '.agents/skills/orchestrate/resources/resource-policy.json')) {
-        $runtimeControlAbsolutePath = Join-Path $testRoot $runtimeControlPath
-        $runtimeControlBytes = [System.IO.File]::ReadAllBytes($runtimeControlAbsolutePath)
-        try {
-            Add-Content -LiteralPath $runtimeControlAbsolutePath -Value ' ' -NoNewline
-            $runtimeControlDriftOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-            Assert-True ($runtimeControlDriftOutput.hookSpecificOutput.additionalContext -match 'COLD \$orchestrate RECOVERY') "$runtimeControlPath drift must force cold recovery"
-            Assert-True ($runtimeControlDriftOutput.hookSpecificOutput.additionalContext -match 'packet-digest-mismatch') "$runtimeControlPath drift must identify the changed packet"
-        }
-        finally {
-            [System.IO.File]::WriteAllBytes($runtimeControlAbsolutePath, $runtimeControlBytes)
-        }
+        Assert-True (@($hookManifest.entries.path) -ccontains $path) "hook packet must include $path"
     }
 
-    $validPreCompactOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'PreCompact')
-    Assert-True ([string]::IsNullOrWhiteSpace($validPreCompactOutput)) 'valid pre-compaction checks must stay silent'
+    $noOp = Invoke-Checkpoint @{
+        Action = 'Transition'
+        RunId = $runId
+        ExpectedRevision = 1
+        Status = 'preview'
+        TransitionName = 'run:preview-no-op'
+    }
+    Assert-True ($noOp.no_op -and $noOp.revision -eq 1) 'semantic duplicates must not create revisions'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value '# Drifted graph' -Encoding utf8
-    $driftOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($driftOutput.hookSpecificOutput.additionalContext -match 'COLD \$orchestrate RECOVERY') 'packet drift must select the cold path'
-    Assert-True ($driftOutput.hookSpecificOutput.additionalContext -match 'packet-digest-mismatch') 'changed packet material must be identified'
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value $previewContent -Encoding utf8
+    $laneGate = [ordered] @{
+        id = 'lane-memory'
+        category = 'resource'
+        scope = 'lane-a'
+        evidence = 'Memory measurement is stale.'
+        prohibited_transitions = @('lane-a:build')
+        remediation_owner = 'root-orchestrator'
+        remediation_action = 'Refresh resource evidence.'
+        continue_actions = @('lane-b:review')
+        escalation_condition = 'Evidence remains unavailable after one retry.'
+        retry_budget = 1
+        retry_attempts = 0
+    } | ConvertTo-Json -Compress
+    $setLaneGate = Invoke-Checkpoint @{
+        Action = 'SetGate'
+        RunId = $runId
+        ExpectedRevision = 1
+        GateJson = $laneGate
+    }
+    Assert-True ($setLaneGate.revision -eq 2) 'lane gate must create one revision'
+    Assert-True ((Invoke-Validation).valid) 'a lane-scoped gate must preserve hot recovery'
+    $gatedTransitionRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Transition'
+            RunId = $runId
+            ExpectedRevision = 2
+            Status = 'preview'
+            TransitionName = 'lane-a:build'
+        } | Out-Null
+    }
+    catch { $gatedTransitionRejected = $_.Exception.Message -match 'prohibited by active gate' }
+    Assert-True $gatedTransitionRejected 'a gate must deny only its exact prohibited transition'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value ($previewContent + "`n" + ('w' * 9000)) -NoNewline
-    & $manifestHelper -RunId $runId -Packet active-contract -RepositoryRoot $testRoot -Path @(
-        ".tmp/orchestration/$runId/preview.md") | Out-Null
-    New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    $warningValidation = & $hook -Mode Validate -RunId $runId -RepositoryRoot $testRoot | ConvertFrom-Json
-    Assert-True $warningValidation.valid 'a preview between 8 and 12 KiB must remain valid'
-    Assert-True ($warningValidation.message -match '8192-byte target') 'a preview above 8 KiB must report the size warning'
+    $invalidLifecycleRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Transition'
+            RunId = $runId
+            ExpectedRevision = 2
+            Status = 'active'
+            TransitionName = 'run:activate'
+        } | Out-Null
+    }
+    catch { $invalidLifecycleRejected = $_.Exception.Message -match 'not allowed' }
+    Assert-True $invalidLifecycleRejected 'preview must not skip the ready lifecycle state'
 
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value ($previewContent + "`n" + ('x' * 12289)) -NoNewline
-    $largePreviewOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($largePreviewOutput.hookSpecificOutput.additionalContext -match 'oversized-preview') 'a preview above 12 KiB must force cold recovery'
-    Set-Content -LiteralPath (Join-Path $runDirectory 'preview.md') -Value $previewContent -Encoding utf8
-    & $manifestHelper -RunId $runId -Packet active-contract -RepositoryRoot $testRoot -Path @(
-        ".tmp/orchestration/$runId/preview.md") | Out-Null
+    $ownerGate = [ordered] @{
+        id = 'owner-route'
+        category = 'owner'
+        scope = 'run'
+        evidence = 'Publication target requires an owner choice.'
+        prohibited_transitions = @('run:publish')
+        remediation_owner = 'root-orchestrator'
+        remediation_action = 'Ask the owner for the target.'
+        continue_actions = @()
+        escalation_condition = 'No safe frontier remains.'
+        retry_budget = 0
+        retry_attempts = 0
+    } | ConvertTo-Json -Compress
+    $setOwnerGate = Invoke-Checkpoint @{
+        Action = 'SetGate'
+        RunId = $runId
+        ExpectedRevision = 2
+        GateJson = $ownerGate
+    }
+    Assert-True ($setOwnerGate.revision -eq 3) 'run owner gate must create one revision'
+    $gatedValidation = Invoke-Validation
+    Assert-True (-not $gatedValidation.valid -and $gatedValidation.code -eq 'owner-gate') 'run owner gates must require cold owner reconciliation'
 
-    $ownerGateCapsule = New-ValidCapsule -Status awaiting-owner
-    $ownerGateCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    $ownerGateOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($ownerGateOutput.hookSpecificOutput.additionalContext -match 'owner-gate') 'an unresolved owner gate must force cold recovery'
+    $clearOwnerGate = Invoke-Checkpoint @{
+        Action = 'ClearGate'
+        RunId = $runId
+        ExpectedRevision = 3
+        GateId = 'owner-route'
+        ClearanceEvidence = 'The owner selected the recorded publication target.'
+    }
+    Assert-True ($clearOwnerGate.revision -eq 4 -and (Invoke-Validation).valid) 'clearing run gate must restore hot recovery'
 
-    $activeOwnerGateCapsule = New-ValidCapsule
-    $activeOwnerGateCapsule.owner_gates = @('Owner must select the production route.')
-    $activeOwnerGateCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    $activeOwnerGateOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($activeOwnerGateOutput.hookSpecificOutput.additionalContext -match 'owner-gate') 'nonempty owner_gates must force cold recovery even when lifecycle status is active'
+    $statePath = Join-Path $runDirectory 'control-state.json'
+    $state = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $state.lanes = @([pscustomobject] @{
+        id = 'lane-a'
+        status = 'correction'
+        owner = '/root/writer'
+        dependencies = @()
+        worktree_path = '.tmp/worktrees/lane-a'
+        next_action = 'Apply bounded correction.'
+    })
+    $state.ownership_reservations = @([pscustomobject] @{
+        assignment_id = 'lane-a-writer-initial'
+        lane_id = 'lane-a'
+        agent_path = '/root/writer'
+        role = 'milestone-writer'
+        model = 'gpt-5.6-terra'
+        reasoning_effort = 'medium'
+        owned_paths = @('src/lane-a')
+        next_action = 'Apply bounded correction.'
+    })
+    $replace = Invoke-Checkpoint @{
+        Action = 'Update'
+        RunId = $runId
+        ExpectedRevision = 4
+        StateJson = ($state | ConvertTo-Json -Depth 20 -Compress)
+        CheckpointKind = @('Freeze', 'OwnershipReservation')
+        TransitionName = 'run:freeze-lane-a'
+    }
+    Assert-True ($replace.revision -eq 5) 'replace must commit one validated state revision'
 
-    $ownerBlockerCapsule = New-ValidCapsule
-    $ownerBlockerCapsule.blockers = @([ordered] @{ category = 'owner'; detail = 'Owner confirmation remains open.' })
-    $ownerBlockerCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    $ownerBlockerOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($ownerBlockerOutput.hookSpecificOutput.additionalContext -match 'owner-gate') 'an owner blocker must force cold recovery even when lifecycle status is active'
+    $currentForReorder = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $reorderedState = [ordered] @{}
+    foreach ($propertyName in @($currentForReorder.PSObject.Properties.Name)[-1..-(
+        $currentForReorder.PSObject.Properties.Name.Count)]) {
+        $reorderedState[$propertyName] = $currentForReorder.$propertyName
+    }
+    $reorderedNoOp = Invoke-Checkpoint @{
+        Action = 'Update'
+        RunId = $runId
+        ExpectedRevision = 5
+        StateJson = ($reorderedState | ConvertTo-Json -Depth 20 -Compress)
+        CheckpointKind = @('Freeze')
+        TransitionName = 'run:semantic-no-op'
+    }
+    Assert-True ($reorderedNoOp.no_op -and $reorderedNoOp.revision -eq 5) 'JSON property order must not create a checkpoint revision'
 
-    $invalidTargetCapsule = New-ValidCapsule
-    $invalidTargetCapsule.git.push_url = 'https://github.com/example/other.git'
-    $invalidTargetCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    $invalidTargetOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($invalidTargetOutput.hookSpecificOutput.additionalContext -match 'invalid-git-target') 'wrong Git targets must be forwarded'
+    $ambiguousOwnership = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $ambiguousOwnership.ownership_reservations = @(
+        @($ambiguousOwnership.ownership_reservations) +
+        [pscustomobject] @{
+            assignment_id = 'lane-a-writer-duplicate'
+            lane_id = 'lane-a'
+            agent_path = '/root/writer'
+            role = 'milestone-writer'
+            model = 'gpt-5.6-terra'
+            reasoning_effort = 'medium'
+            owned_paths = @('src/lane-a')
+            next_action = 'Duplicate ownership must be rejected.'
+        })
+    $ambiguousOwnershipRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Update'
+            RunId = $runId
+            ExpectedRevision = 5
+            StateJson = ($ambiguousOwnership | ConvertTo-Json -Depth 20 -Compress)
+            CheckpointKind = @('OwnershipReservation')
+            TransitionName = 'lane-a:duplicate-owner'
+        } | Out-Null
+    }
+    catch { $ambiguousOwnershipRejected = $_.Exception.Message -match 'Ownership reservation is invalid' }
+    Assert-True $ambiguousOwnershipRejected 'one lane must never have ambiguous current ownership'
+    Assert-True ((Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json).revision -eq 5) 'rejected ownership must preserve the committed revision'
 
-    $invalidPreviewCapsule = New-ValidCapsule
-    $invalidPreviewCapsule.freeze.preview_path = '.tmp/orchestration/other/preview.md'
-    $invalidPreviewCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    $invalidPreviewOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($invalidPreviewOutput.hookSpecificOutput.additionalContext -match 'invalid-preview-path') 'wrong-run preview paths must be forwarded'
+    $revision = 5
+    foreach ($suffix in @('one', 'two', 'three')) {
+        $reserve = Invoke-Checkpoint @{
+            Action = 'ReserveCorrection'
+            RunId = $runId
+            ExpectedRevision = $revision
+            MilestoneId = 'lane-a'
+            CorrectionRole = 'milestone-writer'
+            AssignmentId = "fix-$suffix"
+            TransitionName = 'lane-a:correction-dispatch'
+        }
+        $revision++
+        Assert-True ($reserve.correction_allowed -and $reserve.revision -eq $revision) 'writer correction must reserve before dispatch'
+        $started = Invoke-Checkpoint @{
+            Action = 'MarkCorrectionStarted'
+            RunId = $runId
+            ExpectedRevision = $revision
+            MilestoneId = 'lane-a'
+            CorrectionRole = 'milestone-writer'
+            AssignmentId = "fix-$suffix"
+        }
+        $revision++
+        Assert-True ($started.revision -eq $revision) 'started correction must consume the reservation'
+    }
+    $exhausted = Invoke-Checkpoint @{
+        Action = 'ReserveCorrection'
+        RunId = $runId
+        ExpectedRevision = $revision
+        MilestoneId = 'lane-a'
+        CorrectionRole = 'milestone-writer'
+        AssignmentId = 'fix-four'
+        TransitionName = 'lane-a:correction-dispatch'
+    }
+    $revision++
+    Assert-True (-not $exhausted.correction_allowed) 'fourth writer correction must be rejected'
+    $exhaustedState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    Assert-True ($exhaustedState.lanes[0].status -eq 'needs-diagnosis') 'exhaustion must reroute only the affected lane'
+    Assert-True ([string]::IsNullOrWhiteSpace([string] $exhaustedState.lanes[0].owner)) 'exhaustion must release the current specialist'
+    Assert-True (@($exhaustedState.correction_counters[0].issued_assignment_ids).Count -eq 3) 'consumed correction assignment IDs must remain recorded'
+    $repeatedExhaustion = Invoke-Checkpoint @{
+        Action = 'ReserveCorrection'
+        RunId = $runId
+        ExpectedRevision = $revision
+        MilestoneId = 'lane-a'
+        CorrectionRole = 'milestone-writer'
+        AssignmentId = 'fix-five'
+        TransitionName = 'lane-a:correction-dispatch'
+    }
+    Assert-True ($repeatedExhaustion.no_op -and -not $repeatedExhaustion.correction_allowed) 'repeated over-budget dispatch must remain explicitly rejected without another revision'
 
-    New-ValidCapsule | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    Add-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Value ' '
-    $hashOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart') | ConvertFrom-Json
-    Assert-True ($hashOutput.hookSpecificOutput.additionalContext -match 'checksum-mismatch') 'checksum mismatch must be forwarded'
+    $missingGate = Invoke-Checkpoint @{
+        Action = 'ClearGate'
+        RunId = $runId
+        ExpectedRevision = $revision
+        GateId = 'absent'
+    }
+    Assert-True ($missingGate.no_op -and $missingGate.revision -eq $revision) 'clearing an absent gate must be a no-op'
 
-    New-ValidCapsule -Status complete | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath (Join-Path $runDirectory 'capsule.json') -Encoding utf8
-    & $hook -Mode Seal -RunId $runId -RepositoryRoot $testRoot | Out-Null
-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $runDirectory 'active'))) 'terminal capsules must clear the activation marker'
-    $completeOutput = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput 'SessionStart')
-    Assert-True ([string]::IsNullOrWhiteSpace($completeOutput)) 'completed sessions must receive no hook output'
+    $conflict = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Transition'
+            RunId = $runId
+            ExpectedRevision = ($revision - 1)
+            Status = 'active'
+            TransitionName = 'run:activate'
+        } | Out-Null
+    }
+    catch { $conflict = $_.Exception.Message -match 'Revision conflict' }
+    Assert-True $conflict 'stale expected revisions must fail'
 
-    $hooksConfig = Get-Content -LiteralPath (Join-Path $PSScriptRoot '../../../../.codex/hooks.json') -Raw | ConvertFrom-Json
-    Assert-True ($hooksConfig.hooks.PSObject.Properties.Name -notcontains 'UserPromptSubmit') 'hook config must not gate orchestration startup on prompt-time trust evidence'
-    Assert-True ($hooksConfig.hooks.PSObject.Properties.Name -contains 'PreCompact') 'hook config must include PreCompact'
-    Assert-True ($hooksConfig.hooks.PSObject.Properties.Name -contains 'SessionStart') 'hook config must include SessionStart'
-    Assert-True ($hooksConfig.hooks.PSObject.Properties.Name -notcontains 'PostCompact') 'hook config must not include PostCompact'
-    $timeouts = @(
-        $hooksConfig.hooks.PreCompact[0].hooks[0].timeout,
-        $hooksConfig.hooks.SessionStart[0].hooks[0].timeout)
-    Assert-True (@($timeouts | Where-Object { $_ -ne 30 }).Count -eq 0) 'all orchestration hooks must allow 30 seconds'
-    Assert-True ($hooksConfig.hooks.SessionStart[0].hooks[0].additionalContextLimit -eq 0) 'the strict byte cap must prevent context spilling'
-    Assert-True ($hooksConfig.hooks.PreCompact[0].hooks[0].PSObject.Properties.Name -notcontains 'statusMessage') 'plain sessions must not display PreCompact status text'
-    Assert-True ($hooksConfig.hooks.SessionStart[0].hooks[0].PSObject.Properties.Name -notcontains 'statusMessage') 'plain sessions must not display SessionStart status text'
+    $committedPreviewHash = (Get-FileHash -LiteralPath (Join-Path $runDirectory 'preview.md') -Algorithm SHA256).Hash
+    $invalidCandidate = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $invalidCandidate.durable_decisions = @(('x' * 13000))
+    $candidateRejected = $false
+    try {
+        Invoke-Checkpoint @{
+            Action = 'Update'
+            RunId = $runId
+            ExpectedRevision = $revision
+            StateJson = ($invalidCandidate | ConvertTo-Json -Depth 20 -Compress)
+            CheckpointKind = @('Freeze')
+            TransitionName = 'run:oversized-freeze'
+        } | Out-Null
+    }
+    catch { $candidateRejected = $_.Exception.Message -match 'oversized' }
+    Assert-True $candidateRejected 'an oversized staged projection must be rejected before commit'
+    $stateAfterRejection = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    Assert-True ($stateAfterRejection.revision -eq $revision) 'a rejected candidate must preserve committed control state'
+    Assert-True ((Get-FileHash -LiteralPath (Join-Path $runDirectory 'preview.md') -Algorithm SHA256).Hash -eq $committedPreviewHash) 'a rejected candidate must preserve committed projections'
+    Assert-True (@(Get-ChildItem -LiteralPath $runDirectory -Directory -Filter '.checkpoint-stage-*').Count -eq 0) 'a rejected candidate must clean staging files'
 
-    Write-Output 'Orchestration capsule hook tests passed.'
+    $lockPath = Join-Path $runDirectory '.checkpoint.lock'
+    $lockStream = [System.IO.File]::Open($lockPath, 'OpenOrCreate', 'ReadWrite', 'None')
+    try { $lockedValidation = Invoke-Validation }
+    finally { $lockStream.Dispose() }
+    Assert-True (-not $lockedValidation.valid -and $lockedValidation.code -eq 'checkpoint-in-progress') 'hooks must detect an uncleared checkpoint lock'
+
+    $previewPath = Join-Path $runDirectory 'preview.md'
+    $previewBytes = [System.IO.File]::ReadAllBytes($previewPath)
+    Add-Content -LiteralPath $previewPath -Value 'drift'
+    $driftValidation = Invoke-Validation
+    Assert-True (-not $driftValidation.valid -and $driftValidation.code -eq 'packet-digest-mismatch') 'projection drift must force cold reconstruction'
+    [System.IO.File]::WriteAllBytes($previewPath, $previewBytes)
+    Assert-True ((Invoke-Validation).valid) 'restored projection bytes must validate'
+
+    $stateBytes = [System.IO.File]::ReadAllBytes($statePath)
+    Add-Content -LiteralPath $statePath -Value ' '
+    $stateDrift = Invoke-Validation
+    Assert-True (-not $stateDrift.valid -and $stateDrift.code -eq 'control-state-digest-mismatch') 'control-state drift must force cold reconstruction'
+    [System.IO.File]::WriteAllBytes($statePath, $stateBytes)
+    Assert-True ((Invoke-Validation).valid) 'restored control-state bytes must validate'
+
+    $activePath = Join-Path $runDirectory 'active'
+    $activeMarker = [System.IO.File]::ReadAllBytes($activePath)
+    Set-Content -LiteralPath $activePath -Value "kicktippai.orchestrate/v4 revision=$($revision - 1)"
+    $markerOutput = & $hook -RepositoryRoot $testRoot -InputJson (
+        New-HookInput -EventName 'SessionStart') | ConvertFrom-Json
+    Assert-True ($markerOutput.hookSpecificOutput.additionalContext -match 'activation-revision-mismatch') 'activation marker drift must select cold exact-session recovery'
+    [System.IO.File]::WriteAllBytes($activePath, $activeMarker)
+
+    $preCompact = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput -EventName 'PreCompact')
+    Assert-True ([string]::IsNullOrWhiteSpace([string] $preCompact)) 'valid pre-compaction checks must remain silent'
+    $sessionStart = & $hook -RepositoryRoot $testRoot -InputJson (New-HookInput -EventName 'SessionStart') | ConvertFrom-Json
+    Assert-True ($sessionStart.hookSpecificOutput.additionalContext -match 'HOT \$orchestrate RECOVERY') 'valid session recovery must inject the hot capsule'
+
+    $integratedState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+    $integratedState.lanes[0].status = 'integrated'
+    $integratedState.lanes[0].next_action = 'Retire the completed lane.'
+    $integratedLane = Invoke-Checkpoint @{
+        Action = 'Update'
+        RunId = $runId
+        ExpectedRevision = $revision
+        StateJson = ($integratedState | ConvertTo-Json -Depth 20 -Compress)
+        CheckpointKind = @('Integration')
+        TransitionName = 'lane-a:integrate'
+    }
+    $revision++
+    Assert-True ($integratedLane.revision -eq $revision) 'lane integration must be checkpointed'
+
+    $ready = Invoke-Checkpoint @{
+        Action = 'Transition'
+        RunId = $runId
+        ExpectedRevision = $revision
+        Status = 'ready'
+        TransitionName = 'run:ready'
+        NextRootAction = 'Start the admitted wave.'
+    }
+    $revision++
+    Assert-True ($ready.revision -eq $revision) 'preview must transition to ready'
+    $activeRun = Invoke-Checkpoint @{
+        Action = 'Transition'
+        RunId = $runId
+        ExpectedRevision = $revision
+        Status = 'active'
+        TransitionName = 'run:activate'
+        NextRootAction = 'Finish accepted lanes.'
+    }
+    $revision++
+    Assert-True ($activeRun.revision -eq $revision) 'ready must transition to active'
+
+    $complete = Invoke-Checkpoint @{
+        Action = 'Complete'
+        RunId = $runId
+        ExpectedRevision = $revision
+        TransitionName = 'run:complete'
+    }
+    Assert-True ($complete.status -eq 'complete') 'completion must be checkpointed'
+    Assert-True (-not (Test-Path -LiteralPath (Join-Path $runDirectory 'active'))) 'completion must remove the active marker'
+    Assert-True ((Invoke-Validation).valid) 'terminal projections must remain internally valid'
+
+    $rootInstructions = Get-Content -LiteralPath (Join-Path $sourceRepository 'AGENTS.md') -Raw
+    $autoReview = Get-Content -LiteralPath (Join-Path $sourceRepository 'AUTO-REVIEW.md') -Raw
+    Assert-True ($rootInstructions -notmatch 'Explicit Orchestration Workflow') 'root AGENTS.md must not own orchestration procedure'
+    Assert-True ($autoReview -notmatch 'Explicit.*orchestrate') 'always-loaded review instructions must not duplicate orchestration authority'
+
+    Write-Output 'Orchestration checkpoint and capsule-hook tests passed.'
 }
 finally {
     if (Test-Path -LiteralPath $testRoot) {
-        Remove-Item -LiteralPath $testRoot -Recurse -Force
+        $resolvedTestRoot = [System.IO.Path]::GetFullPath($testRoot)
+        $resolvedTemp = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
+        if (-not $resolvedTestRoot.StartsWith($resolvedTemp, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Refusing to remove a test directory outside the system temp root.'
+        }
+        Remove-Item -LiteralPath $resolvedTestRoot -Recurse -Force
     }
 }
