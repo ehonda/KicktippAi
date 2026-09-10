@@ -1,7 +1,8 @@
 # P1-04-05 orchestration redesign specification
 
-**Accepted:** 2026-09-10 Europe/Berlin  
-**Status:** implementation contract  
+**Accepted:** 2026-09-10 Europe/Berlin
+
+**Status:** implementation contract
 **Delivery:** one branch and pull request, direct cutover, no opt-in
 
 This specification translates the accepted redesign into observable repository
@@ -384,4 +385,3 @@ tests, repository build, and repository tests applicable to the changed
 surface. A fresh `gpt-5.6-sol/xhigh` subagent performs an independent
 review-and-fix cycle. Merge only after its findings are resolved, local gates
 pass, and required PR checks are green; then update local `main` from `origin`.
-

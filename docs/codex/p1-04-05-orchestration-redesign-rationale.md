@@ -1,7 +1,8 @@
 # P1-04-05 orchestration redesign rationale
 
-**Decision date:** 2026-09-10 Europe/Berlin  
-**Status:** accepted  
+**Decision date:** 2026-09-10 Europe/Berlin
+
+**Status:** accepted
 **Scope:** the repository's explicit-only `$orchestrate` workflow
 
 This document records why the orchestration workflow is being revised after
@@ -191,4 +192,3 @@ active run.
 - Do not support migration or resumption of legacy orchestration run state.
 - Do not weaken repository identity, publication, destructive-action,
   production, or platform-approval boundaries.
-
