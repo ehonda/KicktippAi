@@ -1,0 +1,12 @@
+sha,short_sha,authored_at,committed_at,author,subject
+7f6aa220dc0e73f1a3ee92c36bb04d65116c75f3,7f6aa22,2026-09-08T00:02:31+02:00,2026-09-08T00:02:31+02:00,Dennis Renz,docs(bundesliga): freeze context refresh source contracts
+f21f89d8f5d3b36c73d1dd0aa96dc1bddb8b1a07,f21f89d,2026-09-08T01:57:28+02:00,2026-09-08T01:57:28+02:00,Dennis Renz,feat(bundesliga): add context source cycle foundation
+05549b30e257cd41f542f19f64d03d48dca64304,05549b3,2026-09-08T19:25:45+02:00,2026-09-08T19:25:45+02:00,Dennis Renz,docs(bundesliga): pin roster metadata authority
+34243590583c8b160ce624de795ff0ee68c87ad7,3424359,2026-09-08T19:57:24+02:00,2026-09-08T19:57:24+02:00,Dennis Renz,docs(plan): scope C2 roster descriptor fixture reuse
+5dbfb592eac47fa20a8e19f49cdc71c1263975b8,5dbfb59,2026-09-08T22:44:32+02:00,2026-09-08T22:44:32+02:00,Dennis Renz,docs(bundesliga): bound transitional receipt recovery
+957bdc01d7d0112a92694f882525f68515c51ecb,957bdc0,2026-09-08T23:01:22+02:00,2026-09-08T23:01:22+02:00,Dennis Renz,docs(bundesliga): freeze retry-stable C2 inputs
+c7cc0712b16834d4013948949f1502514ae46770,c7cc071,2026-09-09T05:23:53+02:00,2026-09-09T05:23:53+02:00,Dennis Renz,Harden guarded context publication recovery
+f37c9e549e952004c5443f25aab363fda6e2811c,f37c9e5,2026-09-09T08:31:05+02:00,2026-09-09T08:31:05+02:00,Dennis Renz,docs(bundesliga): freeze corrected Club Elo contracts
+869d3f20bf1737bc1455c3eeeb319d432853cb76,869d3f2,2026-09-09T11:01:10+02:00,2026-09-09T11:01:10+02:00,Dennis Renz,docs(bundesliga): close dormant roster refresh scope
+e8d05e6cb3233d28200143422296f01b141b2536,e8d05e6,2026-09-09T13:50:36+02:00,2026-09-09T14:01:43+02:00,Dennis Renz,docs(bundesliga): freeze C3 seam corrections
+d64701668668584ef306dfbaf45972fcada45290,d647016,2026-09-09T21:15:33+02:00,2026-09-09T21:15:33+02:00,Dennis Renz,feat(bundesliga): checkpoint P1-04 context runtime

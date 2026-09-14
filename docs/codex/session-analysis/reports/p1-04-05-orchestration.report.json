@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "id": "p1-04-05-orchestration",
+  "title": "P1-04 / P1-05 orchestration analysis",
+  "summary": "Analyze delivery efficiency, coordination churn, resource policy, publication timing, worktree retention, recovery, and the C3 compile-validation handoff.",
+  "eyebrow": "Codex session analysis",
+  "published_at": "2026-09-09",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/p1-04-05-orchestration-session-analysis",
+  "site_path": "session-analysis/p1-04-05-orchestration",
+  "html_file": "index.html",
+  "focus_ids": [
+    "astra-high-architecture-lead-next-p1",
+    "compaction-recovery-and-context-occupancy",
+    "heavy-operation-concurrency-policy",
+    "hot-recovery-compact-preview-effectiveness",
+    "memory-policy-restrictiveness",
+    "metadata-research-gate-stall",
+    "orchestration-delivery-efficiency",
+    "owner-waiting-vs-agent-blocking",
+    "p1-c3-compile-validation-handoff",
+    "p1-milestone-pr-publication-timing",
+    "p1-worktree-retention-cleanup",
+    "reconciliation-models-and-stability",
+    "review-correction-churn",
+    "subagent-polling-overhead",
+    "useful-parallelism-and-wave-throttle"
+  ],
+  "legacy": false,
+  "analysis_file": "docs/codex/p1-04-05-orchestration-session-analysis/data/analysis.json",
+  "analysis": {
+    "root_thread_id": "01a07d0b-35b7-73b3-8ea4-dd57b89cbd81",
+    "root_log_name": "rollout-2026-09-07T20-04-42-01a07d0b-35b7-73b3-8ea4-dd57b89cbd81.jsonl",
+    "event_cutoff_at": "2026-09-09T19:29:13.555Z",
+    "generated_at": "2026-09-09T20:25:47.4071191Z",
+    "timezone": "Europe/Berlin",
+    "privacy": {
+      "include_bounded_excerpts": false
+    },
+    "snapshot_lock": "docs/codex/p1-04-05-orchestration-session-analysis/data/snapshot-lock.json",
+    "repository": {
+      "base_commit": "fa170211b74e71c23d149be4f867752f86836f64",
+      "final_commit": "d64701668668584ef306dfbaf45972fcada45290"
+    },
+    "pricing": {
+      "as_of": "2026-09-09",
+      "models": {
+        "gpt-5.6-luna": {
+          "input": 0.2,
+          "cached_input": 0.02,
+          "cache_write_input": 0.25,
+          "output": 1.2,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+        },
+        "gpt-5.6-sol": {
+          "input": 4.0,
+          "cached_input": 0.4,
+          "cache_write_input": 5.0,
+          "output": 20.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+        },
+        "gpt-5.6-terra": {
+          "input": 2.0,
+          "cached_input": 0.2,
+          "cache_write_input": 2.5,
+          "output": 12.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+        },
+        "gpt-6-astra": {
+          "input": 10.0,
+          "cached_input": 1.0,
+          "cache_write_input": 12.5,
+          "output": 50.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-6-astra"
+        }
+      }
+    },
+    "classification": {
+      "agent_rules": [
+        { "pattern": "(?:p1_0?5|r1_)", "group": "P1-05" },
+        { "pattern": "(?:p1_0?4_pr|c3_)", "group": "P1-04 C3" },
+        { "pattern": "c2_", "group": "shared C2" },
+        { "pattern": "c1_", "group": "shared C1" },
+        { "pattern": "(?:s0_|arch_reconcile|p1_04_05_spec_review)", "group": "shared foundation" },
+        { "pattern": "(?:s1_|s2_|s3_|recovery_)", "group": "shared recovery contracts" },
+        { "pattern": "status|worktree|orchestration", "group": "orchestration" }
+      ],
+      "default_group": "cross-cutting",
+      "turn_code_regex": "\\b(?P<prefix>P1)[-_ ]?(?P<number>0?4|0?5)\\b"
+    },
+    "injected_message_prefixes": [
+      {
+        "prefix": "# AGENTS.md instructions for ",
+        "category": "injected-repository-context"
+      },
+      {
+        "prefix": "<environment_context>",
+        "category": "injected-environment-context"
+      },
+      {
+        "prefix": "<codex_internal_context source=\"goal\">",
+        "category": "automatic-goal-continuation"
+      },
+      {
+        "prefix": "<skill>",
+        "category": "injected-skill-context"
+      }
+    ],
+    "user_message_kinds": {
+      "1": "kickoff",
+      "2": "external-capacity-unblock",
+      "3": "external-capacity-unblock",
+      "4": "owner-decision",
+      "5": "owner-decision",
+      "6": "external-interruption-recovery",
+      "7": "process-adjustment",
+      "8": "external-capacity-unblock",
+      "9": "status-or-process-question",
+      "10": "status-or-process-question",
+      "11": "publication-topology-correction",
+      "12": "status-or-process-question",
+      "13": "authorization-or-external-unblock",
+      "14": "scope-and-pause-request"
+    },
+    "task_files": {
+      "globs": [
+        "plans/bundesliga-2026-27/tasks/p1-04-*.md",
+        "plans/bundesliga-2026-27/tasks/p1-05-*.md"
+      ],
+      "code_regex": "(?P<prefix>p1)-(?P<number>0?4|0?5)"
+    }
+  }
+}

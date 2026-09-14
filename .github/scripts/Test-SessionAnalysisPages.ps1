@@ -46,11 +46,24 @@ try
     Copy-Item -Path (Join-Path $repoRoot "docs\codex\session-analysis\reports\*.report.json") -Destination $manifestDir
     Copy-Item -Path (Join-Path $repoRoot "session-analysis\*") -Destination $sessionDir -Recurse -Force
 
-    foreach ($legacyManifestPath in Get-ChildItem -LiteralPath $manifestDir -File -Filter "*.report.json")
+    foreach ($reportManifestPath in Get-ChildItem -LiteralPath $manifestDir -File -Filter "*.report.json")
     {
-        $legacyManifest = Get-Content -LiteralPath $legacyManifestPath.FullName -Raw | ConvertFrom-Json
-        $legacySource = Join-Path $testRepo ([string]$legacyManifest.source_path -replace "/", [IO.Path]::DirectorySeparatorChar)
-        New-Item -ItemType Directory -Path $legacySource -Force | Out-Null
+        $reportManifest = Get-Content -LiteralPath $reportManifestPath.FullName -Raw | ConvertFrom-Json
+        $sourceRelativePath = [string]$reportManifest.source_path -replace "/", [IO.Path]::DirectorySeparatorChar
+        $reportSource = Join-Path $repoRoot $sourceRelativePath
+        $testSource = Join-Path $testRepo $sourceRelativePath
+        if ([bool]$reportManifest.legacy)
+        {
+            New-Item -ItemType Directory -Path $testSource -Force | Out-Null
+            continue
+        }
+
+        if (-not (Test-Path -LiteralPath $reportSource -PathType Container))
+        {
+            throw "Session-analysis fixture source path is missing: $reportSource"
+        }
+        New-Item -ItemType Directory -Path (Split-Path -Parent $testSource) -Force | Out-Null
+        Copy-Item -LiteralPath $reportSource -Destination $testSource -Recurse -Force
     }
 
     $newReportDir = Join-Path $sessionDir "manifest-discovery-test"

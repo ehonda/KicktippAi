@@ -2,21 +2,23 @@
 param(
     [ValidateSet('Trip', 'Clear')]
     [string] $Action = 'Trip',
+    [Parameter(Mandatory)][string] $RunId,
+    [Parameter(Mandatory)][ValidateRange(1, [long]::MaxValue)]
+    [long] $ExpectedRevision,
     [string] $RepositoryRoot,
-    [string] $RunId,
+    [string] $OperationProfile,
+    [string] $OperationFingerprint,
     [string] $Operation,
     [string] $Reason,
-    [string] $ReviewedBy
+    [string] $ReviewedBy,
+    [switch] $AsJson
 )
 
 $ErrorActionPreference = 'Stop'
-
 if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
     $RepositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../../../..'))
 }
-else {
-    $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot)
-}
+else { $RepositoryRoot = [System.IO.Path]::GetFullPath($RepositoryRoot) }
 
 function Resolve-OrchestrationPrimaryCheckout {
     param([Parameter(Mandatory)][string] $CheckoutRoot)
@@ -29,10 +31,11 @@ function Resolve-OrchestrationPrimaryCheckout {
         throw 'Git common-directory identity is unavailable.'
     }
     $commonDirectory = [System.IO.Path]::GetFullPath($commonDirectory.Trim())
-
     if (Test-Path -LiteralPath (Join-Path $CheckoutRoot '.git') -PathType Container) {
         $primaryGitDirectory = [System.IO.Path]::GetFullPath((Join-Path $CheckoutRoot '.git'))
-        if (-not $commonDirectory.Equals($primaryGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+        if (-not $commonDirectory.Equals(
+            $primaryGitDirectory,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
             throw 'The checkout Git directory does not match its Git common-directory identity.'
         }
         return $CheckoutRoot
@@ -47,125 +50,49 @@ function Resolve-OrchestrationPrimaryCheckout {
     $primaryGitDirectory = [System.IO.Path]::GetFullPath((Join-Path $primaryRoot '.git'))
     if (
         -not (Test-Path -LiteralPath $primaryGitDirectory -PathType Container) -or
-        -not (Test-Path -LiteralPath (Join-Path $primaryRoot 'KicktippAi.slnx') -PathType Leaf)) {
-        throw 'The original-checkout locator target is invalid.'
-    }
-    if (-not $commonDirectory.Equals($primaryGitDirectory, [System.StringComparison]::OrdinalIgnoreCase)) {
+        -not (Test-Path -LiteralPath (Join-Path $primaryRoot 'KicktippAi.slnx') -PathType Leaf) -or
+        -not $commonDirectory.Equals(
+            $primaryGitDirectory,
+            [System.StringComparison]::OrdinalIgnoreCase)) {
         throw 'The original-checkout locator does not match this worktree Git common directory.'
     }
     return $primaryRoot
 }
 
-try {
-    $stateRepositoryRoot = Resolve-OrchestrationPrimaryCheckout -CheckoutRoot $RepositoryRoot
+$primaryRoot = Resolve-OrchestrationPrimaryCheckout -CheckoutRoot $RepositoryRoot
+$checkpoint = Join-Path $primaryRoot '.agents/skills/orchestrate/scripts/Set-OrchestrationCheckpoint.ps1'
+if (-not (Test-Path -LiteralPath $checkpoint -PathType Leaf)) {
+    throw 'The canonical checkpoint helper is missing from the primary checkout.'
 }
-catch {
-    throw "Cannot resolve the shared memory circuit-breaker path: $($_.Exception.Message)"
-}
-
-$statePath = Join-Path $stateRepositoryRoot '.tmp/orchestration/resource-policy-state.json'
-$stateDirectory = Split-Path -Parent $statePath
-
-function Test-OrchestrationTimestamp {
-    param([string] $Value)
-
-    $parsed = [DateTimeOffset]::MinValue
-    return (
-        -not [string]::IsNullOrWhiteSpace($Value) -and
-        [DateTimeOffset]::TryParse(
-            $Value,
-            [System.Globalization.CultureInfo]::InvariantCulture,
-            [System.Globalization.DateTimeStyles]::AssumeUniversal,
-            [ref] $parsed))
-}
-
-$existingState = $null
-if (Test-Path -LiteralPath $statePath -PathType Leaf) {
-    try {
-        $existingState = Get-Content -LiteralPath $statePath -Raw | ConvertFrom-Json
+$checkpointArguments = @{
+    Action = if ($Action -eq 'Trip') {
+        'TripMemoryCircuitBreaker'
     }
-    catch {
-        throw 'The existing memory circuit-breaker state is unreadable; refuse to overwrite it.'
-    }
+    else { 'ClearMemoryCircuitBreaker' }
+    RunId = $RunId
+    ExpectedRevision = $ExpectedRevision
+    RepositoryRoot = $primaryRoot
+    Reason = $Reason
+    AsJson = $true
 }
-
 if ($Action -eq 'Trip') {
-    foreach ($entry in @{
-        RunId = $RunId
-        Operation = $Operation
-        Reason = $Reason
-    }.GetEnumerator()) {
-        if ([string]::IsNullOrWhiteSpace([string] $entry.Value)) {
-            throw "$($entry.Key) is required when tripping the circuit breaker."
-        }
-    }
-    if ($null -ne $existingState -and [string] $existingState.status -eq 'active') {
-        throw 'The memory circuit breaker is already active; preserve its original trigger and record later operation evidence separately.'
-    }
-    $triggeredAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
-    $state = [ordered] @{
-        schema_version = 1
-        status = 'active'
-        effective_floor_gib = 1.1
-        updated_at_utc = $triggeredAtUtc
-        trigger = [ordered] @{
-            run_id = $RunId
-            operation = $Operation
-            at_utc = $triggeredAtUtc
-            reason = $Reason
-        }
-        clearance = $null
-    }
+    $checkpointArguments.OperationProfile = $OperationProfile
+    $checkpointArguments.OperationFingerprint = $OperationFingerprint
+    $checkpointArguments.Operation = $Operation
+}
+else { $checkpointArguments.ReviewedBy = $ReviewedBy }
+
+$target = Join-Path $primaryRoot ".tmp/orchestration/$RunId/control-state.json"
+if ($PSCmdlet.ShouldProcess($target, "$Action exact-run memory circuit breaker")) {
+    $result = (& $checkpoint @checkpointArguments) | ConvertFrom-Json
 }
 else {
-    if ([string]::IsNullOrWhiteSpace($ReviewedBy) -or [string]::IsNullOrWhiteSpace($Reason)) {
-        throw 'ReviewedBy and Reason are required to clear the circuit breaker after owner-reviewed analysis.'
-    }
-    if (
-        $null -eq $existingState -or
-        [int] $existingState.schema_version -ne 1 -or
-        [string] $existingState.status -ne 'active' -or
-        [double] $existingState.effective_floor_gib -ne 1.1 -or
-        -not (Test-OrchestrationTimestamp -Value ([string] $existingState.updated_at_utc)) -or
-        $null -eq $existingState.trigger -or
-        [string]::IsNullOrWhiteSpace([string] $existingState.trigger.run_id) -or
-        [string]::IsNullOrWhiteSpace([string] $existingState.trigger.operation) -or
-        -not (Test-OrchestrationTimestamp -Value ([string] $existingState.trigger.at_utc)) -or
-        [string]::IsNullOrWhiteSpace([string] $existingState.trigger.reason) -or
-        $null -ne $existingState.clearance) {
-        throw 'Clearing requires an existing valid active circuit breaker with preserved trigger evidence.'
-    }
-    $clearedAtUtc = [DateTimeOffset]::UtcNow.ToString('O')
-    $state = [ordered] @{
-        schema_version = 1
-        status = 'cleared'
-        effective_floor_gib = 1.0
-        updated_at_utc = $clearedAtUtc
-        trigger = $existingState.trigger
-        clearance = [ordered] @{
-            at_utc = $clearedAtUtc
-            reviewed_by = $ReviewedBy
-            reason = $Reason
-        }
+    $result = [pscustomobject] [ordered] @{
+        run_id = $RunId
+        revision = $ExpectedRevision
+        action = $Action
+        changed = $false
+        what_if = $true
     }
 }
-
-if ($PSCmdlet.ShouldProcess($statePath, "$Action orchestration memory circuit breaker")) {
-    New-Item -ItemType Directory -Path $stateDirectory -Force | Out-Null
-    $temporaryPath = "$statePath.$([Guid]::NewGuid().ToString('N')).tmp"
-    try {
-        $json = $state | ConvertTo-Json -Depth 4
-        [System.IO.File]::WriteAllText(
-            $temporaryPath,
-            $json + [Environment]::NewLine,
-            [System.Text.UTF8Encoding]::new($false))
-        Move-Item -LiteralPath $temporaryPath -Destination $statePath -Force
-    }
-    finally {
-        if (Test-Path -LiteralPath $temporaryPath) {
-            Remove-Item -LiteralPath $temporaryPath -Force
-        }
-    }
-}
-
-[pscustomobject] $state
+if ($AsJson) { $result | ConvertTo-Json -Depth 5 -Compress } else { $result }

@@ -1,5 +1,10 @@
 # Orchestration workflow improvements — frozen specification
 
+> Historical contract, superseded for `$orchestrate` runtime behavior by
+> [P1-04-05 orchestration redesign specification](p1-04-05-orchestration-redesign-spec.md).
+> Keep this document as implementation history; do not use it as current
+> orchestration procedure.
+
 **Frozen:** 2026-09-07 Europe/Berlin  
 **Status:** accepted for implementation  
 **Implementation order:** PR 1 workflow → PR 2 Bundesliga archive → PR 3 session-analysis tooling
