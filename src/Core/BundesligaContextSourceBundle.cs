@@ -553,11 +553,14 @@ public static class BundesligaContextSourceDescriptorContract
         using var document = JsonDocument.Parse(descriptorJson); var root = document.RootElement;
         if (!IsHtmlClubEloDescriptor(root)) return;
         var evaluation = root.GetProperty("evaluation").GetString();
-        if (evaluation is not ("Eligible" or "StaleRejected" or "NotNewer")) return;
+        if (root.GetProperty("displayedDate").ValueKind != JsonValueKind.String) return;
         var ratedAt = ClubEloRatedAt(descriptorJson)!.Value;
         var observed = DateOnly.FromDateTime(observedAtUtc.UtcDateTime);
+        if (ratedAt > observed)
+            throw new InvalidDataException("HTML evaluation contradicts represented displayed-date freshness.");
+        if (evaluation is not ("Eligible" or "StaleRejected" or "NotNewer")) return;
         var age = observed.DayNumber - ratedAt.DayNumber;
-        if (ratedAt > observed || evaluation == "Eligible" && age > 7 || evaluation == "StaleRejected" && age <= 7 || evaluation == "NotNewer" && age > 7)
+        if (evaluation == "Eligible" && age > 7 || evaluation == "StaleRejected" && age <= 7 || evaluation == "NotNewer" && age > 7)
             throw new InvalidDataException("HTML evaluation contradicts represented displayed-date freshness.");
     }
 

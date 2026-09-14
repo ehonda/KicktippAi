@@ -362,6 +362,8 @@ public class BundesligaContextSourceBundleContractTests
         BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.ClubElo, mapping, BundesligaContextSourceDisposition.Rejected);
         var coverage = HtmlDescriptor(body, root => { root["evaluation"] = "CoverageRejected"; root["sourceRows"] = new JsonArray(); });
         BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.ClubElo, coverage, BundesligaContextSourceDisposition.Rejected);
+        foreach (var (descriptor, diagnostic) in new[] { (mapping, "CLUB_ELO_MAPPING_REJECTED"), (coverage, "CLUB_ELO_COVERAGE_REJECTED") })
+            await Assert.That(() => HtmlObservation(descriptor, BundesligaContextSourceDisposition.Rejected, [diagnostic], new DateTimeOffset(2026, 9, 3, 12, 0, 0, TimeSpan.Zero)).Validate()).Throws<InvalidDataException>();
 
         var boundary = HtmlObservation(HtmlDescriptor(body, root => root["evaluation"] = "NotNewer"), BundesligaContextSourceDisposition.Rejected, ["CLUB_ELO_NOT_NEWER"], new DateTimeOffset(2026, 9, 11, 12, 0, 0, TimeSpan.Zero));
         boundary.Validate();

@@ -494,7 +494,7 @@ public class BundesligaContextSourceHealthContractTests
         var health = BundesligaContextSourceHealthReducer.ReduceCompleted(null, outer, claim, receipts);
 
         await Assert.That(receipts.Length).IsEqualTo(8);
-        await Assert.That(health.CommunitySelections.Select(selection => selection.ConsumerLaneId)).IsEqualTo(BundesligaContextSourceContract.ProductionConsumers.Order(StringComparer.Ordinal).ToArray());
+        await Assert.That(health.CommunitySelections.Select(selection => selection.ConsumerLaneId).SequenceEqual(BundesligaContextSourceContract.ProductionConsumers.Order(StringComparer.Ordinal), StringComparer.Ordinal)).IsTrue();
         await Assert.That(health.LastSuccessfulSourceDates.RatedAt).IsEqualTo(new DateOnly(2026, 9, 4));
         await Assert.That(health.ActiveConditions).IsEquivalentTo([BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]);
         foreach (var selection in health.CommunitySelections)
@@ -506,7 +506,7 @@ public class BundesligaContextSourceHealthContractTests
             IReadOnlyList<BundesligaContextSourceHealthCondition> expectedConditions = expected.RatedAt == new DateOnly(2026, 9, 4)
                 ? [BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days]
                 : [];
-            await Assert.That(selection.Conditions).IsEqualTo(expectedConditions);
+            await Assert.That(selection.Conditions.SequenceEqual(expectedConditions)).IsTrue();
         }
     }
 
