@@ -1942,7 +1942,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     private static object? CanonicalTimestamp(Timestamp? timestamp)
     {
         if (timestamp is null) return null;
-        var proto = timestamp.ToProto();
+        var proto = timestamp.Value.ToProto();
         return new { Seconds = proto.Seconds, Nanoseconds = proto.Nanos };
     }
 

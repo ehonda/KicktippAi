@@ -50,14 +50,14 @@ public class ContextSourceCycleCoordinatorTests
     {
         var (preparation, request, repository) = PreparedEloCompletion();
         var guarded = request with { PublicationDisposition = publication };
-        var before = CompletionGraph(repository);
+        var before = CompletionGraphSnapshot(repository);
 
         await AssertStateConflictAsync(() => new ContextSourceCycleCoordinator(repository, []).CompletePreparedReceiptAsync(preparation, guarded));
 
         await Assert.That(repository.ReceiptCommits).IsEqualTo(0);
         await Assert.That(repository.PublicationCalls).IsEqualTo(0);
         await Assert.That(repository.IssueUpdates).IsEqualTo(0);
-        await Assert.That(CompletionGraph(repository)).IsEqualTo(before);
+        await Assert.That(CompletionGraphSnapshot(repository)).IsEqualTo(before);
         await Assert.That(repository.ReceiptLookups).IsEquivalentTo([(guarded.Identity, guarded.Source, guarded.ConsumerLaneId)]);
     }
 
@@ -69,14 +69,14 @@ public class ContextSourceCycleCoordinatorTests
         var prior = new BundesligaContextSourceReceipt(guarded with { SelectedSnapshotId = new string('d', 64) }, new DateTimeOffset(2026, 9, 6, 12, 3, 0, TimeSpan.Zero));
         prior.Validate();
         repository.Receipts.Add((guarded.Source, guarded.ConsumerLaneId), prior);
-        var before = CompletionGraph(repository);
+        var before = CompletionGraphSnapshot(repository);
 
         await AssertStateConflictAsync(() => new ContextSourceCycleCoordinator(repository, []).CompletePreparedReceiptAsync(preparation, guarded));
 
         await Assert.That(repository.ReceiptCommits).IsEqualTo(0);
         await Assert.That(repository.PublicationCalls).IsEqualTo(0);
         await Assert.That(repository.IssueUpdates).IsEqualTo(0);
-        await Assert.That(CompletionGraph(repository)).IsEqualTo(before);
+        await Assert.That(CompletionGraphSnapshot(repository)).IsEqualTo(before);
         await Assert.That(repository.ReceiptLookups).IsEquivalentTo([(guarded.Identity, guarded.Source, guarded.ConsumerLaneId)]);
     }
 
@@ -788,7 +788,7 @@ public class ContextSourceCycleCoordinatorTests
 
     private sealed record CompletionGraph(string State, int ReceiptCommits, int PublicationCalls, int IssueUpdates);
 
-    private static CompletionGraph CompletionGraph(MemoryRepository repository)
+    private static CompletionGraph CompletionGraphSnapshot(MemoryRepository repository)
         => new(
             JsonSerializer.Serialize(new
             {
