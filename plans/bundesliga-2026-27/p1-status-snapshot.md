@@ -1,5 +1,35 @@
 # Bundesliga 2026/27 P1 status snapshot
 
+- Snapshot date: 2026-09-16
+- Scope: P1-04 operational activation and P1-05/R1 deferral
+- Current authority: [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
+
+| Item | Current state | Next gate |
+| --- | --- | --- |
+| P1-04 | Operational activation in progress; S0 accepted | Independent E2 parser-v2 and W2 transport implementation/review |
+| V2/live validation/A2 | Not implemented or evidenced | Cumulative E2/W2, source-only development/production proof, then all-eight flag activation |
+| P1-05/R1 | Dormant, deferred and source-off under ADR-0082 | Exact ADR-0079 sidecar and separate future owner authorization |
+
+Merged PR #111 is historical dormant implementation evidence, not a draft PR
+or current completion. It does not establish parser-v2, W2, V2, live
+validation, A2, all-eight receipts or a source-enabled schedule. P1-05 has no
+provider/adoption claim and no probe, provider, observation, receipt, health,
+publication, issue or API action.
+
+The fixed activation target is eight receipts across four physical heads:
+pes-squad, schadensfresse, relaxdays-tippt and the shared arena head. Live
+activation also requires one immutable artifact, exact receipt ordering,
+truthful health/issue status, a distinct retention/rejection cycle and same-run
+replay. Source flags remain false until A2. At or above 20 GiB effective free
+space, disk capacity has no restriction.
+
+## Historical dormant snapshot
+
+The retained snapshot below records the old dormant closeout. It is historical
+only and does not override the current table above.
+
+# Historical Bundesliga 2026/27 P1 status snapshot
+
 - Snapshot date: 2026-09-15
 - Accepted/pushed dormant implementation tip: `1d43ac397eaed4f82db016114630acdd874042c5` on draft PR #111
 - Exact-head CI: run `34931605592` green; 10 build/test/coverage checks passed, conditional Pages skipped

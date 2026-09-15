@@ -1,5 +1,47 @@
 # P1-04 / P1-05 context-refresh design
 
+- Current state: P1-04 operational activation in progress; P1-05/R1 dormant and deferred
+- Current authority: [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), with operative retained provisions of ADR-0074/0077/0078/0080/0081 and ADR-0082's P1-05 deferral
+- Last reconciled: 2026-09-16
+
+## Current operational design
+
+P1-04 moves through S0 → independent E2 and W2 → V2 → source-only live
+validation → A2 → closeout. E2 admits the exact v2 parser/table pair and
+bounded opaque official envelope while preserving historical v1 interpretation.
+W2 uploads one immutable same-run artifact and performs post-commit,
+marker-exact issue reconciliation. V2 wires explicit source-only commands and
+validation workflow inputs while normal scheduled source inputs remain false.
+A2 is the later, atomic all-eight normal-flag change after real evidence.
+
+The source-only route uses ordinary preparation, selection, publication and
+receipt completion but resolves no Kicktipp/history/roster/model/OpenAI/Langfuse
+service. It validates these ordered receipts: `pes-squad-context`,
+`schadensfresse-context`, `relaxdays-tippt-context`, `arena-sol-xhigh-context`,
+`arena-sol-high-context`, `arena-luna-medium-context`, `arena-terra-xhigh-context`,
+and `arena-luna-none-context`. Five arena receipts share one arena head, giving
+four physical heads: pes-squad, schadensfresse, relaxdays-tippt and
+ehonda-ai-arena. No stage currently claims implementation or live evidence.
+
+P1-05 remains source-off and `MetadataUnavailable`: no dcaribou sidecar/artifact
+probe, provider, observation, receipt, health, publication, issue or API action
+is allowed. The P1-04 source authority never adopts a roster provider.
+
+Rollback is a reviewed all-eight normal-flag-off commit. It retains heads and
+source state, leaves the existing production schedule/topology unchanged, and
+uses verified prior heads as fallback. Restoration needs a corrected reviewed
+tip, real accepted and later retention evidence, all receipts, heads,
+health/issues and a fresh gate. At or above 20 GiB effective free space there
+is no disk restriction.
+
+## Historical dormant design record
+
+The remainder of this file is retained as historical dormant C3/E1 and P1-05
+design evidence. It is not the current activation state; where it conflicts
+with the section above, ADR-0083 and the current plan/task records control.
+
+# Historical P1-04 / P1-05 context-refresh design
+
 - Status: Accepted contracts; P1-04 dormant implementation complete; P1-05 dormant closeout complete with R1 deferred
 - Last reconciled: 2026-09-15
 - Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)

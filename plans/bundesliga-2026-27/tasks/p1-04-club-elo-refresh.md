@@ -1,59 +1,80 @@
-# P1-04 — Refresh Club Elo during context collection
+# P1-04 — Activate official Club Elo context refresh
 
-- Status: Complete — dormant implementation only; operational/live validation and activation remain separate owner gates
-- Last reconciled: 2026-09-15
-- Depends on: C3 and E1 accepted, pushed to draft PR #111, and exact-head CI green; C2 remains reusable common evidence
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0073](../decisions/0073-refresh-strength-and-rosters-during-context-collection.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
+- Status: In progress — operational activation
+- Last reconciled: 2026-09-16
+- Depends on: accepted [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md)
+- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md)
 
 ## Outcome
 
-Official `https://clubelo.com/GER` HTML is the implemented dormant P1-04 candidate,
-inside the existing context cycle. Descriptor dispatch permits exactly one
-payload (`club-elo/source.html`) and preserves historical CSV evidence without
-requiring any future CSV source work. Valid observations require the frozen
-HTML transport/header/DOM/lexer/fragment/date/retry/mapping/integer contract;
-rejected, not-newer, or displayedDate/ratedAt candidates older than ADR-0013's
-seven-calendar-day network-candidate limit retain seed/LKG.
+P1-04 completes only after a current official Club Elo observation is accepted,
+handed off immutably and reaches all eight ordered receipts and four physical
+community heads with truthful provenance, health and issue reconciliation.
+Merged PR #111 is prior dormant C3/E1 implementation, not current completion.
 
-## Work and verification
+## Milestones
 
-- [x] C3 shared selection, publication and receipt-completion corrections accepted.
-- [x] E1 source, command, dependency, mapping and fixture implementation accepted.
-- [x] Descriptor-selected payload isolation, strict Firestore integer
-  reconstruction, displayed-date health, hostile fixtures, retries, mapping,
-  LKG/no-change, disabled-source zero calls and publication-v2 reconstruction verified.
-- [x] Fresh reviews, cumulative local validation and exact-head CI completed.
+- [x] S0: accepted durable activation specification and current-plan records.
+- [ ] E2: parser-v2/current source grammar, versioned descriptor evidence and fixtures.
+- [ ] W2: immutable GitHub artifact transport and post-commit issue projection.
+- [ ] V2: DI, source-only CLI and workflow validation path; normal flags remain false.
+- [ ] Live validation: real source-only development then production evidence.
+- [ ] A2: atomic all-eight normal source enable after evidence.
+- [ ] Closeout: final review/CI, merge, Pages and post-merge evidence.
 
-C3 was accepted at `d882f75b5dcd86ec2886b1373a260af3f7ea3d54` and
-passed exact-head CI on [draft PR #111](https://github.com/ehonda/KicktippAi/pull/111).
-E1 was accepted and pushed to the same draft PR at
-`1d43ac397eaed4f82db016114630acdd874042c5`;
-[exact-head CI run 34931605592](https://github.com/ehonda/KicktippAi/actions/runs/34931605592)
-was green: 10 build/test/coverage checks passed, with the conditional Pages
-check skipped. Local cumulative E1 evidence was Core 390, Firebase 448, and
-Orchestrator 1,398: 2,236 passed, no failures or skips. C3's prior cumulative
-evidence was 2,120 passed.
+E2 and W2 may proceed independently after S0. V2 requires their cumulative
+acceptance; A2 requires V2 plus real operational evidence. Each milestone
+requires a scoped local commit, appropriate review and cumulative validation.
 
-ADR-0081 closes C3/E1 selection, publication and receipt completion without
-enabling Club Elo. ADR-0082 defers R1. Accepted E1 satisfies W1's implementation prerequisite; W1/A1
-are outside this objective and not released. A1 later owns E1 attribution only,
-while roster attribution waits for future accepted R1.
-The retained HTML body is historical specification evidence, not a live
-acceptance. Synthetic fixtures prove mechanics only; a real accepting-evidence
-recipe is unsupported pending separate specification. Flags remain false.
+## Fixed receipt contract
 
-## Separate operational/live validation and activation gates
+```text
+pes-squad-context
+schadensfresse-context
+relaxdays-tippt-context
+arena-sol-xhigh-context
+arena-sol-high-context
+arena-luna-medium-context
+arena-terra-xhigh-context
+arena-luna-none-context
+```
 
-Live acquisition, development persistence, unattended HTML reuse, GitHub
-artifact/issue work, production writes/activation, rollback delegation,
-restoration and operational completion evidence require distinct owner approval. Operational completion
-requires separately authorized real accepted and later distinct no-change
-evidence with all receipts, independent heads, reconciled health/issue state,
-copy compatibility, and no model/post change.
+The five arena receipts share the `ehonda-ai-arena` context. The other three
+heads are `pes-squad`, `schadensfresse`, and `relaxdays-tippt`; there are four
+physical heads, never eight. Each lane selection and receipt is independent.
 
-All source flags remain false. Live acquisition, unattended HTML reuse,
-development or production Firestore writes, and source activation remain
-separate owner gates. This closeout authorizes or completes no W1/A1 or other
-P1 work, and changes no schedule, topology, model, prompt, credential, posting,
-or copy behavior. Operational/live validation and activation require separate
-owner authorization and evidence.
+## Required evidence and release gates
+
+1. Run offline/emulator suites including hostile parser, eight-lane, replay and
+   late-cycle matrices.
+2. Run a real official local development source-only dry run on the reviewed
+   tip and retain UTC/URL/response/hash/parser/date/coverage evidence privately.
+3. Persist one development source-only cycle and re-read its receipt, context,
+   aggregate, original/source dates and descriptor/payload binding.
+4. Run a distinct later development cycle with truthful retention/no-change or
+   rejection evidence.
+5. Dispatch branch Actions development source-only validation with no model
+   jobs, credentials or GitHub artifact/issue effect.
+6. Dispatch branch Actions production source-only validation: one immutable
+   artifact, an eligible advance for at least one lagging target, eight ordered
+   receipts, four heads, health and desired issue reconciliation.
+7. Run a distinct later production cycle and same-run replay; no fabricated
+   `Unchanged`, reacquisition, reupload, head or health change is acceptable.
+8. Change all eight normal source flags atomically, then obtain fresh final
+   review, exact-head CI, merge and post-merge main/Pages/source-only/schedule
+   observation.
+
+An accepting source-only result does not certify a failing whole-profile
+schedule. If history blocks later scheduled work, record the blocked
+whole-schedule observation without calling P1-04 complete.
+
+## Authority and recovery
+
+The owner authorization is limited to Club Elo reads/context writes/GitHub
+handoff and issue effects/existing-schedule activation after evidence/Pages and
+ready-PR merge. It excludes model, prediction, posting, roster, new schedule,
+credential-routing and unrelated P1 changes. The project owner is recovery
+owner. Rollback is a reviewed all-eight normal-flag-off commit; it does not
+delete source state, reset heads or change topology. Restoration needs a
+corrected reviewed tip, accepted then later distinct retention evidence, all
+receipts, correct heads/health/issues and a fresh activation gate.
