@@ -1279,10 +1279,19 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
             BundesligaContextSourceContract.DevelopmentConsumers, [BundesligaContextSource.ClubElo], BundesligaContextSourceCycleStatus.Claiming);
         await cycles.CreateOrResumeCycleAsync(outer);
         await cycles.ClaimSourceAsync(identity, BundesligaContextSource.ClubElo, GuardToken, GuardNow);
+        var descriptor = System.Text.Json.JsonSerializer.Serialize(new
+        {
+            contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
+            response = (object?)null, rawSha256 = (string?)null, rawByteLength = (long?)null,
+            parserContract = "club-elo-official-html-parser/v1", displayedDate = (string?)null, providerDateEvidence = (object?)null,
+            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
+            sourceRows = (object?)null, evaluation = "TransportRejected"
+        });
         var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo,
             BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), GuardNow,
             BundesligaContextSourceDisposition.Rejected,
-            $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"+/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}", null,
+            descriptor, null,
             ["CLUB_ELO_TRANSPORT_REJECTED"]);
         await cycles.FinalizeSourceAsync(identity, BundesligaContextSource.ClubElo, GuardToken, observation, GuardNow.AddMinutes(1));
         var bundle = new string('e', 64);
