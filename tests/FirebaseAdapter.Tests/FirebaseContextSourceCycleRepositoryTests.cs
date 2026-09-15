@@ -1323,6 +1323,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
             await Assert.That(() => repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
         }
 
+        await ClearAsync();
         var shapedRepository = CreateRepository();
         var shapedCycle = Cycle("0198f865-1468-7000-8000-000000000091", [BundesligaContextSource.ClubElo]);
         await shapedRepository.CreateOrResumeCycleAsync(shapedCycle);
