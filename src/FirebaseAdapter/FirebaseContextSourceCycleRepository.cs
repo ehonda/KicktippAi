@@ -355,6 +355,19 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
             if (sourceCycle.ObservationDigest != request.ObservationDigest || sourceCycle.Status is not (BundesligaContextSourceSourceStatus.Finalized or BundesligaContextSourceSourceStatus.Complete)) throw new InvalidDataException("STATE_CONFLICT");
             BundesligaContextSourceReceiptContract.ValidateAgainstObservation(request, sourceCycle.Observation!);
             if (request.Source == BundesligaContextSource.Rosters && request.RosterRevision != AdvertisedRevision(sourceCycle.Observation!)) throw new InvalidDataException("STATE_CONFLICT");
+            if (request.Source == BundesligaContextSource.ClubElo
+                && request.SelectedOrigin == BundesligaContextSourceSelectedOrigin.LaunchSeed
+                && request.PublicationDisposition == BundesligaContextSourcePublicationDisposition.Published
+                && IsHtmlClubEloObservation(sourceCycle.Observation!))
+            {
+                var publicationScope = new DocumentPublicationScope(request.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
+                var publicationHead = await transaction.GetSnapshotAsync(PublicationHeadReference(publicationScope));
+                if (publicationHead.Exists)
+                {
+                    ValidateClubEloPublicationHead(publicationHead, publicationScope, request.SelectedSnapshotId);
+                    throw new InvalidDataException("STATE_CONFLICT");
+                }
+            }
             var healthRef = HealthReference(request.Identity, request.Source); var healthSnapshot = await transaction.GetSnapshotAsync(healthRef);
             if (!healthSnapshot.Exists) throw new InvalidDataException("STATE_CONFLICT");
             var health = ParseHealth(healthSnapshot, request.Identity, request.Source);

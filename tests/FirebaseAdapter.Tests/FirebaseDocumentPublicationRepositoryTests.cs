@@ -871,6 +871,7 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         await ClearContextSourceStateForGuardedTestAsync();
         var reactivation = await PrepareGuardedHtmlClubEloAsync();
         var historical = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(reactivation.Build, null, null));
+        var persistedHistorical = await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, BundesligaContextSourceContract.DevelopmentCommunity);
         var currentBuild = HtmlClubEloBuild(reactivation.Guard.Identity, GuardNow, 200);
         var current = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(currentBuild, null, historical.Snapshot.SnapshotId));
         var reactivated = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(reactivation.Build, reactivation.Commit, current.Snapshot.SnapshotId));
@@ -878,7 +879,7 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         await Assert.That(reactivated.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
         await Assert.That(reactivatedReceipt!.Request).IsEqualTo(ExpectedReceipt(reactivation.Commit, reactivated.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Reactivated));
         await Assert.That(reactivated.Snapshot.MetadataJson).IsEqualTo(historical.Snapshot.MetadataJson);
-        await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(historical.Snapshot.CreatedAt);
+        await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(persistedHistorical!.Snapshot.CreatedAt);
         await Assert.That(reactivated.Snapshot.PreviousSnapshotId).IsEqualTo(historical.Snapshot.PreviousSnapshotId);
 
         await Task.WhenAll(fixture.ClearDocumentPublicationsAsync(), fixture.ClearContextDocumentsAsync(), fixture.ClearKpiDocumentsAsync());
@@ -914,6 +915,7 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
 
         await Task.WhenAll(fixture.ClearDocumentPublicationsAsync(), fixture.ClearContextDocumentsAsync(), fixture.ClearKpiDocumentsAsync());
         var historical = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, null, null));
+        var persistedHistorical = await publication.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, BundesligaContextSourceContract.DevelopmentCommunity);
         await fixture.Db.Collection("document-publication-heads").Document(DocumentPublicationContract.ComputeHeadId(scope)).DeleteAsync();
         var reactivationCycle = await PrepareGuardedHtmlSeedCycleAsync();
         var reactivated = await publication.PublishAsync(BundesligaDocumentPublication.ClubElo, HtmlClubEloRequest(build, reactivationCycle.Commit, null));
@@ -922,7 +924,7 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         await Assert.That(reactivated.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
         await AssertReceiptRequestAsync(reactivatedReceipt!.Request, ExpectedReceipt(reactivationCycle.Commit, historical.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Reactivated));
         await Assert.That(reactivated.Snapshot.MetadataJson).IsEqualTo(historical.Snapshot.MetadataJson);
-        await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(historical.Snapshot.CreatedAt);
+        await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(persistedHistorical!.Snapshot.CreatedAt);
         await Assert.That(reactivated.Snapshot.PreviousSnapshotId).IsEqualTo(historical.Snapshot.PreviousSnapshotId);
         await Assert.That(reactivated.Snapshot.Documents).IsEquivalentTo(historical.Snapshot.Documents);
 

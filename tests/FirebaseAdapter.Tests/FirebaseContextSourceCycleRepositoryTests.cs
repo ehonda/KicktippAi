@@ -1300,6 +1300,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         var sequence = 84;
         foreach (var mutation in mutations)
         {
+            await ClearAsync();
             var repository = CreateRepository();
             var cycle = Cycle($"0198f865-1468-7000-8000-{sequence++:D12}", [BundesligaContextSource.ClubElo]);
             await repository.CreateOrResumeCycleAsync(cycle);
@@ -2166,7 +2167,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     }
     private static BundesligaContextSourceObservation HtmlTransportEloObservation(BundesligaContextSourceCycleIdentity identity) => new(
         BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.Rejected,
-        $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"+/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}",
+        $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"\\u002B/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}",
         null, ["CLUB_ELO_TRANSPORT_REJECTED"]);
     private static BundesligaContextSourceReceiptRequest HtmlReceipt(
         BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle,
