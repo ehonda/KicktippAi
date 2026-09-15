@@ -907,7 +907,7 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         await Assert.That(await PersistedGraphFingerprintAsync()).IsEqualTo(beforeReplay);
 
         await Assert.That(published.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
-        await Assert.That(publishedReceipt!.Request).IsEqualTo(ExpectedReceipt(publishedCycle.Commit, published.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Published));
+        await AssertReceiptRequestAsync(publishedReceipt!.Request, ExpectedReceipt(publishedCycle.Commit, published.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Published));
         await Assert.That(replay.Snapshot.SnapshotId).IsEqualTo(published.Snapshot.SnapshotId);
         await Assert.That(await HeadSnapshotIdAsync(scope)).IsEqualTo(published.Snapshot.SnapshotId);
         await Assert.That((await publishedCycle.Cycles.GetReceiptAsync(publishedCycle.Guard.Identity, BundesligaContextSource.ClubElo, publishedCycle.Guard.ConsumerLaneId))!.RecordedAtUtc).IsEqualTo(publishedReceipt.RecordedAtUtc);
@@ -920,7 +920,7 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         var reactivatedReceipt = await reactivationCycle.Cycles.GetReceiptAsync(reactivationCycle.Guard.Identity, BundesligaContextSource.ClubElo, reactivationCycle.Guard.ConsumerLaneId);
 
         await Assert.That(reactivated.Disposition).IsEqualTo(DocumentPublicationDisposition.Reactivated);
-        await Assert.That(reactivatedReceipt!.Request).IsEqualTo(ExpectedReceipt(reactivationCycle.Commit, historical.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Reactivated));
+        await AssertReceiptRequestAsync(reactivatedReceipt!.Request, ExpectedReceipt(reactivationCycle.Commit, historical.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.Reactivated));
         await Assert.That(reactivated.Snapshot.MetadataJson).IsEqualTo(historical.Snapshot.MetadataJson);
         await Assert.That(reactivated.Snapshot.CreatedAt).IsEqualTo(historical.Snapshot.CreatedAt);
         await Assert.That(reactivated.Snapshot.PreviousSnapshotId).IsEqualTo(historical.Snapshot.PreviousSnapshotId);
@@ -1318,6 +1318,24 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         commit.Guard.ObservationDigest, commit.Guard.BundleDigest, commit.ReceiptTemplate.SelectionDisposition,
         selectedSnapshotId, commit.ReceiptTemplate.SelectedOrigin, publicationDisposition, commit.ReceiptTemplate.SourceDates,
         commit.ReceiptTemplate.RosterRevision, commit.ReceiptTemplate.CarriedFields, commit.ReceiptTemplate.ActiveConditions);
+
+    private static async Task AssertReceiptRequestAsync(BundesligaContextSourceReceiptRequest actual, BundesligaContextSourceReceiptRequest expected)
+    {
+        await Assert.That(actual.Identity).IsEqualTo(expected.Identity);
+        await Assert.That(actual.Source).IsEqualTo(expected.Source);
+        await Assert.That(actual.ConsumerLaneId).IsEqualTo(expected.ConsumerLaneId);
+        await Assert.That(actual.CommunityContext).IsEqualTo(expected.CommunityContext);
+        await Assert.That(actual.ObservationDigest).IsEqualTo(expected.ObservationDigest);
+        await Assert.That(actual.BundleDigest).IsEqualTo(expected.BundleDigest);
+        await Assert.That(actual.SelectionDisposition).IsEqualTo(expected.SelectionDisposition);
+        await Assert.That(actual.SelectedSnapshotId).IsEqualTo(expected.SelectedSnapshotId);
+        await Assert.That(actual.SelectedOrigin).IsEqualTo(expected.SelectedOrigin);
+        await Assert.That(actual.PublicationDisposition).IsEqualTo(expected.PublicationDisposition);
+        await Assert.That(actual.SourceDates).IsEqualTo(expected.SourceDates);
+        await Assert.That(actual.RosterRevision).IsEqualTo(expected.RosterRevision);
+        await Assert.That(actual.CarriedFields).IsEqualTo(expected.CarriedFields);
+        await Assert.That(actual.ActiveConditions.SequenceEqual(expected.ActiveConditions)).IsTrue();
+    }
 
     private async Task CorruptStoredSnapshotIdAsync(DocumentPublicationScope scope, string metadataId, string storedSnapshotId)
     {
