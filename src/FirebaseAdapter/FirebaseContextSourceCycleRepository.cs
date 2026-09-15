@@ -406,36 +406,43 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
                 && request.PublicationDisposition == BundesligaContextSourcePublicationDisposition.NotAttempted
                 && IsHtmlClubEloObservation(sourceCycle.Observation!))
             {
-                var priorCycleId = health.LastCompletedCycleId ?? throw new InvalidDataException("STATE_CONFLICT");
-                var priorIdentity = BundesligaContextSourceCycleIdentity.FromCycleId(request.Identity.Competition, request.Identity.Scope, priorCycleId);
-                if (priorIdentity == request.Identity) throw new InvalidDataException("STATE_CONFLICT");
-                var priorOuter = ParseCycle(await transaction.GetSnapshotAsync(CycleReference(priorIdentity)), priorIdentity);
-                if (priorOuter.Status != BundesligaContextSourceCycleStatus.Complete || !priorOuter.EnabledSources.Contains(request.Source))
-                    throw new InvalidDataException("STATE_CONFLICT");
-                var priorSource = ParseSource(await transaction.GetSnapshotAsync(SourceReference(priorIdentity, request.Source)), priorIdentity, request.Source, priorOuter.ExpectedConsumers);
-                if (priorSource.Status != BundesligaContextSourceSourceStatus.Complete || priorSource.Observation is null)
-                    throw new InvalidDataException("STATE_CONFLICT");
-                var priorReceipt = ParseReceipt(await transaction.GetSnapshotAsync(ReceiptReference(priorIdentity, request.Source, request.ConsumerLaneId)), priorIdentity, request.Source, request.ConsumerLaneId);
-                var selections = health.CommunitySelections.Where(selection => selection.ConsumerLaneId == request.ConsumerLaneId).ToArray();
-                if (selections.Length != 1) throw new InvalidDataException("STATE_CONFLICT");
-                try
-                {
-                    BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
-                        health, selections[0], priorReceipt, priorSource.Observation, priorOuter,
-                        DateOnly.FromDateTime(priorOuter.StalenessReferenceAtUtc.UtcDateTime));
-                }
-                catch (InvalidDataException)
-                {
-                    throw new InvalidDataException("STATE_CONFLICT");
-                }
-                if (request.SelectedOrigin != BundesligaContextSourceSelectedOrigin.LastKnownGood
-                    || request.ConsumerLaneId != priorReceipt.Request.ConsumerLaneId
-                    || request.CommunityContext != priorReceipt.Request.CommunityContext
-                    || request.SelectedSnapshotId != priorReceipt.Request.SelectedSnapshotId
-                    || request.SourceDates.RatedAt != priorReceipt.Request.SourceDates.RatedAt)
-                    throw new InvalidDataException("STATE_CONFLICT");
                 var publicationScope = new DocumentPublicationScope(request.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
                 var publicationHead = await transaction.GetSnapshotAsync(PublicationHeadReference(publicationScope));
+                if (health.LastCompletedCycleId is null)
+                {
+                    if (health.CommunitySelections.Count != 0 || health.LastSuccessfulSourceDates.RatedAt is not null)
+                        throw new InvalidDataException("STATE_CONFLICT");
+                }
+                else
+                {
+                    var priorIdentity = BundesligaContextSourceCycleIdentity.FromCycleId(request.Identity.Competition, request.Identity.Scope, health.LastCompletedCycleId);
+                    if (priorIdentity == request.Identity) throw new InvalidDataException("STATE_CONFLICT");
+                    var priorOuter = ParseCycle(await transaction.GetSnapshotAsync(CycleReference(priorIdentity)), priorIdentity);
+                    if (priorOuter.Status != BundesligaContextSourceCycleStatus.Complete || !priorOuter.EnabledSources.Contains(request.Source))
+                        throw new InvalidDataException("STATE_CONFLICT");
+                    var priorSource = ParseSource(await transaction.GetSnapshotAsync(SourceReference(priorIdentity, request.Source)), priorIdentity, request.Source, priorOuter.ExpectedConsumers);
+                    if (priorSource.Status != BundesligaContextSourceSourceStatus.Complete || priorSource.Observation is null)
+                        throw new InvalidDataException("STATE_CONFLICT");
+                    var priorReceipt = ParseReceipt(await transaction.GetSnapshotAsync(ReceiptReference(priorIdentity, request.Source, request.ConsumerLaneId)), priorIdentity, request.Source, request.ConsumerLaneId);
+                    var selections = health.CommunitySelections.Where(selection => selection.ConsumerLaneId == request.ConsumerLaneId).ToArray();
+                    if (selections.Length != 1) throw new InvalidDataException("STATE_CONFLICT");
+                    try
+                    {
+                        BundesligaContextSourceReceiptContract.ValidateAuthoritativePriorSelection(
+                            health, selections[0], priorReceipt, priorSource.Observation, priorOuter,
+                            DateOnly.FromDateTime(priorOuter.StalenessReferenceAtUtc.UtcDateTime));
+                    }
+                    catch (InvalidDataException)
+                    {
+                        throw new InvalidDataException("STATE_CONFLICT");
+                    }
+                    if (request.SelectedOrigin != BundesligaContextSourceSelectedOrigin.LastKnownGood
+                        || request.ConsumerLaneId != priorReceipt.Request.ConsumerLaneId
+                        || request.CommunityContext != priorReceipt.Request.CommunityContext
+                        || request.SelectedSnapshotId != priorReceipt.Request.SelectedSnapshotId
+                        || request.SourceDates.RatedAt != priorReceipt.Request.SourceDates.RatedAt)
+                        throw new InvalidDataException("STATE_CONFLICT");
+                }
                 ValidateClubEloPublicationHead(publicationHead, publicationScope, request.SelectedSnapshotId);
             }
             BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(request, DateOnly.FromDateTime(outer.StalenessReferenceAtUtc.UtcDateTime));

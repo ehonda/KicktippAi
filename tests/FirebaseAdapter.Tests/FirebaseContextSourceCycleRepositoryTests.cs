@@ -816,6 +816,47 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     }
 
     [Test]
+    [Arguments(BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected)]
+    [Arguments(BundesligaContextSourceSelectionDisposition.NetworkCandidateStale)]
+    [Arguments(BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer)]
+    public async Task Initial_HTML_retention_uses_a_verified_legacy_head_without_fabricating_prior_cycle_authority(
+        BundesligaContextSourceSelectionDisposition selection)
+    {
+        var repository = CreateRepository();
+        var cycle = Cycle("0198f865-1468-7000-8000-000000000072", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(cycle);
+        await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        var observation = HtmlBootstrapRetentionObservation(cycle.Identity, selection);
+        var bundle = new string('e', 64);
+        await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), observation, Now().AddMinutes(1));
+        await repository.TransitionCycleAsync(cycle.Identity, BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified, bundle);
+        await repository.TransitionCycleAsync(cycle.Identity, BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.HandoffReady, bundle);
+        var initialHealth = await repository.GetHealthAsync(cycle.Identity.Competition, cycle.Identity.Scope, BundesligaContextSource.ClubElo);
+        await Assert.That(initialHealth!.LastCompletedCycleId).IsNull();
+        await Assert.That(initialHealth.CommunitySelections).IsEmpty();
+        await Assert.That(initialHealth.LastSuccessfulSourceDates.RatedAt).IsNull();
+
+        var request = HtmlReceipt(cycle.Identity, observation, bundle, selection,
+            BundesligaContextSourceSelectedOrigin.LastKnownGood, BundesligaContextSourcePublicationDisposition.NotAttempted,
+            new DateOnly(2026, 9, 4), [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected]);
+        var scope = new DocumentPublicationScope(cycle.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
+        await fixture.Db.Collection(Heads).Document(DocumentPublicationContract.ComputeHeadId(scope)).SetAsync(new Dictionary<string, object>
+        {
+            ["competition"] = scope.Competition,
+            ["communityContext"] = scope.CommunityContext,
+            ["publicationSet"] = scope.PublicationSet,
+            ["snapshotId"] = request.SelectedSnapshotId
+        });
+
+        var receipt = await repository.RecordReceiptAsync(request);
+
+        await Assert.That(receipt.Request.SelectedOrigin).IsEqualTo(BundesligaContextSourceSelectedOrigin.LastKnownGood);
+        await Assert.That(receipt.Request.PublicationDisposition).IsEqualTo(BundesligaContextSourcePublicationDisposition.NotAttempted);
+        await Assert.That((await repository.GetCycleAsync(cycle.Identity))!.Status).IsEqualTo(BundesligaContextSourceCycleStatus.Complete);
+        await Assert.That((await repository.GetHealthAsync(cycle.Identity.Competition, cycle.Identity.Scope, BundesligaContextSource.ClubElo))!.LastCompletedCycleId).IsEqualTo(cycle.Identity.CycleId);
+    }
+
+    [Test]
     public async Task Aborting_a_finalized_source_preserves_its_canonical_readable_observation()
     {
         var repository = CreateRepository(); var cycle = Cycle(); await repository.CreateOrResumeCycleAsync(cycle);
@@ -2170,6 +2211,27 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.Rejected,
         $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"\\u002B/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}",
         null, ["CLUB_ELO_TRANSPORT_REJECTED"]);
+    private static BundesligaContextSourceObservation HtmlBootstrapRetentionObservation(
+        BundesligaContextSourceCycleIdentity identity,
+        BundesligaContextSourceSelectionDisposition selection)
+    {
+        if (selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected)
+            return HtmlTransportEloObservation(identity);
+        var accepted = HtmlEloObservation(identity);
+        var stale = selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateStale;
+        var evaluation = stale ? "StaleRejected" : "NotNewer";
+        var date = stale ? "2026-08-29" : "2026-09-04";
+        var descriptor = accepted.DescriptorJson
+            .Replace("2026-09-04", date, StringComparison.Ordinal)
+            .Replace("\"evaluation\":\"Eligible\"", $"\"evaluation\":\"{evaluation}\"", StringComparison.Ordinal);
+        return accepted with
+        {
+            Disposition = BundesligaContextSourceDisposition.Rejected,
+            DescriptorJson = descriptor,
+            Payload = null,
+            Diagnostics = [stale ? "CLUB_ELO_STALE_GT_7_DAYS" : "CLUB_ELO_NOT_NEWER"]
+        };
+    }
     private static BundesligaContextSourceReceiptRequest HtmlReceipt(
         BundesligaContextSourceCycleIdentity identity, BundesligaContextSourceObservation observation, string bundle,
         BundesligaContextSourceSelectionDisposition selection, BundesligaContextSourceSelectedOrigin origin,
