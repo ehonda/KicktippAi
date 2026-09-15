@@ -1,0 +1,15 @@
+{
+  "recorded_at": "2026-09-15T22:40:26.7480896Z",
+  "github_pull_request": {
+    "number": 111,
+    "state": "MERGED",
+    "is_draft": false,
+    "base_ref": "main",
+    "head_ref": "codex/01a07d0b-35b7-73b3-8ea4-dd57b89cbd81-p1-04",
+    "head_sha": "bcc33800e245f3bb55edead13cdeac624a02ca66",
+    "merge_sha": "a846bcbd0c23f22cd646c48ccc113ca25642ef2e",
+    "merged_at": "2026-09-15T20:12:59Z",
+    "url": "https://github.com/ehonda/KicktippAi/pull/111"
+  },
+  "source": "Authenticated read-only GitHub CLI query"
+}

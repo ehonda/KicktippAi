@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-10",
+  "updated_at": "2026-09-16",
   "focuses": [
     {
       "id": "astra-high-architecture-lead-next-p1",
@@ -37,6 +37,39 @@
       }
     },
     {
+      "id": "checkpoint-helper-powershell-compatibility",
+      "questions": [
+        "Why did Set-OrchestrationCheckpoint.ps1 fail against the stored ISO timestamp under PowerShell 7.6, what fallback path did the root use, and what implementation and test change should prevent the compatibility defect from recurring?"
+      ],
+      "created_at": "2026-09-16",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 activation continuation in which the checkpoint helper rejected a localized DateTime produced by JSON parsing."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "checkpoint helper source and tests",
+        "PowerShell runtime behavior",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
+        "retired_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
+        "superseded_by": null
+      }
+    },
+    {
       "id": "compaction-recovery-and-context-occupancy",
       "questions": [
         "How much work and wall time did compaction recovery require?",
@@ -59,11 +92,77 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "disk-warning-band-policy",
+      "questions": [
+        "Did the fixed 15% disk warning band impose any admission restriction when effective free space remained 31.79 GiB, and should an absolute 20 GiB threshold replace or supplement the percentage warning for this workstation?"
+      ],
+      "created_at": "2026-09-16",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 activation continuation that entered the disk warning band despite more than 30 GiB of effective free space."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "resource policy and snapshot code",
+        "resource snapshots",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
+        "retired_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
+        "superseded_by": null
+      }
+    },
+    {
+      "id": "docker-prerequisite-preflight",
+      "questions": [
+        "How can orchestration surface Docker Desktop availability at startup so Docker-dependent validation is not discovered hours late, while keeping Docker advisory when the accepted graph has no Docker-dependent gate?"
+      ],
+      "created_at": "2026-09-16",
+      "applicability": {
+        "session_kinds": [
+          "orchestration"
+        ],
+        "description": "The P1-04 activation continuation in which Docker became available only after the run was already underway."
+      },
+      "cadence": "once",
+      "status": "retired",
+      "evidence_source_hints": [
+        "startup and preview contracts",
+        "validation requirements",
+        "transcript"
+      ],
+      "resolution": {
+        "last_covered_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
+        "retired_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
         "superseded_by": null
       }
     },
@@ -90,9 +189,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -154,9 +253,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -220,9 +319,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -250,9 +349,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -384,9 +483,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -414,9 +513,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -448,7 +547,11 @@
         "review and correction outcomes"
       ],
       "resolution": {
-        "last_covered_by": null,
+        "last_covered_by": {
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
+        },
         "retired_by": null,
         "superseded_by": null
       }
@@ -476,9 +579,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null
@@ -508,9 +611,9 @@
       ],
       "resolution": {
         "last_covered_by": {
-          "report_id": "p1-04-05-orchestration",
-          "manifest": "docs/codex/session-analysis/reports/p1-04-05-orchestration.report.json",
-          "covered_at": "2026-09-09"
+          "report_id": "p1-04-activation-orchestration",
+          "manifest": "docs/codex/session-analysis/reports/p1-04-activation-orchestration.report.json",
+          "covered_at": "2026-09-16"
         },
         "retired_by": null,
         "superseded_by": null

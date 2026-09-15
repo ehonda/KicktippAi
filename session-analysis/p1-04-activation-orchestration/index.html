@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'; worker-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:; media-src data:">
+  <title>P1-04 activation orchestration analysis</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1117; --panel:#111b25; --panel2:#162432; --ink:#edf4f8; --muted:#9fb1bf; --line:#294052; --teal:#4ee1c1; --amber:#ffca66; --red:#ff7d82; --blue:#79b8ff; }
+    * { box-sizing:border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; background:radial-gradient(circle at 12% -10%,#163144 0,transparent 35%),var(--bg); color:var(--ink); font-family:Inter,"Segoe UI",system-ui,sans-serif; line-height:1.55; }
+    main { width:min(1180px,calc(100% - 30px)); margin:28px auto 70px; }
+    header,.panel { border:1px solid var(--line); border-radius:22px; background:linear-gradient(145deg,rgba(22,36,50,.96),rgba(13,23,32,.97)); box-shadow:0 18px 50px rgba(0,0,0,.24); }
+    header { padding:clamp(24px,5vw,52px); }
+    .eyebrow { color:var(--teal); text-transform:uppercase; letter-spacing:.16em; font-size:.74rem; font-weight:800; }
+    h1 { margin:.35rem 0 .7rem; font-size:clamp(2.2rem,6vw,4.8rem); line-height:.98; max-width:900px; }
+    h2 { margin:0 0 14px; font-size:clamp(1.45rem,3vw,2.2rem); }
+    h3 { margin:0 0 8px; font-size:1.08rem; }
+    p { color:var(--muted); margin:.45rem 0; }
+    a { color:var(--blue); }
+    code { color:#c9f5eb; font-size:.92em; overflow-wrap:anywhere; }
+    .verdict { margin-top:24px; padding:20px 22px; border-left:4px solid var(--amber); background:rgba(255,202,102,.08); border-radius:0 14px 14px 0; font-size:1.07rem; }
+    .verdict strong { color:var(--ink); }
+    .grid { display:grid; gap:14px; }
+    .stats { grid-template-columns:repeat(4,minmax(0,1fr)); margin:18px 0; }
+    .stat { padding:18px; background:var(--panel2); border:1px solid var(--line); border-radius:16px; }
+    .stat b { display:block; color:var(--teal); font-size:clamp(1.5rem,3vw,2.35rem); line-height:1.05; }
+    .stat span { color:var(--muted); font-size:.86rem; }
+    .panel { padding:clamp(20px,3vw,32px); margin-top:18px; }
+    .questions { grid-template-columns:repeat(3,minmax(0,1fr)); }
+    .question { padding:20px; background:rgba(10,18,25,.7); border:1px solid var(--line); border-radius:16px; }
+    .question .answer { color:var(--ink); font-weight:750; }
+    .tag { display:inline-block; padding:3px 8px; border-radius:999px; font-size:.75rem; font-weight:800; }
+    .tag.good { color:#091713; background:var(--teal); }
+    .tag.warn { color:#211703; background:var(--amber); }
+    .tag.bad { color:#210609; background:var(--red); }
+    .flow { display:grid; grid-template-columns:repeat(7,minmax(130px,1fr)); gap:10px; overflow-x:auto; padding-bottom:6px; }
+    .flow div { min-height:120px; padding:15px; border:1px solid var(--line); border-radius:14px; background:var(--panel2); }
+    .flow b { display:block; color:var(--teal); margin-bottom:6px; }
+    .flow small { color:var(--muted); }
+    .table-wrap { overflow-x:auto; border:1px solid var(--line); border-radius:15px; }
+    table { width:100%; border-collapse:collapse; min-width:720px; }
+    th,td { padding:11px 13px; text-align:left; border-bottom:1px solid var(--line); vertical-align:top; }
+    th { color:var(--teal); font-size:.76rem; text-transform:uppercase; letter-spacing:.08em; background:#0f1a24; }
+    tr:last-child td { border-bottom:0; }
+    .callout { margin-top:14px; padding:15px 18px; border:1px solid var(--line); border-radius:14px; background:rgba(121,184,255,.07); }
+    .actions { display:grid; gap:10px; counter-reset:item; padding:0; }
+    .actions li { list-style:none; padding:14px 16px 14px 54px; position:relative; border:1px solid var(--line); border-radius:14px; color:var(--muted); background:rgba(10,18,25,.6); }
+    .actions li::before { counter-increment:item; content:counter(item); position:absolute; left:15px; top:13px; width:27px; height:27px; display:grid; place-items:center; border-radius:50%; background:var(--teal); color:#06120f; font-weight:900; }
+    .actions strong { color:var(--ink); }
+    .two { grid-template-columns:1fr 1fr; }
+    .method { font-size:.92rem; }
+    footer { padding:24px 4px; color:var(--muted); font-size:.86rem; }
+    @media (max-width:900px) { .stats,.questions,.two { grid-template-columns:1fr 1fr; } }
+    @media (max-width:620px) { .stats,.questions,.two { grid-template-columns:1fr; } main { width:min(100% - 18px,1180px); margin-top:9px; } header,.panel { border-radius:16px; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Codex session analysis · frozen 16 September 2026</div>
+    <h1>P1-04 activation orchestration analysis</h1>
+    <p>Analyze the P1-04 and P1-05 continuation through P1-04 activation, with emphasis on coordination quality, checkpoint compatibility, disk-warning semantics, and early Docker visibility.</p>
+    <div class="verdict"><strong>Overall: successful delivery, but C3 paid heavily for late seam discovery.</strong> PR #111 merged a substantial dormant implementation and E1 finished cleanly after one resource retry. The main inefficiencies were C3's ten rejected/failed turns, strict one-agent sequencing, and 173 no-change polls. The three owner concerns are valid: fix the timestamp parser, replace the noisy disk percentage warning, and surface Docker readiness at startup.</div>
+  </header>
+
+  <section class="grid stats" aria-label="Key metrics">
+    <div class="stat"><b>31 / 45</b><span>subagent threads / turns; peak concurrency 1</span></div>
+    <div class="stat"><b>10</b><span>rejected or failed subagent turns</span></div>
+    <div class="stat"><b>180.46M</b><span>tokens, 95.7% cached input</span></div>
+    <div class="stat"><b>$126.47</b><span>API list-price equivalent, not subscription spend</span></div>
+  </section>
+
+  <section class="panel" id="owner-questions">
+    <h2>The three questions that prompted this analysis</h2>
+    <div class="grid questions">
+      <article class="question">
+        <span class="tag bad">Fix</span><h3>PowerShell timestamp parsing</h3>
+        <p class="answer">This is a real cross-version/culture defect.</p>
+        <p>On PowerShell 7.6.6 with <code>de-DE</code>, plain <code>ConvertFrom-Json</code> converts the ISO value to <code>DateTime</code>, stringifies it as <code>09/14/2026 22:44:39</code>, and <code>DateTimeOffset.TryParse</code> returns false. <code>-DateKind String</code> preserves the ISO value and parses successfully.</p>
+        <p><strong>Change:</strong> route every helper JSON parse through a capability-tested wrapper: use <code>-DateKind String</code> where supported, plain parsing on Windows PowerShell 5.1, and run the exact persisted-state transition under both hosts.</p>
+      </article>
+      <article class="question">
+        <span class="tag good">No gate</span><h3>31.79 GiB disk warning</h3>
+        <p class="answer">It had no admission consequence.</p>
+        <p>The warning fired only because 31.79 GiB is 13.4% of a 236.68 GiB disk, below the fixed 15% advisory. Worktree admission used the separate 14 GiB absolute floor and passed. Heavy validation was serialized by the one-family contract, not disk.</p>
+        <p><strong>Change:</strong> replace the percentage warning with an absolute <code>minimumEffectiveFreeGiBWarning: 20</code>. Keep the 14 GiB hard floor separate unless the owner explicitly chooses a 20 GiB hard gate.</p>
+      </article>
+      <article class="question">
+        <span class="tag warn">Add preflight</span><h3>Docker readiness</h3>
+        <p class="answer">Startup currently says nothing.</p>
+        <p>The orchestration contract contains 0 Docker references, while Firebase integration suites use a Testcontainers-backed Firestore emulator. The owner had to announce that Docker became available after the run began.</p>
+        <p><strong>Change:</strong> show <code>available / unavailable / unknown</code> during initialization. Keep it advisory until the accepted validation graph requires a Docker-backed gate; recheck and block only at that gate.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="panel" id="delivery">
+    <h2>What the run delivered</h2>
+    <div class="grid stats">
+      <div class="stat"><b>43</b><span>net changed files</span></div>
+      <div class="stat"><b>+6,028</b><span>insertions; −229 deletions</span></div>
+      <div class="stat"><b>16</b><span>range commits made during the session window</span></div>
+      <div class="stat"><b>merged</b><span>PR #111 at <code>a846bcb</code></span></div>
+    </div>
+    <p>P1-04 moved from an incomplete corrected checkpoint to <em>complete—dormant implementation only</em>; P1-05 remained truthfully deferred. The report boundary also includes the review brief, PR merge, and the first 25m 51s of owner-requested operational activation analysis. It ends before that activation was delegated through the orchestration graph.</p>
+    <div class="callout"><strong>Wall-time denominator:</strong> the 23h 42m session span includes roughly 14h 20m between the completed closeout and the owner's later review-brief request. Do not treat that interval as agent blocking or continuous delivery time.</div>
+  </section>
+
+  <section class="panel" id="coordination">
+    <h2>Coordination and correction graph</h2>
+    <div class="flow" role="img" aria-label="Serial orchestration flow">
+      <div><b>Preview</b><small>1 audit<br>graph corrected</small></div>
+      <div><b>C3 initial</b><small>3 implementation rejects<br>fresh review accepted</small></div>
+      <div><b>Cumulative</b><small>18 failing tests<br>diagnosis</small></div>
+      <div><b>Re-slice</b><small>spec rejected once<br>then accepted</small></div>
+      <div><b>Three slices</b><small>Firebase + coordinator each rejected once<br>handoff passed</small></div>
+      <div><b>Acceptance</b><small>pass → reject<br>pass → reject<br>pass → accept</small></div>
+      <div><b>E1 + closeout</b><small>review accepted<br>resource retry<br>CI green</small></div>
+    </div>
+    <div class="table-wrap" style="margin-top:16px"><table>
+      <thead><tr><th>Phase</th><th>Threads</th><th>Turns</th><th>Observed active time</th><th>API equivalent</th></tr></thead>
+      <tbody><tr><td>C3 initial correction</td><td>6</td><td>11</td><td>1h 33m</td><td>$18.87</td></tr><tr><td>C3 sliced remediation</td><td>6</td><td>14</td><td>1h 02m</td><td>$10.75</td></tr><tr><td>C3 validation and acceptance</td><td>9</td><td>9</td><td>1h 17m</td><td>$17.02</td></tr><tr><td>E1 implementation</td><td>5</td><td>6</td><td>1h 29m</td><td>$25.89</td></tr><tr><td>documentation closeout</td><td>3</td><td>3</td><td>12m 33s</td><td>$2.89</td></tr><tr><td>preview</td><td>1</td><td>1</td><td>10m 19s</td><td>$1.31</td></tr><tr><td>review brief</td><td>1</td><td>1</td><td>9m 45s</td><td>$2.21</td></tr></tbody>
+    </table></div>
+    <p style="margin-top:14px">Across all 45 subagent turns, the reviewed classes are: 14 delivered, 18 accepted/passed, 10 rejected/failed, 2 diagnoses, and one preview audit. C3's first implementation-review loop alone used four writer turns and three rejects. Fresh implementation clearance still did not predict cumulative success: the next gate found eight Firebase and ten Orchestrator failures.</p>
+    <p>The explicit reconciliation was the C3 re-slice: diagnosis used Sol/high; both specification reviews used Sol/xhigh. The first spec was rejected for incomplete failure coverage and an impossible intermediate gate; the second stabilized ownership into Firebase, coordinator, and handoff slices. That graph held, but Astra/xhigh final acceptance later found two additional production seams—receipt-first replay and legacy-head bootstrap—so the reconciliation was operationally useful without being sufficient.</p>
+  </section>
+
+  <section class="panel" id="resources">
+    <h2>Resource policy: the conservative choices were justified</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Heavy operation</th><th>Outcome</th><th>Start GiB</th><th>Minimum GiB</th><th>Queue delay s</th><th>Observed symptoms</th></tr></thead>
+      <tbody><tr><td>C3 cumulative validation 1</td><td>failed-tests</td><td>3.427</td><td>2.109</td><td>0</td><td>one transient paging sample; no OOM or termination</td></tr><tr><td>C3 handoff slice</td><td>passed</td><td>2.268</td><td>1.142</td><td>0</td><td>three transient paging spikes; no OOM or termination</td></tr><tr><td>C3 cumulative validation 2</td><td>passed</td><td>2.797</td><td>1.324</td><td>0</td><td>two transient paging spikes; no sustained paging, OOM, or termination</td></tr><tr><td>C3 cumulative validation 3</td><td>passed</td><td>2.500</td><td>1.187</td><td>0</td><td>healthy paging; no resource symptoms</td></tr><tr><td>C3 cumulative validation 4</td><td>passed</td><td>2.448</td><td>1.101</td><td>0</td><td>transient paging spikes; no sustained pressure, OOM, or termination</td></tr><tr><td>E1 writer aggregate</td><td>passed-with-missed-escalation</td><td>—</td><td>0.444</td><td>—</td><td>absolute-floor breach discovered late; no OOM or abnormal termination</td></tr><tr><td>E1 cumulative validation 1</td><td>resource-stop</td><td>2.574</td><td>1.049</td><td>0</td><td>severe sustained paging; stopped before suite completion; no OOM</td></tr><tr><td>E1 cumulative validation reserved retry</td><td>passed</td><td>2.282</td><td>1.565</td><td>—</td><td>one isolated paging spike; no sustained pressure, OOM, or termination</td></tr></tbody>
+    </table></div>
+    <p style="margin-top:14px"><strong>Memory:</strong> the successful C3 floor reached 1.101 GiB, while E1 stopped at 1.049 GiB after severe sustained paging. That is evidence <em>for</em> retaining the 1.0 GiB preferred floor, not relaxing it. The 0.444 GiB writer breach produced no OOM but was discovered late; sampling/escalation needs tightening.</p>
+    <p><strong>Concurrency:</strong> every explicit heavy observation with a queue measure reported zero causal queue delay. At the successful 2.448 GiB start of C3 validation 4, two 1.19 GiB reservations plus the 1.0 GiB preferred floor would require 3.38 GiB. This run therefore does not support two concurrent heavy profiles. Peak subagent concurrency was one, but the accepted C3 graph was mostly serial; no ready heavy work was shown waiting on the lease.</p>
+  </section>
+
+  <section class="panel" id="polling">
+    <h2>Polling consumed a third of root cost</h2>
+    <div class="grid stats">
+      <div class="stat"><b>266</b><span>wait calls</span></div>
+      <div class="stat"><b>173</b><span>no-change timeouts</span></div>
+      <div class="stat"><b>5h 27m</b><span>elapsed inside wait calls</span></div>
+      <div class="stat"><b>$15.79</b><span>pure-wait response API equivalent</span></div>
+    </div>
+    <p>Pure wait responses carried 35,165,396 tokens, 39.1% of root tokens. The 55-second cadence produced 144 no-change timeouts in 194 calls. By contrast, 25 of 41 waits requested at 300 or 600 seconds returned early on events. Event-driven long waits preserved responsiveness while materially lowering poll frequency.</p>
+    <p><strong>Recommendation:</strong> default active-agent waits to 300–600 seconds and rely on event-driven early return or owner steering. Use short waits only for a documented near-term deadline.</p>
+  </section>
+
+  <section class="panel" id="compaction">
+    <h2>Compaction recovery was fast, but not always disciplined</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Input tokens before</th><th>Context tokens after</th><th>First recovery action</th><th>Seconds to action</th></tr></thead>
+      <tbody><tr><td>1</td><td>208,256</td><td>17,672</td><td>compact-recovery-snapshot</td><td>10.4s</td></tr><tr><td>2</td><td>196,091</td><td>18,160</td><td>compact-recovery-snapshot</td><td>15.8s</td></tr><tr><td>3</td><td>213,369</td><td>17,092</td><td>task-specific-broad-read</td><td>17.0s</td></tr><tr><td>4</td><td>246,733</td><td>19,205</td><td>broad-orchestration-rediscovery</td><td>15.1s</td></tr></tbody>
+    </table></div>
+    <p style="margin-top:14px">The four compactions reduced observed context from 196k–247k input tokens to 17k–19k context tokens. Median time to the first tool call was 15.4 seconds. The two compactions during the original closeout resumed through the compact recovery snapshot. The third followed a material owner scope correction with task-specific reads. The fourth, immediately after the owner asked to return to the orchestration protocol, broadly rediscovered orchestration files; that read pattern was avoidable because the run already had a sealed control capsule and known skill path.</p>
+  </section>
+
+  <section class="panel" id="owner-gates">
+    <h2>Owner waiting versus agent-created blocking</h2>
+    <div class="grid two">
+      <div class="question"><h3>Not a blocker</h3><p>The 14h 20m gap followed a completed closeout and preceded a new owner request. It belongs outside active delivery efficiency. The early disk and Docker messages clarified policy/capacity but did not block a ready lane.</p></div>
+      <div class="question"><h3>Avoidable process mismatch</h3><p>After the owner clarified that disabled sources did not meet the real objective, the root spent 25m 51s investigating activation directly before the owner explicitly rerouted it back through the orchestration protocol. The ongoing run should have treated that material scope expansion as a new graph/preview boundary immediately.</p></div>
+    </div>
+  </section>
+
+  <section class="panel" id="actions">
+    <h2>Recommended changes</h2>
+    <ol class="actions">
+      <li><strong>Checkpoint JSON compatibility:</strong> introduce one date-string-preserving JSON parser wrapper and replace all helper-local <code>ConvertFrom-Json</code> calls. Test update/revision transitions under PowerShell 7.x with a non-US culture and Windows PowerShell 5.1.</li>
+      <li><strong>Disk semantics:</strong> add an absolute 20 GiB advisory threshold; keep the 14 GiB hard admission floor distinct. Make snapshot output label <em>warning</em> and <em>admission</em> separately so narrative cannot imply false causality.</li>
+      <li><strong>Docker readiness:</strong> run a short read-only availability probe during initialization and record advisory status in the preview/capsule. Recheck as a hard prerequisite only before a Docker-dependent gate.</li>
+      <li><strong>C3 acceptance order:</strong> require the failure-producing cumulative suites before granting fresh implementation clearance when a writer has changed shared fixtures or seam contracts. Keep final acceptance independent; its two late findings were valuable.</li>
+      <li><strong>Wait policy:</strong> move the default from 55 seconds to 300–600 seconds. The observed long waits already returned early on 25 of 41 calls.</li>
+      <li><strong>Material goal changes:</strong> when an active orchestration goal changes from dormant closeout to live activation, immediately freeze a new architecture/preview boundary and delegate; do not spend a root-only exploration interval first.</li>
+    </ol>
+  </section>
+
+  <section class="panel" id="models">
+    <h2>Model and usage ledger</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Role</th><th>Model</th><th>Effort</th><th>Responses</th><th>Tokens</th><th>API equivalent</th></tr></thead>
+      <tbody><tr><td>root</td><td><code>gpt-5.6-sol</code></td><td>xhigh</td><td>695</td><td>89,979,922</td><td>$47.53</td></tr><tr><td>subagent</td><td><code>gpt-5.6-luna</code></td><td>low</td><td>53</td><td>1,714,380</td><td>$0.07</td></tr><tr><td>subagent</td><td><code>gpt-5.6-sol</code></td><td>high</td><td>272</td><td>19,061,558</td><td>$14.63</td></tr><tr><td>subagent</td><td><code>gpt-5.6-sol</code></td><td>xhigh</td><td>229</td><td>25,541,182</td><td>$18.77</td></tr><tr><td>subagent</td><td><code>gpt-5.6-terra</code></td><td>high</td><td>85</td><td>9,601,642</td><td>$3.29</td></tr><tr><td>subagent</td><td><code>gpt-5.6-terra</code></td><td>medium</td><td>139</td><td>12,414,161</td><td>$3.61</td></tr><tr><td>subagent</td><td><code>gpt-6-astra</code></td><td>high</td><td>41</td><td>2,017,309</td><td>$5.09</td></tr><tr><td>subagent</td><td><code>gpt-6-astra</code></td><td>xhigh</td><td>191</td><td>20,133,006</td><td>$33.47</td></tr></tbody>
+    </table></div>
+    <p style="margin-top:14px">Pricing uses official OpenAI list prices captured as of 2026-09-16. It is a comparative API equivalent, not a Codex subscription bill. The largest subagent cost was Astra/xhigh at $33.47; it supplied three independent C3 acceptance passes, two of which found material defects, plus E1 review/acceptance work.</p>
+  </section>
+
+  <section class="panel" id="coverage">
+    <h2>Question coverage</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Focus</th><th>Status</th><th>Finding</th></tr></thead>
+      <tbody><tr><td><code>checkpoint-helper-powershell-compatibility</code></td><td><span class='tag good'>addressed</span></td><td>Root cause reproduced; cross-version parser wrapper and dual-host test specified.</td></tr><tr><td><code>compaction-recovery-and-context-occupancy</code></td><td><span class='tag good'>addressed</span></td><td>Four compactions quantified; two compact recoveries, one task read, one avoidable broad rediscovery.</td></tr><tr><td><code>disk-warning-band-policy</code></td><td><span class='tag good'>addressed</span></td><td>Warning was advisory; 14 GiB was the gate. Replace noisy percentage warning with a 20 GiB advisory.</td></tr><tr><td><code>docker-prerequisite-preflight</code></td><td><span class='tag good'>addressed</span></td><td>No startup check exists; add advisory availability plus validation-time hard gate when required.</td></tr><tr><td><code>heavy-operation-concurrency-policy</code></td><td><span class='tag good'>addressed</span></td><td>Observed headroom did not justify two heavy profiles; measured queue delay was zero.</td></tr><tr><td><code>memory-policy-restrictiveness</code></td><td><span class='tag good'>addressed</span></td><td>1.101 GiB passed; 1.049 GiB hit sustained paging; keep the 1.0 GiB preferred floor.</td></tr><tr><td><code>orchestration-delivery-efficiency</code></td><td><span class='tag good'>addressed</span></td><td>Meaningful 6,028-line net delivery, but C3 churn and polling were expensive.</td></tr><tr><td><code>owner-waiting-vs-agent-blocking</code></td><td><span class='tag good'>addressed</span></td><td>The long gap followed completed closeout; the avoidable delay was 25m51s of direct root work before protocol rerouting.</td></tr><tr><td><code>reconciliation-models-and-stability</code></td><td><span class='tag good'>addressed</span></td><td>Sol/xhigh re-slice needed two reviews; its graph held, but two later seam defects escaped to Astra acceptance.</td></tr><tr><td><code>review-correction-churn</code></td><td><span class='tag good'>addressed</span></td><td>Eight rejected and two failed turns; C3 had three implementation corrections and two final-acceptance rejects.</td></tr><tr><td><code>subagent-coordination-effectiveness</code></td><td><span class='tag good'>addressed</span></td><td>Complete role graph and first-pass outcomes are reconstructed below.</td></tr><tr><td><code>subagent-polling-overhead</code></td><td><span class='tag good'>addressed</span></td><td>266 waits, 173 no-change timeouts, 35.17M tokens, and $15.79 equivalent.</td></tr><tr><td><code>useful-parallelism-and-wave-throttle</code></td><td><span class='tag good'>addressed</span></td><td>Peak was one; the accepted graph was mostly serial and no causal heavy queue delay was recorded.</td></tr></tbody>
+    </table></div>
+  </section>
+
+  <section class="panel method" id="method">
+    <h2>Boundary, privacy, and sources</h2>
+    <p>Root thread <code>01a0a211-c4bc-7941-86f9-37dfba1da3fa</code>; one exact root log; cutoff <code>2026-09-15T22:22:27.6493516Z</code>; Git range <code>8600f734587a…a846bcbd0c23</code>; timezone Europe/Berlin. The root session continued after the cutoff. Complete prompts, reasoning, tool output, user-home paths, secrets, and prediction payloads are excluded. Bounded excerpts are disabled. Final-answer hashes and outcome classes retain review accountability without publishing message text.</p>
+    <p>Agent intervals do not overlap in this run, but remain observations rather than timesheets. Resource readings are discrete. Polling token attribution uses cumulative usage deltas for responses containing only <code>wait_agent</code>. Git line counts describe scope, not value. Causal claims are limited to explicit queue-delay and gate evidence.</p>
+    <p>Sources: <a href="https://github.com/ehonda/KicktippAi/pull/111">PR #111</a> · <a href="https://github.com/ehonda/KicktippAi/blob/a846bcbd0c23f22cd646c48ccc113ca25642ef2e/.agents/skills/orchestrate/scripts/Set-OrchestrationCheckpoint.ps1">checkpoint helper</a> · <a href="https://github.com/ehonda/KicktippAi/blob/a846bcbd0c23f22cd646c48ccc113ca25642ef2e/.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1">resource admission</a> · <a href="https://github.com/ehonda/KicktippAi/blob/a846bcbd0c23f22cd646c48ccc113ca25642ef2e/.agents/skills/orchestrate/resources/resource-policy.json">resource policy</a> · <a href="https://github.com/ehonda/KicktippAi/blob/a846bcbd0c23f22cd646c48ccc113ca25642ef2e/tests/FirebaseAdapter.Tests/README.md">Firestore emulator requirements</a> · <a href="https://github.com/ehonda/KicktippAi/tree/main/docs/codex/p1-04-activation-orchestration-session-analysis">normalized source</a> · <a href="../p1-04-05-orchestration/index.html">previous P1-04/P1-05 analysis</a>.</p>
+    <p>Official OpenAI pricing evidence: <a href="https://developers.openai.com/api/docs/models/gpt-5.6-luna">Luna</a> · <a href="https://developers.openai.com/api/docs/models/gpt-5.6-terra">Terra</a> · <a href="https://developers.openai.com/api/docs/models/gpt-5.6-sol">Sol</a> · <a href="https://developers.openai.com/api/docs/models/gpt-6-astra">Astra</a>.</p>
+  </section>
+  <footer>Generated from a manifest-bound, cutoff-locked local transcript family. Published artifacts contain normalized operational facts only.</footer>
+</main>
+</body>
+</html>
