@@ -450,10 +450,10 @@ public class ContextSourceCycleCoordinatorTests
         await using var initial = await coordinator.PrepareAsync(new ContextSourceCycleRequest(requested, requested.EnabledSources, false,
             BundesligaContextSourceContract.ProductionConsumers[0]), store);
         await Assert.That(repository.Cycle.Status).IsEqualTo(BundesligaContextSourceCycleStatus.HandoffReady);
-        await Assert.That(repository.Transitions.ToArray()).IsEqualTo([
+        await Assert.That(repository.Transitions.SequenceEqual([
             (BundesligaContextSourceCycleStatus.ObservationsFinalized, BundesligaContextSourceCycleStatus.BundleVerified),
             (BundesligaContextSourceCycleStatus.BundleVerified, BundesligaContextSourceCycleStatus.UploadReserved),
-            (BundesligaContextSourceCycleStatus.UploadReserved, BundesligaContextSourceCycleStatus.HandoffReady)]);
+            (BundesligaContextSourceCycleStatus.UploadReserved, BundesligaContextSourceCycleStatus.HandoffReady)])).IsTrue();
         await Assert.That(provider.Calls).IsEqualTo(1); await Assert.That(store.Uploads).IsEqualTo(1); await Assert.That(store.Probes).IsEqualTo(2); await Assert.That(repository.ReceiptCommits).IsEqualTo(0);
 
         repository.Cycle = repository.Cycle with { Status = BundesligaContextSourceCycleStatus.UploadReserved };
@@ -764,7 +764,13 @@ public class ContextSourceCycleCoordinatorTests
 
         await Assert.That(repository.Transitions).IsEmpty();
         var firstFailure = Fingerprint(repository, provider, 0, 0, projector.Calls);
-        await Assert.That(firstFailure).IsEqualTo(before with { CreateCalls = before.CreateCalls + 1, ClaimCalls = before.ClaimCalls + 1 });
+        await Assert.That(firstFailure).IsEqualTo(before with
+        {
+            Source = new SourcePrefix(BundesligaContextSource.Rosters, BundesligaContextSourceSourceStatus.Claimed,
+                BundesligaContextSourceHashing.AttemptId(cycle.Identity, BundesligaContextSource.Rosters), null, ""),
+            CreateCalls = before.CreateCalls + 1,
+            ClaimCalls = before.ClaimCalls + 1
+        });
         await Assert.That(() => coordinator.PrepareAsync(new ContextSourceCycleRequest(cycle, cycle.EnabledSources, false, BundesligaContextSourceContract.ProductionConsumers[0]), new ProbeArtifactStore(ContextSourceArtifactProbeDisposition.Absent))).Throws<InvalidDataException>();
         await Assert.That(Fingerprint(repository, provider, 0, 0, projector.Calls)).IsEqualTo(firstFailure with { CreateCalls = firstFailure.CreateCalls + 1, ClaimCalls = firstFailure.ClaimCalls + 1 });
         await Assert.That(projector.Calls).IsEqualTo(0);
@@ -925,7 +931,15 @@ public class ContextSourceCycleCoordinatorTests
     {
         var identity = BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000007");
         var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
-        const string descriptor = "{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"+/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"8799071a30dca0a921974ac387f18a8005863fdcbea85d3b74c9bda382ba29b7\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}";
+        var descriptor = JsonSerializer.Serialize(new
+        {
+            contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
+            response = (object?)null, rawSha256 = (string?)null, rawByteLength = (long?)null,
+            parserContract = "club-elo-official-html-parser/v1", displayedDate = (string?)null, providerDateEvidence = (object?)null,
+            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
+            sourceRows = (object?)null, evaluation = "TransportRejected"
+        });
         var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), now, BundesligaContextSourceDisposition.Rejected, descriptor, null, ["CLUB_ELO_TRANSPORT_REJECTED"]);
         var bundle = new BundesligaContextSourceBundle(identity, now, now, BundesligaContextSourceContract.DevelopmentLane, BundesligaContextSourceContract.DevelopmentConsumers, [observation]);
         var files = new ContextSourceBundleFiles(bundle, new Dictionary<string, byte[]>());
@@ -1005,6 +1019,7 @@ public class ContextSourceCycleCoordinatorTests
 
     private static string Community(string lane) => lane switch
     {
+        BundesligaContextSourceContract.DevelopmentLane => BundesligaContextSourceContract.DevelopmentCommunity,
         "pes-squad-context" => "pes-squad", "schadensfresse-context" => "schadensfresse", "relaxdays-tippt-context" => "relaxdays-tippt", _ => "ehonda-ai-arena"
     };
 
