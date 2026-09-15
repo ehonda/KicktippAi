@@ -8,24 +8,27 @@ using Spectre.Console.Cli;
 
 namespace Orchestrator.Commands.Operations.CollectContext;
 
-/// <summary>Publishes the atomic seed-backed Bundesliga Club Elo prompt snapshot.</summary>
+/// <summary>Publishes the atomic Bundesliga Club Elo snapshot, optionally consuming a prepared source cycle.</summary>
 public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextClubEloSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IBundesligaClubEloSource _seedSource;
     private readonly ILogger<CollectContextClubEloCommand> _logger;
+    private readonly IServiceProvider? _services;
 
     public CollectContextClubEloCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
         IBundesligaClubEloSource seedSource,
-        ILogger<CollectContextClubEloCommand> logger)
+        ILogger<CollectContextClubEloCommand> logger,
+        IServiceProvider? services = null)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _seedSource = seedSource;
         _logger = logger;
+        _services = services;
     }
 
     protected override Task<int> ExecuteAsync(CommandContext context, CollectContextClubEloSettings settings, CancellationToken cancellationToken) =>
@@ -59,6 +62,30 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
                 _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database[/]");
             }
 
+            var preparation = ContextSourceCyclePreparation.Current;
+            var observation = preparation?.Files.Bundle.Observations.SingleOrDefault(value => value.Source == BundesligaContextSource.ClubElo);
+            ContextSourceCycleCoordinator? coordinator = null;
+            if (observation is not null)
+            {
+                preparation!.Files.Validate();
+                if (preparation.Files.Bundle.Cycle.Competition != competition)
+                    throw new InvalidDataException("Prepared Club Elo competition contradicts the command.");
+                BundesligaContextSourceContract.ValidateConsumerAuthority(preparation.Files.Bundle.Cycle.Scope, preparation.CurrentLaneId, communityContext);
+                if (!settings.DryRun)
+                {
+                    if (preparation.PersistedCycle is null)
+                        throw new InvalidDataException("A Club Elo publication requires a persisted preparation.");
+                    coordinator = _services?.GetService(typeof(ContextSourceCycleCoordinator)) as ContextSourceCycleCoordinator
+                        ?? throw new InvalidOperationException("Prepared Club Elo receipt completion requires its coordinator.");
+                    if (preparation.TryGetPersistedReceipt(BundesligaContextSource.ClubElo, out var receipt))
+                    {
+                        await coordinator.CompletePreparedReceiptAsync(preparation, receipt!.Request, cancellationToken);
+                        _console.MarkupLine($"[green]✓ Club Elo receipt replay {receipt.Request.PublicationDisposition}[/]");
+                        return 0;
+                    }
+                }
+            }
+
             var seedResult = await LoadSeedAsync(settings.Seed, cancellationToken);
             if (!seedResult.IsComplete || seedResult.Snapshot is null)
             {
@@ -73,19 +100,23 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
             {
                 // A corrupt headed set is never treated as absence: publishing over it would hide a
                 // damaged LKG instead of preserving it for investigation.
+                DocumentPublicationContract.ValidateLoaded(competition, communityContext, BundesligaDocumentPublication.ClubElo, loaded.Snapshot, loaded.Documents);
                 lastKnownGood = BundesligaClubEloPublication.ReconstructLastKnownGood(loaded);
             }
 
-            var selection = BundesligaClubEloPolicy.Select(
+            var selection = observation is null ? BundesligaClubEloPolicy.Select(
                 seedResult.Snapshot,
                 lastKnownGood,
                 networkCandidate: null,
-                unattendedNetworkUseAllowed: false);
-            var publication = BundesligaClubEloPublication.Build(selection);
-            var request = BundesligaClubEloPublication.CreateRequest(
-                communityContext,
-                loaded?.Snapshot.SnapshotId,
-                publication);
+                unattendedNetworkUseAllowed: false)
+                : BundesligaClubEloRefresh.Select(observation, lastKnownGood ?? seedResult.Snapshot);
+            var publication = observation is not null && selection.Disposition == BundesligaClubEloSelectionDisposition.NetworkAccepted
+                ? BundesligaClubEloPublication.BuildSourceBacked(selection, preparation!.Files.Bundle.Cycle, observation,
+                    preparation.Files.Payloads[observation.Payload!.Path])
+                : BundesligaClubEloPublication.Build(selection);
+            var commit = observation is null ? null : CreateCommit(preparation!, observation, communityContext, selection);
+            var request = new DocumentPublicationRequest(communityContext, loaded?.Snapshot.SnapshotId,
+                publication.Documents, publication.MetadataJson, commit);
             // Dry-run deliberately executes the same Core request validation and content hashing
             // as a real publication, while stopping before the repository write boundary.
             DocumentPublicationContract.ValidateRequest(competition, BundesligaDocumentPublication.ClubElo, request);
@@ -127,15 +158,38 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
                 return 0;
             }
 
+            if (observation is not null && selection.Selected.Origin == BundesligaClubEloSnapshotOrigin.LastKnownGood)
+            {
+                if (targetSnapshotId != loaded!.Snapshot.SnapshotId)
+                    throw new InvalidDataException("Retained Club Elo selection contradicts the verified head.");
+                var receipt = CreateReceipt(commit!, loaded.Snapshot.SnapshotId, BundesligaContextSourcePublicationDisposition.NotAttempted);
+                await coordinator!.CompletePreparedReceiptAsync(preparation!, receipt, cancellationToken);
+                _console.MarkupLine("[green]✓ Club Elo publication NotAttempted (retained verified head)[/]");
+                activity?.SetTag("club_elo.publication_disposition", "NotAttempted");
+                return 0;
+            }
+
             var result = await publicationRepository.PublishAsync(
                 BundesligaDocumentPublication.ClubElo,
                 request,
                 cancellationToken);
+            if (observation is not null)
+            {
+                var disposition = result.Disposition switch
+                {
+                    DocumentPublicationDisposition.Published => BundesligaContextSourcePublicationDisposition.Published,
+                    DocumentPublicationDisposition.Unchanged => BundesligaContextSourcePublicationDisposition.Unchanged,
+                    DocumentPublicationDisposition.Reactivated => BundesligaContextSourcePublicationDisposition.Reactivated,
+                    _ => throw new InvalidDataException("Unknown Club Elo publication outcome.")
+                };
+                await coordinator!.CompletePreparedReceiptAsync(preparation!, CreateReceipt(commit!, result.Snapshot.SnapshotId, disposition), cancellationToken);
+            }
             _console.MarkupLine($"[green]✓ Club Elo publication {result.Disposition}[/]");
             _console.MarkupLine($"[green]  Snapshot: {result.Snapshot.SnapshotId}[/]");
             activity?.SetTag("club_elo.publication_disposition", result.Disposition.ToString());
             return 0;
         }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
         catch (Exception exception)
         {
             activity?.SetTag("club_elo.publication_disposition", "Failed");
@@ -143,6 +197,49 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
             _console.MarkupLine($"[red]Error:[/] {Markup.Escape(exception.Message)}");
             return 1;
         }
+    }
+
+    private static ContextSourcePublicationCommitRequest CreateCommit(ContextSourceCyclePreparation preparation,
+        BundesligaContextSourceObservation observation, string community, BundesligaClubEloSelection selection)
+    {
+        var cycle = preparation.Files.Bundle.Cycle;
+        var conditions = new List<BundesligaContextSourceHealthCondition>();
+        if (observation.Disposition == BundesligaContextSourceDisposition.Rejected)
+        {
+            conditions.Add(BundesligaContextSourceHealthCondition.AcquisitionFailed);
+            conditions.Add(BundesligaContextSourceHealthCondition.ClubEloSourceRejected);
+        }
+        if (DateOnly.FromDateTime(preparation.Files.Bundle.StalenessReferenceAtUtc.UtcDateTime).DayNumber - selection.Selected.RatedAt.DayNumber > 7)
+            conditions.Add(BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days);
+        var guard = new ContextSourcePublicationGuard(cycle.Competition, cycle.Scope, cycle.CycleId,
+            BundesligaContextSource.ClubElo, preparation.CurrentLaneId, community, BundesligaDocumentPublication.ClubEloPublicationSet,
+            preparation.Files.Digest, observation.ObservationDigest, cycle.Sequence, cycle.CycleId);
+        var template = new ContextSourcePublicationReceiptTemplate(selection.Disposition switch
+        {
+            BundesligaClubEloSelectionDisposition.NetworkAccepted => BundesligaContextSourceSelectionDisposition.NetworkAccepted,
+            BundesligaClubEloSelectionDisposition.NetworkCandidateNotNewer => BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer,
+            BundesligaClubEloSelectionDisposition.NetworkCandidateStale => BundesligaContextSourceSelectionDisposition.NetworkCandidateStale,
+            BundesligaClubEloSelectionDisposition.NetworkCandidateRejected => BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected,
+            _ => throw new InvalidDataException("Prepared source cannot have a disabled selection.")
+        }, selection.Selected.Origin switch
+        {
+            BundesligaClubEloSnapshotOrigin.NetworkCandidate => BundesligaContextSourceSelectedOrigin.NetworkCandidate,
+            BundesligaClubEloSnapshotOrigin.LaunchSeed => BundesligaContextSourceSelectedOrigin.LaunchSeed,
+            BundesligaClubEloSnapshotOrigin.LastKnownGood => BundesligaContextSourceSelectedOrigin.LastKnownGood,
+            _ => throw new InvalidDataException("Unknown Club Elo origin.")
+        }, new BundesligaContextSourceDates(selection.Selected.RatedAt, null, null, null), null,
+            new BundesligaContextSourceCarriedFields(0, 0, 0, null), BundesligaContextSourceHealth.OrderConditions(conditions));
+        return new(guard, template);
+    }
+
+    private static BundesligaContextSourceReceiptRequest CreateReceipt(ContextSourcePublicationCommitRequest commit,
+        string snapshotId, BundesligaContextSourcePublicationDisposition disposition)
+    {
+        var guard = commit.Guard;
+        var template = commit.ReceiptTemplate;
+        return new(guard.Identity, guard.Source, guard.ConsumerLaneId, guard.CommunityContext, guard.ObservationDigest,
+            guard.BundleDigest, template.SelectionDisposition, snapshotId, template.SelectedOrigin, disposition,
+            template.SourceDates, template.RosterRevision, template.CarriedFields, template.ActiveConditions);
     }
 
     private async Task<BundesligaClubEloSourceResult> LoadSeedAsync(string seedPath, CancellationToken cancellationToken)

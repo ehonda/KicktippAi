@@ -50,4 +50,8 @@
         <ProjectReference Include="..\..\src\TestUtilities\TestUtilities.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Update="Commands/Operations/CollectContext/Fixtures/ClubElo/eligible.html;Commands/Operations/CollectContext/Fixtures/ClubElo/unknown-source-date.html;Commands/Operations/CollectContext/Fixtures/ClubElo/partial.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-dom.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-lexer.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-fragment.html" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+
 </Project>
