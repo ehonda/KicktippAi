@@ -367,6 +367,17 @@ public sealed class ContextSourceCycleCoordinator
         ContextSourceBundleHandoff.ValidateBundleCycle(preparation.PersistedCycle, preparation.Files.Bundle);
         if (preparation.PersistedCycle.BundleSha256 != preparation.Files.Digest)
             throw new InvalidDataException("Prepared persisted cycle does not bind the exact bundle.");
+        var priorReceipt = await _repository.GetReceiptAsync(request.Identity, request.Source, request.ConsumerLaneId, cancellationToken);
+        if (priorReceipt is not null)
+        {
+            if (!ReceiptRequestsAreSemanticallyEqual(priorReceipt.Request, request))
+                throw new InvalidDataException("STATE_CONFLICT");
+            return await RecordReceiptAsync(request, cancellationToken);
+        }
+        if (request.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published
+            or BundesligaContextSourcePublicationDisposition.Unchanged
+            or BundesligaContextSourcePublicationDisposition.Reactivated)
+            throw new InvalidDataException("STATE_CONFLICT");
         var persisted = await _repository.GetCycleAsync(request.Identity, cancellationToken)
             ?? throw new InvalidDataException("Prepared persisted cycle is missing.");
         ContextSourceBundleHandoff.ValidateBundleCycle(persisted, preparation.Files.Bundle);
@@ -388,14 +399,6 @@ public sealed class ContextSourceCycleCoordinator
         BundesligaContextSourceReceiptContract.ValidateAgainstObservation(request, observation);
         BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(
             request, DateOnly.FromDateTime(persisted.StalenessReferenceAtUtc.UtcDateTime));
-        if (request.PublicationDisposition is BundesligaContextSourcePublicationDisposition.Published
-            or BundesligaContextSourcePublicationDisposition.Unchanged
-            or BundesligaContextSourcePublicationDisposition.Reactivated)
-        {
-            var priorReceipt = await _repository.GetReceiptAsync(request.Identity, request.Source, request.ConsumerLaneId, cancellationToken);
-            if (priorReceipt is null || !ReceiptRequestsAreSemanticallyEqual(priorReceipt.Request, request))
-                throw new InvalidDataException("STATE_CONFLICT");
-        }
         return await RecordReceiptAsync(request, cancellationToken);
     }
 

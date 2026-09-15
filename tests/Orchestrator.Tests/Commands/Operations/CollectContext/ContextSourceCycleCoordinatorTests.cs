@@ -102,6 +102,44 @@ public class ContextSourceCycleCoordinatorTests
     }
 
     [Test]
+    public async Task Complete_prepared_not_attempted_receipt_replays_after_the_cycle_is_later_aborted()
+    {
+        var (preparation, request, repository) = await PreparedCompletionAsync(production: true);
+        var coordinator = new ContextSourceCycleCoordinator(repository, []);
+
+        var committed = await coordinator.CompletePreparedReceiptAsync(preparation, request);
+        repository.Cycle = repository.Cycle with
+        {
+            Status = BundesligaContextSourceCycleStatus.Aborted,
+            AbortCode = BundesligaContextSourceError.HandoffArtifactConflict
+        };
+        repository.SourceCycle = null;
+
+        var replay = await coordinator.CompletePreparedReceiptAsync(preparation, request);
+
+        await Assert.That(replay).IsEqualTo(committed);
+        await Assert.That(repository.GetCycleCalls).IsEqualTo(1);
+        await Assert.That(repository.ReceiptCommits).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Complete_prepared_guarded_receipt_replays_after_later_supersession_changes_current_freshness()
+    {
+        var (preparation, request, repository) = PreparedEloCompletion();
+        var guarded = request with { PublicationDisposition = BundesligaContextSourcePublicationDisposition.Published };
+        var committed = new BundesligaContextSourceReceipt(guarded, new DateTimeOffset(2026, 9, 6, 12, 3, 0, TimeSpan.Zero));
+        repository.Receipts.Add((guarded.Source, guarded.ConsumerLaneId), committed);
+        repository.Cycle = repository.Cycle with { StalenessReferenceAtUtc = repository.Cycle.StalenessReferenceAtUtc.AddDays(1) };
+        repository.SourceCycle = null;
+
+        var replay = await new ContextSourceCycleCoordinator(repository, []).CompletePreparedReceiptAsync(preparation, guarded);
+
+        await Assert.That(replay).IsEqualTo(committed);
+        await Assert.That(repository.GetCycleCalls).IsEqualTo(0);
+        await Assert.That(repository.ReceiptCommits).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task Complete_prepared_receipt_rejects_cross_identity_requests_before_a_receipt_call()
     {
         var (preparation, request, repository) = await PreparedCompletionAsync();
@@ -164,7 +202,10 @@ public class ContextSourceCycleCoordinatorTests
         await Assert.That(replay).IsEqualTo(first);
         await Assert.That(replay.RecordedAtUtc).IsEqualTo(new DateTimeOffset(2026, 9, 6, 12, 4, 0, TimeSpan.Zero));
         await Assert.That(repository.ReceiptCommits).IsEqualTo(2);
-        await Assert.That(repository.ReceiptLookups).IsEmpty();
+        await Assert.That(repository.ReceiptLookups).IsEquivalentTo([
+            (request.Identity, request.Source, request.ConsumerLaneId),
+            (request.Identity, request.Source, request.ConsumerLaneId)
+        ]);
         await Assert.That(repository.HealthState!.DesiredIssueProjection!.SynchronizationStatus).IsEqualTo(BundesligaContextSourceIssueSynchronization.Pending);
         await Assert.That(repository.HealthState.DesiredIssueProjection.LastErrorCode).IsEqualTo(BundesligaContextSourceIssueError.GithubIssueListFailed);
     }
