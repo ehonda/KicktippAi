@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 
 namespace Orchestrator.Commands.Operations.CollectContext;
@@ -86,18 +87,7 @@ public static class ContextSourceBundleHandoff
         }
         else if (probe.Disposition == ContextSourceArtifactProbeDisposition.Absent)
         {
-            try
-            {
-                await artifactStore.UploadAsync(name, ExpectedEntries(files), overwrite: false, compressionLevel: 0, retentionDays: 7, cancellationToken);
-            }
-            catch
-            {
-                var recoveryProbe = await artifactStore.ProbeAsync(name, cancellationToken);
-                if (recoveryProbe.Disposition == ContextSourceArtifactProbeDisposition.Absent) throw new InvalidDataException("HANDOFF_UPLOAD_FAILED");
-                if (recoveryProbe.Disposition == ContextSourceArtifactProbeDisposition.Indeterminate) throw new ContextSourceArtifactRetryException();
-                if (recoveryProbe.Disposition != ContextSourceArtifactProbeDisposition.Present) throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT");
-                VerifyEntries(files.Bundle, recoveryProbe.Entries, files.Digest);
-            }
+            await artifactStore.UploadAsync(name, ExpectedEntries(files), overwrite: false, compressionLevel: 0, retentionDays: 7, cancellationToken);
             var verification = await artifactStore.ProbeAsync(name, cancellationToken);
             if (verification.Disposition == ContextSourceArtifactProbeDisposition.Indeterminate) throw new ContextSourceArtifactRetryException();
             if (verification.Disposition != ContextSourceArtifactProbeDisposition.Present) throw new InvalidDataException(verification.Disposition == ContextSourceArtifactProbeDisposition.Absent ? "HANDOFF_UPLOAD_FAILED" : "HANDOFF_ARTIFACT_CONFLICT");
@@ -119,32 +109,30 @@ public static class ContextSourceBundleHandoff
     public static async Task<ContextSourceBundleFiles> LoadProductionAsync(BundesligaContextSourceOuterCycle cycle, IContextSourceBundleArtifactStore artifactStore, CancellationToken cancellationToken = default)
     {
         if (cycle.Identity.Scope != BundesligaContextSourceScope.ProductionLive || cycle.Status is not (BundesligaContextSourceCycleStatus.UploadReserved or BundesligaContextSourceCycleStatus.HandoffReady or BundesligaContextSourceCycleStatus.Complete) || cycle.ArtifactName is null || cycle.BundleSha256 is null) throw new InvalidDataException("Production handoff reservation is incomplete.");
+        cycle.Validate();
         var probe = await artifactStore.ProbeAsync(cycle.ArtifactName, cancellationToken);
         if (probe.Disposition == ContextSourceArtifactProbeDisposition.Indeterminate) throw new ContextSourceArtifactRetryException();
         if (probe.Disposition != ContextSourceArtifactProbeDisposition.Present)
             throw new InvalidDataException(probe.Disposition == ContextSourceArtifactProbeDisposition.Absent
                 ? cycle.Status == BundesligaContextSourceCycleStatus.UploadReserved ? "HANDOFF_UPLOAD_FAILED" : "HANDOFF_ARTIFACT_MISSING"
                 : "HANDOFF_ARTIFACT_CONFLICT");
-        return ParseAndVerify(probe.Entries, cycle.BundleSha256, cycle);
+        return ParseAndVerifyAsConflict(probe.Entries, cycle.BundleSha256, cycle);
     }
 
     public static ContextSourceBundleFiles LoadDevelopment(BundesligaContextSourceOuterCycle cycle, string reservedDigest)
     {
         var root = CreateDevelopmentDirectory(cycle.Identity); if (!Directory.Exists(root)) throw new InvalidDataException("LOCAL_HANDOFF_MISSING");
-        try
-        {
-            var entries = ReadRegularTree(root).Select(x => new ContextSourceArtifactEntry(x.Key, x.Value)).ToArray();
-            return ParseAndVerify(entries, reservedDigest, cycle);
-        }
-        catch (InvalidDataException exception) when (exception.Message != "HANDOFF_ARTIFACT_CONFLICT")
-        {
-            throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT", exception);
-        }
+        cycle.Validate();
+        var entries = ReadRegularTree(root).Select(x => new ContextSourceArtifactEntry(x.Key, x.Value)).ToArray();
+        return ParseAndVerifyAsConflict(entries, reservedDigest, cycle);
     }
 
     public static void VerifyEntries(BundesligaContextSourceBundle bundle, IReadOnlyList<ContextSourceArtifactEntry> entries, string reservedDigest)
     {
         BundesligaContextSourceHashing.ValidateSha(reservedDigest);
+        var clubElo = bundle.Observations.SingleOrDefault(value => value.Source == BundesligaContextSource.ClubElo);
+        if (clubElo?.Payload is { Path: var clubEloPath } && clubEloPath is not ("club-elo/source.csv" or "club-elo/source.html"))
+            throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT");
         if (entries.Any(x => !x.IsRegularFile || x.LinkTarget is not null || x.Path.Contains('\\') || x.Path.StartsWith('/') || x.Path.Split('/').Any(segment => segment is "" or "." or ".."))) throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT");
         var unique = entries.GroupBy(x => x.Path, StringComparer.Ordinal).ToArray(); if (unique.Any(x => x.Count() != 1)) throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT");
         var map = unique.ToDictionary(x => x.Key, x => x.Single().Bytes, StringComparer.Ordinal);
@@ -164,6 +152,13 @@ public static class ContextSourceBundleHandoff
         VerifyEntries(bundle, entries, reservedDigest);
         var payloads = entries.Where(x => x.Path is not ("manifest.json" or "bundle.sha256")).ToDictionary(x => x.Path, x => x.Bytes, StringComparer.Ordinal);
         return new ContextSourceBundleFiles(bundle, payloads);
+    }
+
+    private static ContextSourceBundleFiles ParseAndVerifyAsConflict(IReadOnlyList<ContextSourceArtifactEntry> entries, string reservedDigest, BundesligaContextSourceOuterCycle expectedCycle)
+    {
+        try { return ParseAndVerify(entries, reservedDigest, expectedCycle); }
+        catch (JsonException exception) { throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT", exception); }
+        catch (InvalidDataException exception) { throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT", exception); }
     }
 
     public static void ValidateBundleCycle(BundesligaContextSourceOuterCycle expectedCycle, BundesligaContextSourceBundle bundle)

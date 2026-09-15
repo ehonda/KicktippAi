@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Reviewer guide to PR 111: dormant Bundesliga Club Elo refresh, guarded publication, and deferred roster refresh. Implementation, evidence, and activation boundaries.">
+  <meta name="kicktippai-report-title" content="PR #111 · Dormant Club Elo refresh and roster deferral">
+  <title>PR #111 review brief · Bundesliga context refresh</title>
+  <style>
+    :root{color-scheme:light;--ink:#172b3b;--muted:#485d6b;--paper:#f3f6f7;--line:#c9d5dc;--blue:#145d82;--teal:#126553;--amber:#795011;--white:#fff}
+    *{box-sizing:border-box}html{scroll-padding-top:1rem}body{margin:0;background:var(--paper);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}a{color:var(--blue);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}a:focus-visible,summary:focus-visible{outline:3px solid #b06010;outline-offset:5px}code{font:0.88em/1.5 ui-monospace,Consolas,monospace;overflow-wrap:anywhere}p{margin:.6rem 0 1rem}h1,h2,h3{line-height:1.2;letter-spacing:-.025em}h1{font-size:clamp(2.3rem,6vw,4.4rem);max-width:900px;margin:1rem 0 1.2rem}h2{font-size:clamp(1.6rem,3vw,2.1rem);margin:0 0 1.1rem}h3{font-size:1.15rem;margin:.4rem 0 .7rem}ul,ol{padding-left:1.3rem}li{margin:.45rem 0}strong{font-weight:700}.wrap{max-width:1160px;margin:auto;padding:0 28px}.skip{position:absolute;left:1rem;top:-6rem;background:white;padding:10px;z-index:2}.skip:focus{top:1rem}.hero{padding:48px 0 42px;background:#132c3d;color:#f7fbfd}.hero a{color:#b7e6ff}.eyebrow{font-size:.78rem;text-transform:uppercase;letter-spacing:.16em;font-weight:750}.hero .intro{font-size:1.22rem;max-width:860px;color:#d7e8f0}.badge{display:inline-block;border:1px solid #779caa;border-radius:999px;padding:5px 12px;font-size:.83rem;margin:0 .45rem .4rem 0}.badge.good{background:#d9f1e8;color:#114f41;border-color:#7aaf9c}.meta{color:#c2d6e0;font-size:.88rem;margin-top:1.6rem}.nav{display:flex;flex-wrap:wrap;gap:12px 24px;padding:20px 0;border-bottom:1px solid var(--line);font-size:.92rem}.nav a{font-weight:650}main{padding:32px 0 56px}section{margin-bottom:36px}.panel{background:var(--white);padding:28px;border:1px solid var(--line);border-radius:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.card{border:1px solid var(--line);border-radius:12px;padding:22px;background:white}.card p:last-child{margin-bottom:0}.label{font-size:.78rem;font-weight:750;letter-spacing:.1em;text-transform:uppercase;color:var(--teal)}.deferred .label{color:var(--amber)}.callout{border-left:5px solid var(--teal);padding:18px 22px;background:#e4f2ee;border-radius:0 12px 12px 0;margin:22px 0}.callout.warning{background:#fff2da;border-color:#987021}.small{font-size:.9rem;color:var(--muted)}.flow{list-style:none;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;counter-reset:step}.flow li{padding:20px 16px;background:#edf4f8;border:1px solid #bbcfdd;border-radius:12px;margin:0;counter-increment:step}.flow li::before{content:counter(step,decimal-leading-zero);display:block;font-size:.85rem;color:var(--blue);font-weight:800;margin-bottom:12px}.flow p{font-size:.92rem;margin-bottom:0}.flow h3{font-size:1.05rem}.fork{margin-top:12px;padding:16px 20px;border:1px dashed #92a6b3;border-radius:12px}.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;font-size:.93rem;background:white}caption{text-align:left;padding:16px;font-weight:700;background:#e9f0f4}th,td{padding:15px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line)}th{background:#edf3f6}tbody tr:last-child td,tbody tr:last-child th{border-bottom:0}.sha{display:block;margin-top:5px;font-size:.76rem;max-width:320px}.count{font-size:2.7rem;line-height:1.1;font-weight:780;letter-spacing:-.05em;display:block;margin:10px 0}.checklist{list-style:none;padding:0}.checklist li{position:relative;padding:0 0 0 28px;margin:14px 0}.checklist li::before{content:"□";position:absolute;left:0;font-size:1.15rem;color:var(--blue)}.sources{font-size:.91rem}.sources li{margin:.8rem 0}.source-grid{display:grid;grid-template-columns:1fr 1fr;gap:0 30px}footer{border-top:1px solid var(--line);padding:22px 0 36px;font-size:.85rem;color:var(--muted)}.rule{margin:24px 0;border:0;border-top:1px solid var(--line)}
+    @media(max-width:820px){.flow{grid-template-columns:1fr 1fr}.grid,.source-grid{grid-template-columns:1fr}.wrap{padding:0 20px}.panel{padding:22px}.hero{padding:32px 0}.sha{min-width:160px}}
+    @media(max-width:480px){.flow{grid-template-columns:1fr}.wrap{padding:0 16px}.panel,.card{padding:18px}.nav{gap:10px 18px}body{font-size:16px}th,td{padding:12px}}
+    @media print{body{background:white;font-size:11pt}.hero{background:white;color:#172b3b;padding:15px 0}.hero .intro,.hero .meta,.hero a{color:#172b3b}.wrap{max-width:none;padding:0}.nav,.skip{display:none}.panel,.card{break-inside:avoid;box-shadow:none}.flow{grid-template-columns:1fr 1fr}a{color:inherit}.table-wrap{overflow:visible}section{margin-bottom:24px}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to review brief</a>
+<header class="hero">
+  <div class="wrap">
+    <div class="eyebrow">KicktippAi / Bundesliga 2026–27 / Review brief</div>
+    <h1>Club Elo refresh, ready to land dormant.</h1>
+    <p class="intro">PR #111 completes the disabled Club Elo refresh implementation and records the roster refresh deferral. Merging lands capability and accepted records. Live validation and production authority remain separate owner decisions.</p>
+    <div><span class="badge good">P1-04 · dormant implementation complete</span><span class="badge">P1-05 · R1 deferred</span><span class="badge">Both source flags false</span></div>
+    <p class="meta"><a href="https://github.com/ehonda/KicktippAi/pull/111">Review PR #111</a> · Evidence snapshot: 15 September 2026 · Baseline <code>9f2817f</code><br>Draft PR targeting <code>main</code> when this brief was prepared. This page is a review aid; accepted task and ADR contracts govern.</p>
+  </div>
+</header>
+<div class="wrap">
+  <nav class="nav" aria-label="Brief sections"><a href="#result">Result</a><a href="#architecture">Architecture</a><a href="#gates">Safety gates</a><a href="#scope">Merge boundary</a><a href="#evidence">Evidence</a><a href="#review">Reviewer checklist</a><a href="#sources">Sources</a></nav>
+  <main id="main">
+    <section id="result" aria-labelledby="result-title">
+      <h2 id="result-title">Two tasks, two different outcomes</h2>
+      <div class="grid">
+        <article class="card"><span class="label">P1-04 / Club Elo strength context</span><h3>Implementation complete; source disabled</h3><p>Refresh club-strength rankings during the existing context collection cycle using official <code>clubelo.com/GER</code> HTML. The accepted C3 common runtime and E1 source implementation cover acquisition, validation, shared selection, guarded publication, and receipts.</p><p>Invalid, stale, or not-newer candidates preserve verified seed or last-known-good data (LKG). No new collection schedule is introduced.</p></article>
+        <article class="card deferred"><span class="label">P1-05 / Roster membership and enrichment</span><h3>Dormant closeout complete; functionality deferred</h3><p>Future roster refresh must use trustworthy dcaribou metadata before downloading its DuckDB artifact. The exact ADR-0079 sidecar and separate owner gates remain outstanding.</p><p>R1, the roster implementation milestone, is incomplete. ADR-0082 closes this run’s documented scope without giving rejected R1 work implementation credit.</p></article>
+      </div>
+      <div class="callout"><strong>“Complete dormant” has a narrow meaning.</strong> P1-04’s accepted code, review, tests, and closeout records are complete with <code>ClubEloEnabled: false</code> and <code>RostersEnabled: false</code>. It does not mean a real source has passed operational acceptance or that refresh is enabled. P1-05’s completion applies only to its documented deferral. <a href="#sources">Read the authoritative tasks and profile.</a></div>
+    </section>
+    <section class="panel" id="architecture" aria-labelledby="architecture-title">
+      <span class="label">How the dormant path is designed to work</span><h2 id="architecture-title">One observation, eight independent community heads</h2>
+      <p><strong>C3</strong> supplies the common descriptor, immutable bundle, handoff, receipts, health reduction, and publication reconstruction. <strong>E1</strong> supplies Club Elo HTTP acquisition, inert parsing, exact mapping, source evaluation, and command consumption. This diagram describes the source-enabled contract; the flags remain off.</p>
+      <ol class="flow" aria-label="Club Elo data flow">
+        <li><h3>Freeze retained evidence</h3><p>Verify each expected community’s freshest seed/LKG before source evaluation. Missing heads may use valid seed; corrupt heads fail.</p></li>
+        <li><h3>Acquire and evaluate · E1</h3><p>Bound the HTTP response and parse it without executing scripts. Validate its own displayed date, exact club identities, integer values, and complete 18-club coverage.</p></li>
+        <li><h3>Seal and hand off · C3</h3><p>Record one canonical observation. Only an eligible candidate carries the hashed payload <code>club-elo/source.html</code> in the immutable bundle.</p></li>
+        <li><h3>Consume per community</h3><p>E1 rechecks that lane’s retained selection, then uses guarded publication. C3 completes the canonical receipt and the post-commit issue-projection seam.</p></li>
+      </ol>
+      <div class="fork"><strong>Independent progress:</strong> shared <code>NotNewer</code> is valid only when the candidate is no newer than <em>every</em> retained selection. If one community lags, the payload stays eligible so that community can advance. Other heads can retain their own verified state.</div>
+      <p class="small">A head points to the selected complete document set. A receipt records a community’s outcome for the observation. Immutable payload hashes bind publication metadata to source evidence; snapshot identity remains based on document bytes. See <a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0081-close-club-elo-html-publication-and-selection-seams.md">ADR-0081</a>.</p>
+    </section>
+    <section id="gates" aria-labelledby="gates-title">
+      <h2 id="gates-title">Safety and quality gates that matter</h2>
+      <div class="table-wrap"><table><caption>What a reviewer should expect from the implementation</caption><thead><tr><th scope="col">Boundary</th><th scope="col">Required behavior</th></tr></thead><tbody>
+        <tr><th scope="row">Transport and parser</th><td>Exact HTTPS URL; status 200; no redirects or content encodings; HTML with UTF-8. Body bounded to 2 MiB, bounded retry/time behavior, and inert DOM/literal parsing. First failed gate determines the rejection; page scripts are never executed.</td></tr>
+        <tr><th scope="row">Date and identity</th><td>Date comes from the same response, is valid and not future-dated. Network candidates older than seven calendar days are rejected. Exact frozen mapping projects all 18 clubs; HTML rank and Elo must be positive Int32 values. No inferred aliases or numeric coercion.</td></tr>
+        <tr><th scope="row">Retained truth</th><td>Rejected, stale, and not-newer candidates retain verified seed/LKG with truthful dates and provenance. Corrupt or contradictory headed evidence is fatal; it is never treated as missing. Disabled-source tests prove zero source-service interaction.</td></tr>
+        <tr><th scope="row">Publication and replay</th><td>Guarded commits protect lane, cycle, observation, and head identity; compare-and-swap detects concurrent changes. Complete document sets and canonical receipts preserve replay behavior. Dry runs write nothing. Prepared receipt replay precedes mutable gates; issue projection follows canonical receipt completion.</td></tr>
+        <tr><th scope="row">Historical compatibility</th><td>Legacy v1 and historical CSV-v2 stay distinct from HTML-v2. Fractional CSV Elo evidence remains parseable, but full publication binding requires matching integral values. HTML-v2 uses strict integers and verifies descriptor, payload hashes, field shape, and source/document agreement.</td></tr>
+      </tbody></table></div>
+      <p class="small">Contracts: ADR-0074 / 0077 / 0078 / 0080 / 0081. Proof surfaces include Core contracts, Firebase guarded publication/reconstruction tests, and Orchestrator source, handoff, coordinator, and command tests. <a href="#sources">Source map below.</a></p>
+    </section>
+    <section id="scope" aria-labelledby="scope-title">
+      <h2 id="scope-title">What merging changes—and what needs a later decision</h2>
+      <div class="grid">
+        <article class="card"><span class="label">Lands with this PR</span><h3>Dormant capability and durable records</h3><ul><li>Accepted C3 common runtime corrections and E1 Club Elo HTML implementation, mapping, fixtures, and tests.</li><li>Authoritative task, design, decision, handoff, and status reconciliation for the completed dormant scope.</li><li>This static review brief, published by the existing Pages workflow after a successful deployment from <code>main</code>.</li></ul></article>
+        <article class="card deferred"><span class="label">Separately gated</span><h3>Operational release and authority</h3><ul><li>Live acquisition, development persistence, unattended HTML reuse, and production writes or activation.</li><li>W1 adapters, dependency-injection wiring, and workflows; A1 attribution. Accepted E1 satisfies W1’s prerequisite, but releases neither milestone.</li><li>GitHub operational artifact/issue work, rollback delegation, restoration, and operational completion evidence.</li></ul></article>
+      </div>
+      <p>Both source flags stay <strong>false</strong>. This closeout changes no schedule, production topology, model, prompt, credential routing, prediction posting, or copy behavior. Production authority remains with the owner.</p>
+      <div class="callout warning"><strong>Operational evidence is still absent.</strong> Historical HTML and synthetic trusted-date fixtures prove specification/mechanics only. A real accepting-evidence recipe remains unsupported pending separate specification. Operational completion later requires owner-authorized real accepted evidence followed by a distinct no-change run, all eight receipts, independent heads, reconciled health/issues, and copy compatibility.</div>
+      <article class="panel"><span class="label">P1-05 / R1 deferral</span><h3>No sidecar means no acquisition</h3><p>Dcaribou remains the sole metadata authority. Until the exact ADR-0079 sidecar exists, the state is <code>MetadataUnavailable</code>: no probe, provider resolution, artifact request, observation, receipt, health/publication update, issue, or API action. Seed/LKG retains original dates and provenance; automatic freshness is unavailable.</p><p>Future R1 still owes acquisition/provider/consumer work, selection and roster diffs, stable-ID enrichment carry, canonical v3 reconstruction, source tests, enrichment automation, and valid takeover evidence. Existing v1/v2 are unchanged; there is no v3 relabel, migration, or backfill. C2 is reusable common evidence only. Rejected R1 <code>b4c9041b323cd55534194fa894b2f3975ac6526a</code> and rejected closeout <code>80b7c6c</code> remain unintegrated evidence.</p><p class="small">P1-05 is independent of Club Elo HTML. Its blocker is the authoritative sidecar and owner gates. <a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md">ADR-0082</a></p></article>
+    </section>
+    <section id="evidence" aria-labelledby="evidence-title">
+      <h2 id="evidence-title">Evidence tied to exact commits</h2>
+      <div class="grid">
+        <article class="card"><span class="label">C3 cumulative local validation</span><span class="count">2,120</span><p>Passed · Core 375 / Firebase 448 / Orchestrator 1,297<br><span class="small">Release build and cumulative validation at accepted C3.</span></p></article>
+        <article class="card"><span class="label">E1 cumulative local validation</span><span class="count">2,236</span><p>Passed · Core 390 / Firebase 448 / Orchestrator 1,398<br><span class="small">Zero failures or skips. Includes C3; do not add these totals together.</span></p></article>
+      </div>
+      <p>Fresh implementation reviews and cumulative validation accepted C3 and E1. The closeout records then received independent review: exact 12-path scope, clean diff, and 160 resolved local Markdown links, as summarized in PR #111. Local evidence counts describe the three listed suites; CI also ran the wider repository matrix.</p>
+      <div class="table-wrap"><table><caption>Recorded green workflow runs before this HTML artifact was added</caption><thead><tr><th scope="col">Milestone / immutable commit</th><th scope="col">CI evidence</th></tr></thead><tbody>
+        <tr><th scope="row">C3 accepted<a class="sha" href="https://github.com/ehonda/KicktippAi/commit/d882f75b5dcd86ec2886b1373a260af3f7ea3d54"><code>d882f75b5dcd86ec2886b1373a260af3f7ea3d54</code></a></th><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/34925365711">Run 34925365711</a> · Success for this exact head.</td></tr>
+        <tr><th scope="row">E1 accepted<a class="sha" href="https://github.com/ehonda/KicktippAi/commit/1d43ac397eaed4f82db016114630acdd874042c5"><code>1d43ac397eaed4f82db016114630acdd874042c5</code></a></th><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/34931605592">Run 34931605592</a> · Success for this exact head.</td></tr>
+        <tr><th scope="row">Dormant closeout baseline<a class="sha" href="https://github.com/ehonda/KicktippAi/commit/9f2817f038f713f36edbd10a902f473f03dfef66"><code>9f2817f038f713f36edbd10a902f473f03dfef66</code></a></th><td><a href="https://github.com/ehonda/KicktippAi/actions/runs/34932831030">Run 34932831030</a> · Success for this exact head: build, matrix definition, all eight test jobs, and coverage completed.</td></tr>
+      </tbody></table></div>
+      <p class="small">Pages deployment was conditionally skipped on these PR runs; the Pages bundle was built/uploaded by the coverage job. Deployment runs only on pushes to <code>main</code>. These historical successes do not claim CI success for the later commit adding this brief; review the current <a href="https://github.com/ehonda/KicktippAi/pull/111/checks">PR checks</a> before merging.</p>
+    </section>
+    <section class="panel" id="review" aria-labelledby="review-title">
+      <h2 id="review-title">Reviewer checklist and residual risks</h2>
+      <ul class="checklist">
+        <li><strong>Confirm the merge boundary.</strong> Both source flags remain false; no W1/A1 release or production routing change is hidden in the diff.</li>
+        <li><strong>Follow one candidate end to end.</strong> Check exact mapping and date evidence, immutable HTML payload identity, lane selection, guarded publication, and persisted receipt completion.</li>
+        <li><strong>Review the difficult retained-state cases.</strong> Lagging communities must not be suppressed by shared <code>NotNewer</code>; corrupt LKG must fail; replay must not manufacture a new publication or mutate history.</li>
+        <li><strong>Preserve schema-family compatibility.</strong> Historical fractional CSV evidence and strict integer HTML are intentionally different. Unknown/mixed publication shapes fail.</li>
+        <li><strong>Keep source drift visible.</strong> Strict HTML parsing can reject future upstream changes. Fixture coverage is not live-source acceptance; fallback retains truthful dates rather than claiming freshness.</li>
+        <li><strong>Keep roster deferral explicit.</strong> No authoritative sidecar, no R1 acceptance or automatic roster freshness. The rejected DuckDB/current-source evidence cannot take over from seed/LKG.</li>
+        <li><strong>Check the current head.</strong> Match required green checks to the commit being merged. The runs above establish the prior baseline only. Concurrent or contradictory publication state requires manual recovery under the accepted contract.</li>
+      </ul>
+    </section>
+    <section id="sources" class="sources" aria-labelledby="sources-title">
+      <h2 id="sources-title">Source map for a cold review</h2>
+      <p>Repository links below are pinned to <code>9f2817f038f713f36edbd10a902f473f03dfef66</code>, the reviewed closeout baseline. ADR-0081 preserves its original implementation-pending decision text; the later task records and ADR-0082 reconciliation supply current completion status.</p>
+      <div class="source-grid">
+        <div><h3>Scope and accepted decisions</h3><ul>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/tasks/p1-04-club-elo-refresh.md">P1-04 task: outcome and separate operational gates</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/tasks/p1-05-roster-refresh.md">P1-05 task: deferred R1 scope</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/p1-04-05-execution-packet.md">Execution packet: ownership and release order</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md">ADR-0074: cycle, handoff, receipts, provenance</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0077-refresh-club-elo-from-official-html.md">ADR-0077: HTML acquisition and parser</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md">ADR-0078: pre-artifact and publication fence</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md">ADR-0079: exact roster sidecar authority</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0080-bound-transitional-context-publication-recovery.md">ADR-0080: bounded transitional recovery</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0081-close-club-elo-html-publication-and-selection-seams.md">ADR-0081: C3/E1 selection and publication seams</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/plans/bundesliga-2026-27/decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md">ADR-0082: dormant roster closeout and R1 deferral</a></li>
+        </ul></div>
+        <div><h3>Implementation and proof entry points</h3><ul>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/src/Orchestrator/Commands/Operations/Dev/CompetitionCollectionProfile.cs">Competition profile: both source flags false</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/src/Core/BundesligaClubEloRefresh.cs">Core evaluation and frozen mapping</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloRefreshSource.cs">E1 acquisition and inert parser</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/src/Orchestrator/Commands/Operations/CollectContext/CollectContextClubEloCommand.cs">Guarded command consumption and completion</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/src/Orchestrator/Commands/Operations/CollectContext/ContextSourceCycleCoordinator.cs">C3 preparation, replay, and receipt coordinator</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/tests/Orchestrator.Tests/Commands/Operations/CollectContext/BundesligaClubEloRefreshSourceTests.cs">Source fixtures, hostile inputs, bounds, retries, and selection tests</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/tests/Core.Tests/BundesligaClubEloPublicationTests.cs">Publication family compatibility and reconstruction tests</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/tests/FirebaseAdapter.Tests/FirebaseDocumentPublicationRepositoryTests.cs">Firebase guarded publication and replay tests</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/9f2817f038f713f36edbd10a902f473f03dfef66/.github/workflows/build.yml">Build/test/coverage and main-only Pages workflow</a></li>
+        </ul></div>
+      </div>
+      <p class="small">Local cumulative evidence was reviewed from the orchestration run’s C3 validation, E1 reserved-retry report, and three CI summaries. Those scratch files are not published as public URLs. The accepted task records, PR, immutable commits, and workflow links above provide the durable review trail.</p>
+    </section>
+  </main>
+  <footer>Self-contained HTML · Inline CSS, no scripts, fonts, or remote assets · Evidence as of 15 September 2026 · <a href="https://github.com/ehonda/KicktippAi/pull/111">PR #111</a></footer>
+</div>
+</body>
+</html>

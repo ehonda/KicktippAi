@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AngleSharp" />
     <PackageReference Include="DotNetEnv" />
     <PackageReference Include="CsvHelper" />
     <PackageReference Include="DuckDB.NET.Data.Full" />

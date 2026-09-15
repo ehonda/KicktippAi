@@ -1,6 +1,6 @@
 # P1-04 / P1-05 execution packet
 
-- Status: Accepted C3 seam-correction re-freeze and P1-05 dormant closeout — 2026-09-09; rejected C3 implementation base `83b4c31b9cf6d2fa2dab87b5b9c7f92fe2a28197`, E1 blocked, P1-05 deferred
+- Status: Closed — P1-04 dormant implementation complete; P1-05 dormant closeout complete under ADR-0082 with R1 deferred; reconciled 2026-09-15
 - Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 - Scope: dormant P1-04/P1-05 only; no source is enabled
 
@@ -13,17 +13,29 @@
 3. S3 accepts ADR-0080's narrow replacement for transitional C1 inference.
    It releases no source and authorizes no implementation by itself.
 4. C2 is reusable common evidence only.
-5. ADR-0081 is published and exact-head green at
-   `f37c9e549e952004c5443f25aab363fda6e2811c`, workflow `34319614680`, all 12
-   jobs. C3's rejected implementation base is local unintegrated
-   `83b4c31b9cf6d2fa2dab87b5b9c7f92fe2a28197`; its only successor work is the
-   two path-disjoint correction slices below. E1's 17 exact paths
-   remain blocked until corrected C3 is accepted, published, and exact-head
-   green. R1 remains deferred under ADR-0082 pending the exact ADR-0079
-   dcaribou sidecar and separate owner gates. Only accepted E1 may release W1.
-   W1/A1 are outside this objective and not released; A1 later owns E1
-   attribution only, while roster attribution waits for a future accepted R1.
-   Exact-head CI closes future implementation milestones.
+5. C3 and E1 are accepted, pushed to draft PR #111, and exact-head CI green.
+   The dormant C3 → E1 implementation sequence is complete. R1 remains deferred
+   under ADR-0082 pending the exact ADR-0079 dcaribou sidecar and separate owner
+   gates. Accepted E1 satisfies W1's implementation prerequisite, but W1/A1
+   remain outside this objective and unreleased. Future A1 owns E1 attribution
+   only; roster attribution waits for a future accepted R1.
+
+C3 was accepted at `d882f75b5dcd86ec2886b1373a260af3f7ea3d54` and
+passed exact-head CI on [draft PR #111](https://github.com/ehonda/KicktippAi/pull/111).
+E1 was accepted and pushed to the same draft PR at
+`1d43ac397eaed4f82db016114630acdd874042c5`;
+[exact-head CI run 34931605592](https://github.com/ehonda/KicktippAi/actions/runs/34931605592)
+was green: 10 build/test/coverage checks passed, with the conditional Pages
+check skipped. Local cumulative E1 evidence was Core 390, Firebase 448, and
+Orchestrator 1,398: 2,236 passed, no failures or skips. C3's prior cumulative
+evidence was 2,120 passed.
+
+All source flags remain false. Live acquisition, unattended HTML reuse,
+development or production Firestore writes, and source activation remain
+separate owner gates. This closeout authorizes or completes no W1/A1 or other
+P1 work, and changes no schedule, topology, model, prompt, credential, posting,
+or copy behavior. Operational/live validation and activation require separate
+owner authorization and evidence.
 
 This preserves ADR-0074's seven-milestone upper bound; no two/three-writer or
 old-run push assumption applies. One heavy-operation family is serialized.
@@ -108,7 +120,11 @@ W1 owns only `src/Orchestrator/Commands/Operations/CollectContext/GitHubContextS
 `.github/scripts/Test-PredictionWorkflowContracts.ps1`, and
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextCollectionWorkflowContractTests.cs`.
 
-## Literal C3/E1 ownership
+## Historical completed C3/E1 ownership
+
+The following frozen correction and implementation scopes are retained for
+traceability. They authorize no new work; accepted C3/E1 results above
+supersede the rejected-base and blocked-E1 execution state.
 
 C3 correction slice A from `83b4c31` owns exactly:
 `src/Core/BundesligaContextSourceHealth.cs`;
@@ -148,8 +164,8 @@ The test-project edit makes only the six named fixtures deterministically
 available. E1 adds a direct AngleSharp reference to `Orchestrator.csproj`
 using the existing central 1.7.2 pin; no central-package edit or inferred
 dependency/fixture is authorized. R1 cannot edit shared descriptor/receipt/
-health/fence surfaces. E1 remains blocked until corrected C3 is accepted, published, and
-exact-head green. C3 serially reuses C2 paths.
+health/fence surfaces. E1's C3 acceptance/publication/CI prerequisite was
+satisfied before E1 implementation. C3 serially reused C2 paths.
 
 ## Verification and authority
 
@@ -177,7 +193,7 @@ API action. Dcaribou remains the sole metadata authority; seed/LKG retains
 truthful original dates/provenance and automatic freshness remains unavailable.
 Existing v1/v2 remain unchanged; no v3 relabel, migration, or backfill occurs.
 C3/E1 cover ADR-0081's HTML fixture/reconstruction/integer, receipt-completion
-and family-specific numeric contracts; R1 covers rejection and synthetic
+and family-specific numeric contracts; future R1 must cover rejection and synthetic
 takeover; disabled sources prove zero resolution/writes/API calls.
 All flags remain false. Separate owner gates cover live acquisition,
 development persistence, unattended HTML reuse, GitHub mutations, production
@@ -188,7 +204,7 @@ credentials, posting, and copy remain unchanged. The rejected R1
 `b4c9041b323cd55534194fa894b2f3975ac6526a` and rejected closeout `80b7c6c`
 remain unintegrated evidence only and confer no implementation credit.
 
-## C3 correction semantics, proof, and gate
+## Implemented C3 correction semantics and completed proof gate
 
 The literal HTML matrix is: `NetworkAccepted` + `NetworkCandidate` permits
 `Published`/`Unchanged`/`Reactivated`; retained
@@ -222,12 +238,12 @@ origins, mutation-free hostiles, replay, seed publish plus reactivation and
 rejection of seed `Unchanged`; typed wrong types at every envelope/nested level
 with correct hash/order reachability; Core and actual development/production
 load; preserved infrastructure exceptions; coordinator state matrix; and the
-earlier 18,432/all-eight-lane/CSV/v1-v2/path/round-trip proofs. Gate exact-diff
-docs review → publish → exact-head CI before correction writers; then independent
-slice reviews → serialized integration → fresh cumulative review → one heavy
-family → fresh final acceptance → publish → exact-head CI. Only then E1 may
-release. P1-05 remains dormant; flags/live authority are unchanged and no other
-P1 work starts.
+earlier 18,432/all-eight-lane/CSV/v1-v2/path/round-trip proofs. The documented
+correction review/integration, cumulative validation, final acceptance,
+publication and exact-head CI gate is complete; E1 then completed its own
+accepted dormant implementation and exact-head CI. P1-05's dormant closeout
+remains complete under ADR-0082, with R1 deferred. Flags/live authority are
+unchanged, and no W1/A1 or other P1 work is released.
 
 ## Closeout literal scope
 
