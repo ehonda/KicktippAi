@@ -351,8 +351,10 @@ A2 owns exactly `.github/workflows/buli2627-production-live-matchday.yml`,
 `tests/Orchestrator.Tests/Commands/Operations/CollectContext/ContextCollectionWorkflowContractTests.cs`, and
 `.github/scripts/Test-PredictionWorkflowContracts.ps1`, after V2 releases
 those three paths. C2 receives released S0 documents except ADR-0077/0081,
-released E2 source documentation, plus root `README.md` attribution, the two
-named review briefs and `plans/bundesliga-2026-27/evidence/p1-04-operational-activation.md`.
+released E2 source documentation, plus root `README.md` attribution,
+`experiment-analysis/review-briefs/bundesliga-2026-27/p1-04-operational-refresh.report.html`,
+`experiment-analysis/review-briefs/bundesliga-2026-27/pr-111-dormant-refresh.report.html`, and
+`plans/bundesliga-2026-27/evidence/p1-04-operational-activation.md`.
 S0's old-ADR ownership ends permanently; C2 cannot reopen accepted decision
 bodies. E2 and W2 are disjoint; V2 and A2 reuse only the stated serial paths.
 ### Six-milestone ownership and release matrix
