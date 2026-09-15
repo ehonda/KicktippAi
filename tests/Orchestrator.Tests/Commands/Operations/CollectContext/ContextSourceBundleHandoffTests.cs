@@ -10,7 +10,8 @@ public class ContextSourceBundleHandoffTests
     [Test]
     public async Task Development_html_handoff_round_trips_exact_bytes_and_rejects_crossed_paths()
     {
-        var files = HtmlFiles(development: true); var cycle = Outer(files) with { Status = BundesligaContextSourceCycleStatus.HandoffReady };
+        var files = HtmlFiles(development: true); var cycle = HandoffReady(Outer(files));
+        await Assert.That(cycle.ArtifactName).IsNull();
         var root = ContextSourceBundleHandoff.CreateDevelopmentDirectory(files.Bundle.Cycle); ContextSourceBundleHandoff.CleanupDevelopment(files.Bundle.Cycle);
         try
         {
@@ -301,7 +302,7 @@ public class ContextSourceBundleHandoffTests
 
     private static ContextSourceBundleFiles Files(bool development)
     {
-        var cycle = development ? BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000002") : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 2);
+        var cycle = development ? DevelopmentCycle() : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 2);
         var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero); var descriptor = "{\"contract\":\"club-elo-direct-csv-descriptor/v1\",\"sourceUrl\":\"https://example.test/elo.csv\",\"rawSha256\":null,\"rawByteLength\":null,\"csvHeader\":null,\"providerRatedAt\":null,\"providerDateEvidence\":null,\"nameMappingContract\":null,\"nameMappingSha256\":null,\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}";
         var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(cycle, BundesligaContextSource.ClubElo), now, BundesligaContextSourceDisposition.Rejected, descriptor, null, ["UNKNOWN_SOURCE_DATE"]);
         var bundle = new BundesligaContextSourceBundle(cycle, now, now, development ? BundesligaContextSourceContract.DevelopmentLane : "pes-squad-context", development ? BundesligaContextSourceContract.DevelopmentConsumers : BundesligaContextSourceContract.ProductionConsumers, [observation]);
@@ -309,7 +310,7 @@ public class ContextSourceBundleHandoffTests
     }
     private static ContextSourceBundleFiles HtmlFiles(bool development)
     {
-        var cycle = development ? BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000003") : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 3);
+        var cycle = development ? DevelopmentCycle() : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 3);
         var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero); var bytes = System.Text.Encoding.UTF8.GetBytes("<html>Club Elo</html>");
         var mapping = new[]
         {
@@ -337,7 +338,7 @@ public class ContextSourceBundleHandoffTests
     }
     private static ContextSourceBundleFiles CsvFiles(bool development)
     {
-        var cycle = development ? BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000005") : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 5);
+        var cycle = development ? DevelopmentCycle() : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 5);
         var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero); var bytes = System.Text.Encoding.UTF8.GetBytes("csv");
         var rows = BundesligaTeamManifest.Default.Entries.Select((entry, index) => new { teamSlug = entry.TeamSlug, providerName = $"Team {index + 1:00}", globalRank = index + 1, elo = 1500 + index }).ToArray();
         var descriptor = JsonSerializer.Serialize(new { contract = "club-elo-direct-csv-descriptor/v1", sourceUrl = "https://example.test/elo.csv", rawSha256 = BundesligaContextSourceHashing.Sha256(bytes), rawByteLength = (long)bytes.Length, csvHeader = "Rank,Club,Country,Level,Elo,From,To", providerRatedAt = "2026-09-04", providerDateEvidence = new { kind = "ProviderCsvField", recipeId = "recipe/v1", field = "From", rawValue = "2026-09-04", ratedAt = "2026-09-04" }, nameMappingContract = "map/v1", nameMappingSha256 = new string('a', 64), sourceRows = rows, evaluation = "Eligible" });
@@ -348,7 +349,7 @@ public class ContextSourceBundleHandoffTests
     }
     private static ContextSourceBundleFiles RosterFiles(bool development)
     {
-        var cycle = development ? BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, "0198f865-1467-7000-8000-000000000006") : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 6);
+        var cycle = development ? DevelopmentCycle() : BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 6);
         var now = new DateTimeOffset(2026, 9, 6, 12, 0, 0, TimeSpan.Zero);
         var descriptor = $"{{\"contract\":\"transfermarkt-duckdb-observation-descriptor/v1\",\"metadataUrl\":\"{BundesligaContextSourceDescriptorContract.RosterMetadataUrl}\",\"artifactUrl\":\"{BundesligaContextSourceDescriptorContract.RosterArtifactUrl}\",\"advertisedRevision\":\"{new string('a', 40)}\",\"metadataSha256\":\"{new string('b', 64)}\",\"metadataByteLength\":1,\"remoteIdentityBefore\":{{\"etag\":\"x\",\"byteLength\":1}},\"acquisitionReason\":\"NewRevision\",\"remoteIdentityAfter\":{{\"etag\":\"x\",\"byteLength\":1}},\"embeddedRevision\":\"{new string('a', 40)}\",\"rawSha256\":\"{new string('c', 64)}\",\"expectedRawSha256\":null,\"rawByteLength\":1,\"artifactCaptureDate\":null,\"membershipEffectiveDate\":null,\"enrichmentCaptureDate\":null,\"policySha256\":\"{BundesligaContextSourceDescriptorContract.RosterPolicySha256}\",\"retainedDescriptorSha256\":null,\"retainedEvaluation\":null,\"retainedDiagnostics\":[],\"evaluation\":\"SourceDateRejected\"}}";
         var observation = new BundesligaContextSourceObservation(BundesligaContextSource.Rosters, BundesligaContextSourceHashing.AttemptId(cycle, BundesligaContextSource.Rosters), now, BundesligaContextSourceDisposition.Rejected, descriptor, null, ["UNKNOWN_SOURCE_DATE"]);
@@ -357,7 +358,15 @@ public class ContextSourceBundleHandoffTests
     }
     private static ContextSourceArtifactEntry[] Entries(ContextSourceBundleFiles files) => new ContextSourceArtifactEntry[] { new("manifest.json", files.Bundle.CreateManifestUtf8()), new("bundle.sha256", System.Text.Encoding.ASCII.GetBytes(files.Digest + "\n")) }.Concat(files.Payloads.Select(pair => new ContextSourceArtifactEntry(pair.Key, pair.Value))).ToArray();
     private static BundesligaContextSourceOuterCycle Outer(ContextSourceBundleFiles files) => new(files.Bundle.Cycle, files.Bundle.StartedAtUtc, files.Bundle.StalenessReferenceAtUtc, files.Bundle.ProducerLaneId, files.Bundle.ExpectedConsumers, files.Bundle.Observations.Select(value => value.Source).ToArray(), BundesligaContextSourceCycleStatus.BundleVerified, files.Digest);
-    private static BundesligaContextSourceOuterCycle HandoffReady(BundesligaContextSourceOuterCycle cycle) => cycle with { Status = BundesligaContextSourceCycleStatus.HandoffReady, ArtifactName = $"bundesliga-context-source-bundle-{cycle.Identity.StorageId}" };
+    private static BundesligaContextSourceCycleIdentity DevelopmentCycle()
+        => BundesligaContextSourceCycleIdentity.Development(BundesligaContextSourceContract.Competition, Guid.CreateVersion7().ToString());
+    private static BundesligaContextSourceOuterCycle HandoffReady(BundesligaContextSourceOuterCycle cycle) => cycle with
+    {
+        Status = BundesligaContextSourceCycleStatus.HandoffReady,
+        ArtifactName = cycle.Identity.Scope == BundesligaContextSourceScope.ProductionLive
+            ? $"bundesliga-context-source-bundle-{cycle.Identity.StorageId}"
+            : null
+    };
     private static ContextSourceArtifactEntry[] ReplaceManifest(IEnumerable<ContextSourceArtifactEntry> entries, byte[] manifest) => entries.Select(entry => entry.Path == "manifest.json" ? entry with { Bytes = manifest } : entry).ToArray();
     private sealed record TypedManifestHostile(
         string Name,
