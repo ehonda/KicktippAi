@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-09
 - Supersedes: None
+- Implementation status reconciled: 2026-09-15; the accepted roster-deferral decision is unchanged
 
 ## Context
 
@@ -33,17 +34,31 @@ v3/reconstruction, source tests, enrichment automation, and valid takeover
 remain deferred. Existing v1/v2 remain unchanged; no v3 relabel, migration, or
 backfill occurs. No provider adoption, source activation, persistence,
 unattended HTML reuse, GitHub/R2 mutation, production write/activation,
-rollback delegation, restoration, or completion evidence is authorized.
+rollback delegation, restoration, or operational completion evidence is authorized.
 
-P1-04 remains incomplete: ADR-0081 is published and exact-head green at
-`f37c9e549e952004c5443f25aab363fda6e2811c`, workflow `34319614680`, all 12
-jobs. C3 is correction-limited at local unintegrated
-`d9a328e551c0473b3eeb6e704b70cdfa47a8d5d8`, under fresh bounded
-diagnosis/reslicing and subsequent correction/review. E1 remains blocked until
-corrected C3 is accepted, published, and exact-head green. Only accepted E1 may
-release W1. W1 and A1 are outside this objective and not released; A1 later
-owns E1 attribution only, while roster attribution waits for a future accepted
-R1.
+P1-04 dormant implementation is complete as of 2026-09-15.
+
+C3 was accepted at `d882f75b5dcd86ec2886b1373a260af3f7ea3d54` and
+passed exact-head CI on [draft PR #111](https://github.com/ehonda/KicktippAi/pull/111).
+E1 was accepted and pushed to the same draft PR at
+`1d43ac397eaed4f82db016114630acdd874042c5`;
+[exact-head CI run 34931605592](https://github.com/ehonda/KicktippAi/actions/runs/34931605592)
+was green: 10 build/test/coverage checks passed, with the conditional Pages
+check skipped. Local cumulative E1 evidence was Core 390, Firebase 448, and
+Orchestrator 1,398: 2,236 passed, no failures or skips. C3's prior cumulative
+evidence was 2,120 passed.
+
+Accepted E1 satisfies W1's implementation prerequisite. W1/A1 remain outside
+this objective and unreleased; future A1 owns E1 attribution only, while roster
+attribution waits for future accepted R1. This is implementation-status
+reconciliation, with the accepted P1-05 deferral decision unchanged.
+
+All source flags remain false. Live acquisition, unattended HTML reuse,
+development or production Firestore writes, and source activation remain
+separate owner gates. This closeout authorizes or completes no W1/A1 or other
+P1 work, and changes no schedule, topology, model, prompt, credential, posting,
+or copy behavior. Operational/live validation and activation require separate
+owner authorization and evidence.
 
 ## Alternatives considered
 

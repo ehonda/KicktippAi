@@ -86,5 +86,31 @@ remain authoritative.
 | [0078](0078-refine-context-source-pre-artifact-and-publication-fence.md) | Context-source pre-artifact and publication fence | Accepted |
 | [0079](0079-pin-roster-refresh-endpoints-and-close-c2-validation.md) | Pinned roster endpoints and C2 validation closure | Accepted |
 | [0080](0080-bound-transitional-context-publication-recovery.md) | Bound transitional context-publication recovery | Accepted; narrowly supersedes ADR-0078's transitional inference paragraph |
-| [0081](0081-close-club-elo-html-publication-and-selection-seams.md) | Close Club Elo HTML publication and selection seams | Accepted; supersedes the specified ADR-0077 C3/E1 seams |
-| [0082](0082-close-dormant-roster-refresh-scope-with-r1-deferred.md) | Close the dormant roster-refresh scope with R1 deferred | Accepted |
+| [0081](0081-close-club-elo-html-publication-and-selection-seams.md) | Close Club Elo HTML publication and selection seams | Accepted; dormant C3/E1 implementation complete; supersedes the specified ADR-0077 C3/E1 seams |
+| [0082](0082-close-dormant-roster-refresh-scope-with-r1-deferred.md) | Close the dormant roster-refresh scope with R1 deferred | Accepted; dormant closeout complete, R1 deferred |
+
+## P1-04/P1-05 implementation status — 2026-09-15
+
+[P1-04](../tasks/p1-04-club-elo-refresh.md) dormant implementation is complete;
+[P1-05](../tasks/p1-05-roster-refresh.md) dormant closeout remains complete under
+ADR-0082, with R1 deferred pending the exact ADR-0079 sidecar and owner gates.
+The task records and [status snapshot](../p1-status-snapshot.md) hold current
+implementation results; historical implementation-status wording in ADR-0081
+does not describe the accepted C3/E1 tip.
+
+C3 was accepted at `d882f75b5dcd86ec2886b1373a260af3f7ea3d54` and
+passed exact-head CI on [draft PR #111](https://github.com/ehonda/KicktippAi/pull/111).
+E1 was accepted and pushed to the same draft PR at
+`1d43ac397eaed4f82db016114630acdd874042c5`;
+[exact-head CI run 34931605592](https://github.com/ehonda/KicktippAi/actions/runs/34931605592)
+was green: 10 build/test/coverage checks passed, with the conditional Pages
+check skipped. Local cumulative E1 evidence was Core 390, Firebase 448, and
+Orchestrator 1,398: 2,236 passed, no failures or skips. C3's prior cumulative
+evidence was 2,120 passed.
+
+All source flags remain false. Live acquisition, unattended HTML reuse,
+development or production Firestore writes, and source activation remain
+separate owner gates. This closeout authorizes or completes no W1/A1 or other
+P1 work, and changes no schedule, topology, model, prompt, credential, posting,
+or copy behavior. Operational/live validation and activation require separate
+owner authorization and evidence.

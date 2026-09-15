@@ -1,6 +1,7 @@
 # P1-04 / P1-05 context-refresh design
 
-- Status: Accepted P1-04 successor contracts; P1-05 dormant closeout with R1 deferred
+- Status: Accepted contracts; P1-04 dormant implementation complete; P1-05 dormant closeout complete with R1 deferred
+- Last reconciled: 2026-09-15
 - Authority: ADR-0074, [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](../decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](../decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 
 ## Seam and graph
@@ -8,16 +9,31 @@
 One immutable enabled-source observation is reused by eight lanes inside an
 existing context cycle; community heads remain independent and atomic. Disabled
 sources resolve no services and do no source-cycle, artifact, persistence, issue
-or API work. C2 is reusable common evidence. ADR-0081 is published/green at
-`f37c9e549e952004c5443f25aab363fda6e2811c` with workflow `34319614680` and
-all 12 jobs green. The rejected C3 implementation base is local unintegrated
-`83b4c31b9cf6d2fa2dab87b5b9c7f92fe2a28197`; this accepted re-freeze is a
-bounded seam specification only, not implementation credit. E1 remains blocked until
-corrected C3 is accepted, published, and exact-head green. R1 is deferred under
-ADR-0082 until the exact ADR-0079 sidecar and separate owner gates exist. Only
-accepted E1 may release W1; A1 later links E1 attribution only, while roster
-attribution waits for future accepted R1. W1/A1 do not start here. This
-preserves the seven-milestone upper bound.
+or API work. C2 remains reusable common evidence. P1-04 dormant implementation
+is complete.
+
+C3 was accepted at `d882f75b5dcd86ec2886b1373a260af3f7ea3d54` and
+passed exact-head CI on [draft PR #111](https://github.com/ehonda/KicktippAi/pull/111).
+E1 was accepted and pushed to the same draft PR at
+`1d43ac397eaed4f82db016114630acdd874042c5`;
+[exact-head CI run 34931605592](https://github.com/ehonda/KicktippAi/actions/runs/34931605592)
+was green: 10 build/test/coverage checks passed, with the conditional Pages
+check skipped. Local cumulative E1 evidence was Core 390, Firebase 448, and
+Orchestrator 1,398: 2,236 passed, no failures or skips. C3's prior cumulative
+evidence was 2,120 passed.
+
+R1 remains deferred under ADR-0082 until the exact ADR-0079 sidecar and
+separate owner gates exist. Accepted E1 satisfies W1's implementation
+prerequisite, but W1/A1 remain outside this objective and unreleased. Future A1
+owns E1 attribution only; roster attribution waits for future accepted R1.
+The seven-milestone upper bound remains unchanged.
+
+All source flags remain false. Live acquisition, unattended HTML reuse,
+development or production Firestore writes, and source activation remain
+separate owner gates. This closeout authorizes or completes no W1/A1 or other
+P1 work, and changes no schedule, topology, model, prompt, credential, posting,
+or copy behavior. Operational/live validation and activation require separate
+owner authorization and evidence.
 
 ## Source contracts
 
@@ -50,7 +66,7 @@ expected equals a different current head. Prior selection is verified against
 the prior completed cycle's observation, receipt, and
 `stalenessReferenceAtUtc`; current freshness is calculated separately.
 
-## C3 seam-correction contract
+## Implemented C3 seam-correction contract
 
 The literal HTML matrix is: `NetworkAccepted` + `NetworkCandidate` permits
 `Published`/`Unchanged`/`Reactivated`; retained
@@ -90,8 +106,8 @@ transition, and prior/current staleness matrix. R1's future test surface
 also proves hostile sidecars/URLs, null/type/range/canonical/date defects, and
 mixed-generation rejection. C3/E1 prove ADR-0081's literal HTML fixtures,
 reconstruction/integer, receipt-completion and family-specific numeric cases;
-R1 proves rejection and synthetic takeover. Use incremental then
-fresh final review, one heavy family, exact-head CI. Flags remain false. The
+future R1 must prove rejection and synthetic takeover. C3/E1 completed reviews,
+a serialized heavy family and exact-head CI. Flags remain false. The
 owner separately controls live acquisition, development persistence, unattended
 HTML reuse, GitHub artifacts/issues, production activation/writes, rollback,
 restoration and completion evidence. Synthetic trusted-date fixtures prove
