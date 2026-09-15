@@ -145,8 +145,8 @@
       <div class="stat"><b>5h 27m</b><span>elapsed inside wait calls</span></div>
       <div class="stat"><b>$15.79</b><span>pure-wait response API equivalent</span></div>
     </div>
-    <p>Pure wait responses carried 35,165,396 tokens, 39.1% of root tokens. The 55-second cadence produced 144 no-change timeouts in 194 calls. By contrast, 25 of 41 waits requested at 300 or 600 seconds returned early on events. Event-driven long waits preserved responsiveness while materially lowering poll frequency.</p>
-    <p><strong>Recommendation:</strong> default active-agent waits to 300–600 seconds and rely on event-driven early return or owner steering. Use short waits only for a documented near-term deadline.</p>
+    <p>Pure wait responses carried 35,165,396 tokens, 39.1% of root tokens. The 55-second cadence produced 144 no-change timeouts in 194 calls. Although 25 of 41 waits requested at 300 or 600 seconds returned early on events, the active runtime instructed the root to avoid blocking waits longer than 60 seconds and user-silence intervals longer than 60 seconds. The repository's five-/ten-minute wait policy therefore conflicted with higher-priority runtime guidance; the observed 55-second default was compliance with that guidance, not failure to adopt the redesign.</p>
+    <p><strong>Recommendation:</strong> keep root waits within the runtime's 60-second boundary unless that higher-priority contract changes. Reduce repeated root turns through a platform-supported persistent or recurring monitor that can wait without resampling the root, rather than by requesting longer <code>wait_agent</code> timeouts.</p>
   </section>
 
   <section class="panel" id="compaction">
@@ -173,7 +173,7 @@
       <li><strong>Disk semantics:</strong> add an absolute 20 GiB advisory threshold; keep the 14 GiB hard admission floor distinct. Make snapshot output label <em>warning</em> and <em>admission</em> separately so narrative cannot imply false causality.</li>
       <li><strong>Docker readiness:</strong> run a short read-only availability probe during initialization and record advisory status in the preview/capsule. Recheck as a hard prerequisite only before a Docker-dependent gate.</li>
       <li><strong>C3 acceptance order:</strong> require the failure-producing cumulative suites before granting fresh implementation clearance when a writer has changed shared fixtures or seam contracts. Keep final acceptance independent; its two late findings were valuable.</li>
-      <li><strong>Wait policy:</strong> move the default from 55 seconds to 300–600 seconds. The observed long waits already returned early on 25 of 41 calls.</li>
+      <li><strong>Wait-policy conflict:</strong> the repository specifies five-/ten-minute event waits, but the active runtime requires waits and user-silence intervals to remain within 60 seconds. The observed 55-second cadence followed the higher-priority constraint but caused costly repeated root turns. Resolve this through a persistent or recurring monitoring mechanism; do not treat longer <code>wait_agent</code> timeouts as an actionable repository-level fix.</li>
       <li><strong>Material goal changes:</strong> when an active orchestration goal changes from dormant closeout to live activation, immediately freeze a new architecture/preview boundary and delegate; do not spend a root-only exploration interval first.</li>
     </ol>
   </section>
