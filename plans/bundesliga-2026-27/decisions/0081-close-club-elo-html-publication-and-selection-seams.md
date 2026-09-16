@@ -4,6 +4,23 @@
 - Implementation: Pending; this decision does not enable a source
 - Date: 2026-09-09
 
+> **Successor-link metadata — ADR-0083.** This ADR remains Accepted.
+> [ADR-0083](0083-activate-official-club-elo-context-refresh.md) refines
+> `HTML descriptor and evaluation` only to admit exact paired `(v1,v1)` and
+> `(v2,v2)` parser/table identities while keeping all required/null/type/
+> evaluation rules; supersedes its completed C3/E1 literal-path/release
+> boundaries with the six new milestone ownership/release contracts; and
+> replaces the dormant-only Club Elo portions of `Scope, ownership, and
+> invariants` and `Continuity and authority` with the explicitly bounded live,
+> handoff, persistence, activation and flag-off rollback authority and evidence
+> gates. Shared selection, health/receipt completion, publication
+> reconstruction, guard/fence/order/recovery invariants and all non-Club-Elo
+> exclusions remain operative. Historical W1 ownership maps to W2 transport
+> plus V2 wiring without granting either lane the other's paths. Neither
+> successor changes schema/journal, R1/roster deferral, production
+> topology/models/prompts/credential/posting/copy contracts or future incident
+> recovery authority.
+
 ## Context
 
 ADR-0077 selected the official Club Elo HTML and froze the detailed acquisition,

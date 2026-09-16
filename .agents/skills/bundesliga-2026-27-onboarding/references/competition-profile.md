@@ -1,5 +1,38 @@
 # Bundesliga 2026/27 Competition Profile
 
+## Current activation state — 2026-09-16
+
+The current plan is [P1-04 operational activation](../../../../plans/bundesliga-2026-27/tasks/p1-04-club-elo-refresh.md)
+under [ADR-0083](../../../../plans/bundesliga-2026-27/decisions/0083-activate-official-club-elo-context-refresh.md).
+Merged PR #111 is prior dormant C3/E1 implementation evidence, not operational
+completion. S0 is accepted; E2 parser-v2, W2 transport, V2 wiring, source-only
+live validation and A2 scheduled enablement are not implemented or evidenced.
+
+Use only the explicit Club Elo source-only route for validation. It reuses
+normal preparation/selection/publication/receipt behavior while resolving no
+Kicktipp, history, roster, model, OpenAI or Langfuse service. The production
+target is eight ordered receipts across four physical heads: pes-squad,
+schadensfresse, relaxdays-tippt and a shared arena context for five arena
+receipts. Normal source flags stay false until A2 after real evidence. The
+owner-authorized scope covers bounded Club Elo reads/context writes, GitHub
+handoff/issues, existing-schedule source activation after proof, Pages and a
+ready PR merge. It excludes models, prediction/posting, roster work, new
+schedules, credential changes and unrelated P1 work.
+
+P1-05/R1 remains ADR-0082 dormant/deferred and `MetadataUnavailable`. Do not
+probe a sidecar/artifact, resolve or adopt a provider, or create roster source
+observations, receipts, health, publications, issues or API effects. Its exact
+ADR-0079 sidecar and separate future owner gates remain required. No disk
+restriction applies at or above 20 GiB effective free space.
+
+## Historical dormant profile record
+
+The remainder of this profile retains prior dormant C3/E1 and P1-05 scope
+details for reconstruction. It is not the current activation status; ADR-0083,
+the current plan index and active task control where they differ.
+
+# Historical Bundesliga 2026/27 Competition Profile
+
 Use this profile only for `bundesliga-2026-27`. Follow the [current plan index](../../../../plans/bundesliga-2026-27/README.md), then read only the active task/design and operative ADRs it names for the assigned change. Read completed P0 tasks, historical activation evidence, and the broader [execution strategy](../../../../plans/bundesliga-2026-27/execution-strategy.md) only when the current contract or a cold reconstruction explicitly requires them. Runtime source: `CompetitionCollectionProfileResolver`.
 
 ## Dormant refresh status — 2026-09-15
