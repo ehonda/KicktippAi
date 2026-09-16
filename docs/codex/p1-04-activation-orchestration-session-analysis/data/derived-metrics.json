@@ -1,0 +1,736 @@
+{
+  "compactions": {
+    "broad_rediscoveries": 1,
+    "compact_snapshot_recoveries": 2,
+    "count": 4,
+    "events": [
+      {
+        "compacted_at": "2026-09-15T02:05:39.712Z",
+        "first_tool_call_at": "2026-09-15T02:05:50.073Z",
+        "post_compaction_context_tokens": 17672,
+        "pre_compaction_input_tokens": 208256,
+        "recovery_shape": "compact-recovery-snapshot",
+        "seconds_to_first_tool_call": 10.361,
+        "seconds_to_first_tool_result": 13.06
+      },
+      {
+        "compacted_at": "2026-09-15T05:25:13.487Z",
+        "first_tool_call_at": "2026-09-15T05:25:29.292Z",
+        "post_compaction_context_tokens": 18160,
+        "pre_compaction_input_tokens": 196091,
+        "recovery_shape": "compact-recovery-snapshot",
+        "seconds_to_first_tool_call": 15.805,
+        "seconds_to_first_tool_result": 18.558
+      },
+      {
+        "compacted_at": "2026-09-15T21:56:06.052Z",
+        "first_tool_call_at": "2026-09-15T21:56:23.018Z",
+        "post_compaction_context_tokens": 17092,
+        "pre_compaction_input_tokens": 213369,
+        "recovery_shape": "task-specific-broad-read",
+        "seconds_to_first_tool_call": 16.966,
+        "seconds_to_first_tool_result": 28.726
+      },
+      {
+        "compacted_at": "2026-09-15T22:20:57.154Z",
+        "first_tool_call_at": "2026-09-15T22:21:12.220Z",
+        "post_compaction_context_tokens": 19205,
+        "pre_compaction_input_tokens": 246733,
+        "recovery_shape": "broad-orchestration-rediscovery",
+        "seconds_to_first_tool_call": 15.066,
+        "seconds_to_first_tool_result": 30.823
+      }
+    ],
+    "median_seconds_to_first_tool_call": 15.436
+  },
+  "coordination_outcomes": {
+    "counts": {
+      "accepted": 11,
+      "audited": 1,
+      "delivered": 14,
+      "diagnosed": 2,
+      "failed": 2,
+      "passed": 7,
+      "rejected": 8
+    },
+    "turns": [
+      {
+        "agent_path": "/root/p1_preview_audit",
+        "final_ordinal": 0,
+        "outcome_class": "audited",
+        "result_sha256": "df6ebc1ac493e2aa8e39ba369f8f41bf8fcca1a7bde759b074ffb33b1f94d8ba",
+        "timestamp": "2026-09-14T22:55:10.540Z"
+      },
+      {
+        "agent_path": "/root/c3_writer",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "d92e3a45afa98cf842809d83ecd2b56dbff82db2ab9bfb66534b6ce50384fa5e",
+        "timestamp": "2026-09-14T23:07:29.419Z"
+      },
+      {
+        "agent_path": "/root/c3_implementation_review",
+        "final_ordinal": 0,
+        "outcome_class": "rejected",
+        "result_sha256": "5c26715616b438ae3e39acbe2801ae4d2ded9825c30f9f51d0beb1351b21d305",
+        "timestamp": "2026-09-14T23:27:33.396Z"
+      },
+      {
+        "agent_path": "/root/c3_review_diagnosis",
+        "final_ordinal": 0,
+        "outcome_class": "diagnosed",
+        "result_sha256": "2a591be714fc4865b2f6e1037f6c80a0be7ae6f1329bd99933c769625dd56567",
+        "timestamp": "2026-09-14T23:33:55.939Z"
+      },
+      {
+        "agent_path": "/root/c3_writer",
+        "final_ordinal": 1,
+        "outcome_class": "delivered",
+        "result_sha256": "a202f64fcc8fae874e2b7b5f0ffec767c6c56f1cc5accdaece3992ca0d17d3e3",
+        "timestamp": "2026-09-14T23:44:26.897Z"
+      },
+      {
+        "agent_path": "/root/c3_implementation_review",
+        "final_ordinal": 1,
+        "outcome_class": "rejected",
+        "result_sha256": "58c487e9871541331d9b20c804659e900e07afb79d868fc3c0fdae41cf8679da",
+        "timestamp": "2026-09-14T23:55:02.584Z"
+      },
+      {
+        "agent_path": "/root/c3_writer",
+        "final_ordinal": 2,
+        "outcome_class": "delivered",
+        "result_sha256": "cb4e74d74a11dbeb8f82525b4e8d6461c953350ddc48933bec2184ccb3100972",
+        "timestamp": "2026-09-15T00:01:44.176Z"
+      },
+      {
+        "agent_path": "/root/c3_implementation_review",
+        "final_ordinal": 2,
+        "outcome_class": "rejected",
+        "result_sha256": "963dae87a3ab3ebb7923c91f3a16a49fe698dea7100705f3738f718cc1e3c224",
+        "timestamp": "2026-09-15T00:06:43.391Z"
+      },
+      {
+        "agent_path": "/root/c3_writer",
+        "final_ordinal": 3,
+        "outcome_class": "delivered",
+        "result_sha256": "9c6a18d0f30fb50ae4e877c39572c97996af6fc7eb872dc740531f568938386d",
+        "timestamp": "2026-09-15T00:12:29.448Z"
+      },
+      {
+        "agent_path": "/root/c3_implementation_review_fresh",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "1f3119c99cfce96e2145b9208f62f9277702e0755bb469cd1b795269a2a17612",
+        "timestamp": "2026-09-15T00:31:16.641Z"
+      },
+      {
+        "agent_path": "/root/c3_cumulative_validation",
+        "final_ordinal": 0,
+        "outcome_class": "failed",
+        "result_sha256": "8682e01c287d030dbd0c7fe6d9eb62f457d0e30b7eb1f4cca5f0ac0aae79049f",
+        "timestamp": "2026-09-15T00:44:36.546Z"
+      },
+      {
+        "agent_path": "/root/c3_cumulative_failure_diagnosis",
+        "final_ordinal": 0,
+        "outcome_class": "diagnosed",
+        "result_sha256": "8fa989a5d8ecf452cebbf8ce2929a22708633447acec02e4b72787f9d359374a",
+        "timestamp": "2026-09-15T00:57:41.667Z"
+      },
+      {
+        "agent_path": "/root/c3_reslice_spec_review",
+        "final_ordinal": 0,
+        "outcome_class": "rejected",
+        "result_sha256": "3f222d5bc7ea8d7ef70635602404e74c921d5c95bd521e902ee388e44821c035",
+        "timestamp": "2026-09-15T01:07:30.201Z"
+      },
+      {
+        "agent_path": "/root/c3_reslice_spec_review_v2",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "74e9d73a54cee046c336deb7918aca97827665821cf4f121fee286b8df925721",
+        "timestamp": "2026-09-15T01:15:06.765Z"
+      },
+      {
+        "agent_path": "/root/c3_firebase_writer",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "a9ddd95aa5c2304168652d2fc9208c145de95aea1c942210fb3d03862dea475a",
+        "timestamp": "2026-09-15T01:22:14.586Z"
+      },
+      {
+        "agent_path": "/root/c3_firebase_review",
+        "final_ordinal": 0,
+        "outcome_class": "rejected",
+        "result_sha256": "b7416879a5dd545dc8557f6b15be03f208c7a701a581e41cde900beebbda8f3e",
+        "timestamp": "2026-09-15T01:30:04.394Z"
+      },
+      {
+        "agent_path": "/root/c3_firebase_writer",
+        "final_ordinal": 1,
+        "outcome_class": "delivered",
+        "result_sha256": "321e4019b6e02211a5530d39d28531b2a2242e62c096dc3dec9f1335a43d4134",
+        "timestamp": "2026-09-15T01:34:02.924Z"
+      },
+      {
+        "agent_path": "/root/c3_firebase_review",
+        "final_ordinal": 1,
+        "outcome_class": "accepted",
+        "result_sha256": "e56bd317ff80f84d73e793b51ddfd68187305cdc443b5f6a8b3d76ab990669f9",
+        "timestamp": "2026-09-15T01:37:05.085Z"
+      },
+      {
+        "agent_path": "/root/c3_coordinator_writer",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "18b2f1450709f7d0283f61673245de9b6b17b19b69e63dfba0a313339649c037",
+        "timestamp": "2026-09-15T01:41:08.076Z"
+      },
+      {
+        "agent_path": "/root/c3_coordinator_review",
+        "final_ordinal": 0,
+        "outcome_class": "rejected",
+        "result_sha256": "b9298d5c51c6474c3a1f15b73147acd3667e8cfa8c7a50cfc0d9b5c189893922",
+        "timestamp": "2026-09-15T01:46:03.206Z"
+      },
+      {
+        "agent_path": "/root/c3_coordinator_writer",
+        "final_ordinal": 1,
+        "outcome_class": "delivered",
+        "result_sha256": "531f9d4e06d8f4fb081d5aa1ec63c4c1db4bf9a483abcaf1e2f32768def8880a",
+        "timestamp": "2026-09-15T01:48:54.256Z"
+      },
+      {
+        "agent_path": "/root/c3_coordinator_review",
+        "final_ordinal": 1,
+        "outcome_class": "accepted",
+        "result_sha256": "c5936a5fe7fc7676d9d3b10c472aac532b5eb9bb380309471b55464a268c9630",
+        "timestamp": "2026-09-15T01:50:50.247Z"
+      },
+      {
+        "agent_path": "/root/c3_handoff_writer",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "a884139d7694cce2e4f71c4932b9ebf45f612bdb78069472481e4f007c934305",
+        "timestamp": "2026-09-15T02:00:11.396Z"
+      },
+      {
+        "agent_path": "/root/c3_handoff_review",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "cb3c3c2ff9dc24cd0f93c6edb100bba5a3614e4ed5dadb15108401fe41b731f8",
+        "timestamp": "2026-09-15T02:03:24.762Z"
+      },
+      {
+        "agent_path": "/root/c3_cumulative_validation_v2",
+        "final_ordinal": 0,
+        "outcome_class": "passed",
+        "result_sha256": "95a7e7d84db30a0c94428e84f731f6d319f906f3eb596ceeb2f08f8a2e616716",
+        "timestamp": "2026-09-15T02:17:11.590Z"
+      },
+      {
+        "agent_path": "/root/c3_final_acceptance",
+        "final_ordinal": 0,
+        "outcome_class": "rejected",
+        "result_sha256": "d15acfce3091ce8b948d3ab958d61b86cbf79a08947eae6dc4ff55e6c44cd208",
+        "timestamp": "2026-09-15T02:24:23.537Z"
+      },
+      {
+        "agent_path": "/root/c3_coordinator_writer",
+        "final_ordinal": 2,
+        "outcome_class": "delivered",
+        "result_sha256": "d19ed43c890bb87675c6cd12b90c9f94af4c3e03efbd90156ef52e59cffa5513",
+        "timestamp": "2026-09-15T02:33:13.917Z"
+      },
+      {
+        "agent_path": "/root/c3_coordinator_review",
+        "final_ordinal": 2,
+        "outcome_class": "accepted",
+        "result_sha256": "bc33cf28ca0c23bffbac325dd2a12939fec3e4d9553f9ca280e8d8dd2290770b",
+        "timestamp": "2026-09-15T02:37:50.340Z"
+      },
+      {
+        "agent_path": "/root/c3_cumulative_validation_v3",
+        "final_ordinal": 0,
+        "outcome_class": "passed",
+        "result_sha256": "132505910150efedebafabcd409916782dddc8d844447d90cd1b1a314717d26d",
+        "timestamp": "2026-09-15T02:51:11.030Z"
+      },
+      {
+        "agent_path": "/root/c3_final_acceptance_v2",
+        "final_ordinal": 0,
+        "outcome_class": "rejected",
+        "result_sha256": "418ef7366f513fab9c8491b7851d20d15096f80ec65c1a25e69995defceda08a",
+        "timestamp": "2026-09-15T02:59:22.614Z"
+      },
+      {
+        "agent_path": "/root/c3_firebase_writer",
+        "final_ordinal": 2,
+        "outcome_class": "delivered",
+        "result_sha256": "0b3efbf71fb38d7e558fcccc5bbd3a13153d4ed3a269f6e5a58ea3767c640486",
+        "timestamp": "2026-09-15T03:08:35.981Z"
+      },
+      {
+        "agent_path": "/root/c3_firebase_review",
+        "final_ordinal": 2,
+        "outcome_class": "accepted",
+        "result_sha256": "c43b35766b15af3b0ca4a76fee2ef79f4d5108ec069b147c80dc192c97bf3ea6",
+        "timestamp": "2026-09-15T03:13:40.506Z"
+      },
+      {
+        "agent_path": "/root/c3_cumulative_validation_v4",
+        "final_ordinal": 0,
+        "outcome_class": "passed",
+        "result_sha256": "f51ce7cf43c4c970a356ce0c17d17bfc742b0c2ab9eba42420afd45fa6f163cc",
+        "timestamp": "2026-09-15T03:25:51.983Z"
+      },
+      {
+        "agent_path": "/root/c3_final_acceptance_v3",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "6512c4420d8b66fed978fe207478f0a22ac00cbb5cb850622afbed21f0abd26b",
+        "timestamp": "2026-09-15T03:31:30.620Z"
+      },
+      {
+        "agent_path": "/root/c3_ci_monitor",
+        "final_ordinal": 0,
+        "outcome_class": "passed",
+        "result_sha256": "5dab5e476d8d493bb9b27a72c3a9e473f797c083b7427f05f8b921cf1387c6f4",
+        "timestamp": "2026-09-15T03:36:57.672Z"
+      },
+      {
+        "agent_path": "/root/e1_writer",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "44a37ab08284229b85a5f440478c376ce8ded3d8098028848116184b6f0f35c5",
+        "timestamp": "2026-09-15T04:34:22.664Z"
+      },
+      {
+        "agent_path": "/root/e1_reviewer",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "df26896447c50b9e2bac1abe55f7c8fda671c5aec16cf08ef6bd256c15f38b72",
+        "timestamp": "2026-09-15T04:40:07.533Z"
+      },
+      {
+        "agent_path": "/root/e1_cumulative_validation",
+        "final_ordinal": 0,
+        "outcome_class": "failed",
+        "result_sha256": "375af267da853c7876a05dc6f2c3ca5075d5a3c22f732a8584beb34200ccd689",
+        "timestamp": "2026-09-15T04:52:57.535Z"
+      },
+      {
+        "agent_path": "/root/e1_cumulative_validation",
+        "final_ordinal": 1,
+        "outcome_class": "passed",
+        "result_sha256": "78ede2c0a9c34d751a1cf7e3900d5eb1a3dbb5ce5bbf2340a84b5a13d2000760",
+        "timestamp": "2026-09-15T05:02:49.304Z"
+      },
+      {
+        "agent_path": "/root/e1_final_acceptance",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "75d6816831e7ba4314aff73dff39df69937fe91624c0bef07768a1fd25a4cba5",
+        "timestamp": "2026-09-15T05:08:44.241Z"
+      },
+      {
+        "agent_path": "/root/e1_ci_monitor",
+        "final_ordinal": 0,
+        "outcome_class": "passed",
+        "result_sha256": "5cda202ee999732dbc1ff167e2319e790bc47d7f7e8c8a7fa5eac38bbcc1f734",
+        "timestamp": "2026-09-15T05:14:25.208Z"
+      },
+      {
+        "agent_path": "/root/closeout_writer",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "f5db416f2cbfc08870235b55b12c5d8881ffc96a7b4ccabc1ad544cc6fe106a9",
+        "timestamp": "2026-09-15T05:21:59.877Z"
+      },
+      {
+        "agent_path": "/root/closeout_reviewer",
+        "final_ordinal": 0,
+        "outcome_class": "accepted",
+        "result_sha256": "a790518ca4010cefe9e7608014427d338806f23f5937a78fab71a18537795c8d",
+        "timestamp": "2026-09-15T05:24:21.703Z"
+      },
+      {
+        "agent_path": "/root/closeout_ci_monitor",
+        "final_ordinal": 0,
+        "outcome_class": "passed",
+        "result_sha256": "fda5df7ac6a907ae3b6bedbf5e5409d06034f567c0ad9d21319dacfbf27441b5",
+        "timestamp": "2026-09-15T05:32:46.137Z"
+      },
+      {
+        "agent_path": "/root/p1_04_05_review_brief",
+        "final_ordinal": 0,
+        "outcome_class": "delivered",
+        "result_sha256": "3baf80331f612071ac88595f40c72cfec581ba153cff2e260bda63d9627223e6",
+        "timestamp": "2026-09-15T20:04:26.980Z"
+      }
+    ]
+  },
+  "git": {
+    "committed_during_session_window": 16,
+    "deletions": 229,
+    "files": 43,
+    "insertions": 6028,
+    "range_commits": 17
+  },
+  "heavy_observations": [
+    {
+      "agent_path": "/root/c3_cumulative_validation",
+      "final_ordinal": 0,
+      "finished_available_gib": 2.398,
+      "label": "C3 cumulative validation 1",
+      "memory_symptoms": "one transient paging sample; no OOM or termination",
+      "minimum_available_gib": 2.109,
+      "observed_at": "2026-09-15T00:44:36.546Z",
+      "outcome": "failed-tests",
+      "queue_delay_seconds": 0,
+      "started_available_gib": 3.427
+    },
+    {
+      "agent_path": "/root/c3_handoff_writer",
+      "final_ordinal": 0,
+      "finished_available_gib": 1.577,
+      "label": "C3 handoff slice",
+      "memory_symptoms": "three transient paging spikes; no OOM or termination",
+      "minimum_available_gib": 1.142,
+      "observed_at": "2026-09-15T02:00:11.396Z",
+      "outcome": "passed",
+      "queue_delay_seconds": 0,
+      "started_available_gib": 2.268
+    },
+    {
+      "agent_path": "/root/c3_cumulative_validation_v2",
+      "final_ordinal": 0,
+      "finished_available_gib": 1.888,
+      "label": "C3 cumulative validation 2",
+      "memory_symptoms": "two transient paging spikes; no sustained paging, OOM, or termination",
+      "minimum_available_gib": 1.324,
+      "observed_at": "2026-09-15T02:17:11.590Z",
+      "outcome": "passed",
+      "queue_delay_seconds": 0,
+      "started_available_gib": 2.797
+    },
+    {
+      "agent_path": "/root/c3_cumulative_validation_v3",
+      "final_ordinal": 0,
+      "finished_available_gib": 1.836,
+      "label": "C3 cumulative validation 3",
+      "memory_symptoms": "healthy paging; no resource symptoms",
+      "minimum_available_gib": 1.187,
+      "observed_at": "2026-09-15T02:51:11.030Z",
+      "outcome": "passed",
+      "queue_delay_seconds": 0,
+      "started_available_gib": 2.5
+    },
+    {
+      "agent_path": "/root/c3_cumulative_validation_v4",
+      "final_ordinal": 0,
+      "finished_available_gib": 1.529,
+      "label": "C3 cumulative validation 4",
+      "memory_symptoms": "transient paging spikes; no sustained pressure, OOM, or termination",
+      "minimum_available_gib": 1.101,
+      "observed_at": "2026-09-15T03:25:51.983Z",
+      "outcome": "passed",
+      "queue_delay_seconds": 0,
+      "started_available_gib": 2.448
+    },
+    {
+      "agent_path": "/root/e1_writer",
+      "final_ordinal": 0,
+      "finished_available_gib": 1.455,
+      "label": "E1 writer aggregate",
+      "memory_symptoms": "absolute-floor breach discovered late; no OOM or abnormal termination",
+      "minimum_available_gib": 0.444,
+      "observed_at": "2026-09-15T04:34:22.664Z",
+      "outcome": "passed-with-missed-escalation",
+      "queue_delay_seconds": null,
+      "started_available_gib": null
+    },
+    {
+      "agent_path": "/root/e1_cumulative_validation",
+      "final_ordinal": 0,
+      "finished_available_gib": 1.29,
+      "label": "E1 cumulative validation 1",
+      "memory_symptoms": "severe sustained paging; stopped before suite completion; no OOM",
+      "minimum_available_gib": 1.049,
+      "observed_at": "2026-09-15T04:52:57.535Z",
+      "outcome": "resource-stop",
+      "queue_delay_seconds": 0,
+      "started_available_gib": 2.574
+    },
+    {
+      "agent_path": "/root/e1_cumulative_validation",
+      "final_ordinal": 1,
+      "finished_available_gib": 1.985,
+      "label": "E1 cumulative validation reserved retry",
+      "memory_symptoms": "one isolated paging spike; no sustained pressure, OOM, or termination",
+      "minimum_available_gib": 1.565,
+      "observed_at": "2026-09-15T05:02:49.304Z",
+      "outcome": "passed",
+      "queue_delay_seconds": null,
+      "started_available_gib": 2.282
+    }
+  ],
+  "model_usage": [
+    {
+      "api_cost_equivalent_usd": 47.527973,
+      "kind": "root",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "xhigh",
+      "responses": 695,
+      "total_tokens": 89979922
+    },
+    {
+      "api_cost_equivalent_usd": 0.074475,
+      "kind": "subagent",
+      "model": "gpt-5.6-luna",
+      "reasoning_effort": "low",
+      "responses": 53,
+      "total_tokens": 1714380
+    },
+    {
+      "api_cost_equivalent_usd": 14.630725,
+      "kind": "subagent",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "high",
+      "responses": 272,
+      "total_tokens": 19061558
+    },
+    {
+      "api_cost_equivalent_usd": 18.772507,
+      "kind": "subagent",
+      "model": "gpt-5.6-sol",
+      "reasoning_effort": "xhigh",
+      "responses": 229,
+      "total_tokens": 25541182
+    },
+    {
+      "api_cost_equivalent_usd": 3.29462,
+      "kind": "subagent",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "high",
+      "responses": 85,
+      "total_tokens": 9601642
+    },
+    {
+      "api_cost_equivalent_usd": 3.609858,
+      "kind": "subagent",
+      "model": "gpt-5.6-terra",
+      "reasoning_effort": "medium",
+      "responses": 139,
+      "total_tokens": 12414161
+    },
+    {
+      "api_cost_equivalent_usd": 5.088042,
+      "kind": "subagent",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "high",
+      "responses": 41,
+      "total_tokens": 2017309
+    },
+    {
+      "api_cost_equivalent_usd": 33.468332,
+      "kind": "subagent",
+      "model": "gpt-6-astra",
+      "reasoning_effort": "xhigh",
+      "responses": 191,
+      "total_tokens": 20133006
+    }
+  ],
+  "policy": {
+    "docker_mentions_in_orchestrate_contract": 0,
+    "heavy_operation": {
+      "absolute_available_memory_floor_gib": 0.5,
+      "degraded_maximum_concurrent_profiles": 1,
+      "preferred_available_memory_floor_gib": 1.0,
+      "warning_available_memory_gib": 1.5
+    },
+    "worktree": {
+      "activeBuildCapableGrowthReservationGiB": 1.25,
+      "minimumEffectiveFreeGiBAfterReservation": 14.0,
+      "minimumFreeDiskPercentWarning": 15.0,
+      "uncertainGrowthReservationGiB": 1.25
+    }
+  },
+  "powershell_compatibility_probe": {
+    "culture": "de-DE",
+    "default_string": "09/14/2026 22:44:39",
+    "default_try_parse": false,
+    "default_type": "System.DateTime",
+    "ps_version": "7.6.6",
+    "string_kind_try_parse": true,
+    "string_kind_type": "System.String",
+    "string_kind_value": "2026-09-14T22:44:39.9720000Z"
+  },
+  "root": {
+    "root_operational_command_counts": {
+      "capsule_hook_execs": 4,
+      "manifest_builder_execs": 1,
+      "nested_apply_patch_mentions": 12,
+      "recovery_snapshot_execs": 10,
+      "resource_snapshot_execs": 22
+    },
+    "wait_agent": {
+      "actual_wait_seconds": 19664.978,
+      "by_requested_timeout_seconds": {
+        "30": {
+          "calls": 7,
+          "early_return_calls": 6,
+          "median_actual_wait_seconds": 8.264,
+          "timed_out_no_change_calls": 1
+        },
+        "300": {
+          "calls": 35,
+          "early_return_calls": 20,
+          "median_actual_wait_seconds": 237.711,
+          "timed_out_no_change_calls": 15
+        },
+        "55": {
+          "calls": 194,
+          "early_return_calls": 50,
+          "median_actual_wait_seconds": 55.042,
+          "timed_out_no_change_calls": 144
+        },
+        "60": {
+          "calls": 24,
+          "early_return_calls": 12,
+          "median_actual_wait_seconds": 59.002,
+          "timed_out_no_change_calls": 12
+        },
+        "600": {
+          "calls": 6,
+          "early_return_calls": 5,
+          "median_actual_wait_seconds": 291.389,
+          "timed_out_no_change_calls": 1
+        }
+      },
+      "completed_calls": 266,
+      "early_return_calls": 93,
+      "median_actual_wait_seconds": 55.045,
+      "median_requested_timeout_seconds": 55.0,
+      "pending_calls_at_cutoff": 0,
+      "pure_wait_responses": 266,
+      "requested_timeout_distribution_seconds": {
+        "30": 7,
+        "300": 35,
+        "55": 194,
+        "60": 24,
+        "600": 6
+      },
+      "responses_with_wait_action": 266,
+      "result_messages": {
+        "Wait completed.": 92,
+        "Wait interrupted by new input.": 1,
+        "Wait timed out.": 173
+      },
+      "timed_out_no_change_calls": 173,
+      "usage_attribution_note": "Cumulative usage delta for responses containing wait_agent; mixed-action responses are excluded from the pure-wait subtotal.",
+      "usage_for_pure_wait_responses": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 34763904,
+        "input_tokens": 35147911,
+        "output_tokens": 17485,
+        "reasoning_output_tokens": 4156,
+        "total_tokens": 35165396
+      },
+      "usage_for_responses_with_wait_action": {
+        "cache_write_input_tokens": 0,
+        "cached_input_tokens": 34763904,
+        "input_tokens": 35147911,
+        "output_tokens": 17485,
+        "reasoning_output_tokens": 4156,
+        "total_tokens": 35165396
+      }
+    }
+  },
+  "schema_version": 1,
+  "session_boundary": {
+    "base_commit": "8600f734587a2e0933b3cbeb5061c98b9881c715",
+    "final_commit": "a846bcbd0c23f22cd646c48ccc113ca25642ef2e"
+  },
+  "source_analysis_generated_at": "2026-09-15T22:22:27.6493516Z",
+  "subagents": {
+    "by_phase": {
+      "C3 initial correction": {
+        "active_seconds": 5634.245,
+        "api_cost_equivalent_usd": 18.866632,
+        "threads": 6,
+        "turns": 11
+      },
+      "C3 sliced remediation": {
+        "active_seconds": 3771.948,
+        "api_cost_equivalent_usd": 10.745801,
+        "threads": 6,
+        "turns": 14
+      },
+      "C3 validation and acceptance": {
+        "active_seconds": 4673.828,
+        "api_cost_equivalent_usd": 17.020332,
+        "threads": 9,
+        "turns": 9
+      },
+      "E1 implementation": {
+        "active_seconds": 5347.38,
+        "api_cost_equivalent_usd": 25.88743,
+        "threads": 5,
+        "turns": 6
+      },
+      "documentation closeout": {
+        "active_seconds": 752.547,
+        "api_cost_equivalent_usd": 2.893451,
+        "threads": 3,
+        "turns": 3
+      },
+      "preview": {
+        "active_seconds": 618.573,
+        "api_cost_equivalent_usd": 1.310059,
+        "threads": 1,
+        "turns": 1
+      },
+      "review brief": {
+        "active_seconds": 584.641,
+        "api_cost_equivalent_usd": 2.214854,
+        "threads": 1,
+        "turns": 1
+      }
+    },
+    "by_role": {
+      "diagnosis": {
+        "active_seconds": 1043.145,
+        "api_cost_equivalent_usd": 4.566224,
+        "threads": 2,
+        "total_tokens": 5909363,
+        "turns": 2
+      },
+      "review-or-specification": {
+        "active_seconds": 7629.358,
+        "api_cost_equivalent_usd": 38.416804,
+        "threads": 14,
+        "total_tokens": 38669405,
+        "turns": 20
+      },
+      "validation-or-ci": {
+        "active_seconds": 4585.117,
+        "api_cost_equivalent_usd": 6.059107,
+        "threads": 8,
+        "total_tokens": 9989490,
+        "turns": 9
+      },
+      "writer-or-artifact": {
+        "active_seconds": 8125.542,
+        "api_cost_equivalent_usd": 29.896424,
+        "threads": 7,
+        "total_tokens": 35914980,
+        "turns": 14
+      }
+    },
+    "followup_turns": 14,
+    "maximum_turns_on_one_thread": 4,
+    "multi_turn_threads": 7
+  }
+}

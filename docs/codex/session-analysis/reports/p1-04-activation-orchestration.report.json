@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "id": "p1-04-activation-orchestration",
+  "title": "P1-04 activation orchestration analysis",
+  "summary": "Analyze the P1-04 and P1-05 continuation through P1-04 activation, with emphasis on coordination quality, checkpoint compatibility, disk-warning semantics, and early Docker visibility.",
+  "eyebrow": "Codex session analysis",
+  "published_at": "2026-09-16",
+  "session_kind": "orchestration",
+  "source_path": "docs/codex/p1-04-activation-orchestration-session-analysis",
+  "site_path": "session-analysis/p1-04-activation-orchestration",
+  "html_file": "index.html",
+  "focus_ids": [
+    "checkpoint-helper-powershell-compatibility",
+    "compaction-recovery-and-context-occupancy",
+    "disk-warning-band-policy",
+    "docker-prerequisite-preflight",
+    "heavy-operation-concurrency-policy",
+    "memory-policy-restrictiveness",
+    "orchestration-delivery-efficiency",
+    "owner-waiting-vs-agent-blocking",
+    "reconciliation-models-and-stability",
+    "review-correction-churn",
+    "subagent-coordination-effectiveness",
+    "subagent-polling-overhead",
+    "useful-parallelism-and-wave-throttle"
+  ],
+  "legacy": false,
+  "analysis_file": "docs/codex/p1-04-activation-orchestration-session-analysis/data/analysis.json",
+  "analysis": {
+    "root_thread_id": "01a0a211-c4bc-7941-86f9-37dfba1da3fa",
+    "root_log_name": "rollout-2026-09-15T00-37-50-01a0a211-c4bc-7941-86f9-37dfba1da3fa.jsonl",
+    "event_cutoff_at": "2026-09-15T22:22:27.6493516Z",
+    "generated_at": "2026-09-15T22:22:27.6493516Z",
+    "timezone": "Europe/Berlin",
+    "privacy": {
+      "include_bounded_excerpts": false
+    },
+    "snapshot_lock": "docs/codex/p1-04-activation-orchestration-session-analysis/data/snapshot-lock.json",
+    "repository": {
+      "base_commit": "8600f734587a2e0933b3cbeb5061c98b9881c715",
+      "final_commit": "a846bcbd0c23f22cd646c48ccc113ca25642ef2e"
+    },
+    "pricing": {
+      "as_of": "2026-09-16",
+      "models": {
+        "gpt-5.6-luna": {
+          "input": 0.2,
+          "cached_input": 0.02,
+          "cache_write_input": 0.25,
+          "output": 1.2,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-luna"
+        },
+        "gpt-5.6-sol": {
+          "input": 4.0,
+          "cached_input": 0.4,
+          "cache_write_input": 5.0,
+          "output": 20.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-sol"
+        },
+        "gpt-5.6-terra": {
+          "input": 2.0,
+          "cached_input": 0.2,
+          "cache_write_input": 2.5,
+          "output": 12.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-5.6-terra"
+        },
+        "gpt-6-astra": {
+          "input": 10.0,
+          "cached_input": 1.0,
+          "cache_write_input": 12.5,
+          "output": 50.0,
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-6-astra"
+        }
+      }
+    },
+    "classification": {
+      "agent_rules": [
+        { "pattern": "(?:p1_0?5|r1_)", "group": "P1-05" },
+        { "pattern": "(?:p1_0?4|c3_)", "group": "P1-04" },
+        { "pattern": "c2_", "group": "shared C2" },
+        { "pattern": "c1_", "group": "shared C1" },
+        { "pattern": "(?:s0_|arch_reconcile|spec_review)", "group": "shared foundation" },
+        { "pattern": "(?:s1_|s2_|s3_|recovery_)", "group": "shared recovery contracts" },
+        { "pattern": "preview|status|worktree|orchestration", "group": "orchestration" }
+      ],
+      "default_group": "cross-cutting",
+      "turn_code_regex": null
+    },
+    "injected_message_prefixes": [
+      {
+        "prefix": "# AGENTS.md instructions for ",
+        "category": "injected-repository-context"
+      },
+      {
+        "prefix": "<environment_context>",
+        "category": "injected-environment-context"
+      },
+      {
+        "prefix": "<codex_internal_context source=\"goal\">",
+        "category": "automatic-goal-continuation"
+      },
+      {
+        "prefix": "<skill>",
+        "category": "injected-skill-context"
+      }
+    ],
+    "user_message_kinds": {
+      "1": "kickoff",
+      "2": "resource-policy-clarification",
+      "3": "external-capacity-unblock",
+      "4": "scope-and-publication-request",
+      "5": "production-intent-correction",
+      "6": "orchestration-routing-correction"
+    },
+    "task_files": {
+      "globs": [
+        "plans/bundesliga-2026-27/tasks/p1-04-*.md",
+        "plans/bundesliga-2026-27/tasks/p1-05-*.md"
+      ],
+      "code_regex": "(?P<prefix>p1)-(?P<number>0?4|0?5)"
+    }
+  }
+}
