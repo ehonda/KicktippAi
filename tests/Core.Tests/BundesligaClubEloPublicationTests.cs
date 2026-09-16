@@ -17,6 +17,32 @@ public class BundesligaClubEloPublicationTests
     }
 
     [Test]
+    public async Task Html_publication_and_retained_head_accept_both_approved_grammar_pairs()
+    {
+        var observedAt = new DateTimeOffset(2026, 9, 4, 12, 0, 0, TimeSpan.Zero);
+        var cycle = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 2);
+        var snapshot = NetworkSnapshot(new Uri("https://clubelo.com/GER"), new DateOnly(2026, 9, 4), observedAt);
+        var selection = new BundesligaClubEloSelection(snapshot, BundesligaClubEloSelectionDisposition.NetworkAccepted, []);
+        var bytes = System.Text.Encoding.UTF8.GetBytes("html");
+        foreach (var current in new[] { false, true })
+        {
+            var observation = HtmlObservation(cycle, snapshot, observedAt, bytes, current);
+            var build = BundesligaClubEloPublication.BuildSourceBacked(selection, cycle, observation, bytes);
+            using var metadata = System.Text.Json.JsonDocument.Parse(build.MetadataJson);
+            await Assert.That(metadata.RootElement.GetProperty("sourceDescriptorSha256").GetString()).IsEqualTo(observation.DescriptorSha256);
+            await Assert.That(metadata.RootElement.GetProperty("sourceDescriptor").GetRawText()).IsEqualTo(observation.DescriptorJson);
+            var loaded = CreateLoaded(build);
+            await Assert.That(loaded.Snapshot.SnapshotId).IsEqualTo(DocumentPublicationContract.ComputeSnapshotId(build.Documents));
+            await Assert.That(BundesligaClubEloPublication.ReconstructLastKnownGood(loaded).RatedAt).IsEqualTo(snapshot.RatedAt);
+        }
+
+        var mixed = HtmlObservation(cycle, snapshot, observedAt, bytes) with
+        {
+            DescriptorJson = HtmlObservation(cycle, snapshot, observedAt, bytes).DescriptorJson.Replace("club-elo-official-html-parser/v1", "club-elo-official-html-parser/v2", StringComparison.Ordinal)
+        };
+        await Assert.That(() => BundesligaClubEloPublication.BuildSourceBacked(selection, cycle, mixed, bytes)).Throws<InvalidDataException>();
+    }
+    [Test]
     public async Task Csv_v2_preserves_a_fractional_evidence_token_but_refuses_to_bind_it_to_headed_documents()
     {
         var observedAt = new DateTimeOffset(2026, 9, 4, 12, 0, 0, TimeSpan.Zero);
@@ -112,7 +138,7 @@ public class BundesligaClubEloPublicationTests
         var snapshot = NetworkSnapshot(new Uri("https://clubelo.com/GER"), new DateOnly(2026, 9, 4), observedAt);
         var selection = new BundesligaClubEloSelection(snapshot, BundesligaClubEloSelectionDisposition.NetworkAccepted, []);
         var bytes = System.Text.Encoding.UTF8.GetBytes("html");
-        var build = BundesligaClubEloPublication.BuildSourceBacked(selection, cycle, HtmlObservation(cycle, snapshot, observedAt, bytes), bytes);
+        var build = BundesligaClubEloPublication.BuildSourceBacked(selection, cycle, HtmlObservation(cycle, snapshot, observedAt, bytes, current: true), bytes);
         var metadata = BundesligaClubEloPublication.ParseMetadata(build.MetadataJson);
         var hostile = new[]
         {
@@ -125,6 +151,27 @@ public class BundesligaClubEloPublicationTests
         await Assert.That(metadata.RatedAt).IsEqualTo(snapshot.RatedAt);
         await Assert.That(BundesligaClubEloPublication.ReconstructLastKnownGood(CreateLoaded(build)).Entries.Count).IsEqualTo(18);
         foreach (var value in hostile) await Assert.That(() => BundesligaClubEloPublication.ParseMetadata(value)).Throws<InvalidDataException>();
+
+        var nestedIdentityMutations = new Action<System.Text.Json.Nodes.JsonObject>[]
+        {
+            descriptor => descriptor["parserContract"] = "club-elo-official-html-parser/v3",
+            descriptor => descriptor.Remove("parserContract"),
+            descriptor => descriptor["parserContract"] = null,
+            descriptor => descriptor["parserContract"] = 2,
+            descriptor => descriptor["tableContract"] = "club-elo-official-html-table/v3",
+            descriptor => descriptor.Remove("tableContract"),
+            descriptor => descriptor["tableContract"] = null,
+            descriptor => descriptor["tableContract"] = 2
+        };
+        foreach (var mutate in nestedIdentityMutations)
+        {
+            var mutatedMetadata = MutateEmbeddedHtmlDescriptor(build.MetadataJson, mutate);
+            using var root = System.Text.Json.JsonDocument.Parse(mutatedMetadata);
+            var embeddedDescriptor = root.RootElement.GetProperty("sourceDescriptor").GetRawText();
+            await Assert.That(root.RootElement.GetProperty("sourceDescriptorSha256").GetString())
+                .IsEqualTo(BundesligaContextSourceHashing.Sha256(System.Text.Encoding.UTF8.GetBytes(embeddedDescriptor)));
+            await Assert.That(() => BundesligaClubEloPublication.ReconstructLastKnownGood(CreateLoaded(build with { MetadataJson = mutatedMetadata }))).Throws<InvalidDataException>();
+        }
     }
     [Test]
     public async Task Renderer_uses_exact_csv_contract_and_deterministic_elo_tie_order()
@@ -280,7 +327,7 @@ public class BundesligaClubEloPublicationTests
     }
 
     private static BundesligaContextSourceObservation HtmlObservation(BundesligaContextSourceCycleIdentity cycle,
-        BundesligaClubEloSnapshot snapshot, DateTimeOffset observedAt, byte[] bytes)
+        BundesligaClubEloSnapshot snapshot, DateTimeOffset observedAt, byte[] bytes, bool current = false)
     {
         var mapping = new[] { ("b04", "/Leverkusen", "Leverkusen"), ("bmg", "/Gladbach", "Gladbach"), ("bvb", "/Dortmund", "Dortmund"), ("fca", "/Augsburg", "Augsburg"), ("fcb", "/Bayern", "Bayern München"), ("fck", "/Koeln", "Köln"), ("fcu", "/UnionBerlin", "Union Berlin"), ("hsv", "/Hamburg", "Hamburg"), ("m05", "/Mainz", "Mainz"), ("rbl", "/RBLeipzig", "RB Leipzig"), ("s04", "/Schalke", "Schalke"), ("scf", "/Freiburg", "Freiburg"), ("scp", "/Paderborn", "Paderborn"), ("sge", "/Frankfurt", "Frankfurt"), ("sve", "/Elversberg", "Elversberg"), ("svw", "/Werder", "Werder"), ("tsg", "/Hoffenheim", "Hoffenheim"), ("vfb", "/Stuttgart", "Stuttgart") };
         var rows = snapshot.Entries.OrderBy(entry => entry.Team.TeamSlug, StringComparer.Ordinal).Zip(mapping)
@@ -291,9 +338,9 @@ public class BundesligaClubEloPublicationTests
             contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
             response = new { statusCode = 200, finalUrl = "https://clubelo.com/GER", redirectCount = 0, redirectLocation = (string?)null, mediaType = "text/html", charset = "utf-8", contentEncodings = Array.Empty<string>(), declaredContentLength = (long)bytes.Length },
             rawSha256 = BundesligaContextSourceHashing.Sha256(bytes), rawByteLength = (long)bytes.Length,
-            parserContract = "club-elo-official-html-parser/v1", displayedDate = snapshot.RatedAt.ToString("yyyy-MM-dd"),
+            parserContract = current ? "club-elo-official-html-parser/v2" : "club-elo-official-html-parser/v1", displayedDate = snapshot.RatedAt.ToString("yyyy-MM-dd"),
             providerDateEvidence = new { kind = "OfficialHtmlHeadingLink", recipeId = "club-elo-official-html-displayed-date/v1", field = "h1>a[href]", rawValue = snapshot.RatedAt.ToString("yyyy-MM-dd"), ratedAt = snapshot.RatedAt.ToString("yyyy-MM-dd") },
-            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            tableContract = current ? "club-elo-official-html-table/v2" : "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
             nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
             sourceRows = rows, evaluation = "Eligible"
         });
@@ -303,6 +350,14 @@ public class BundesligaClubEloPublicationTests
             new BundesligaContextSourcePayload("club-elo/source.html", bytes.Length, BundesligaContextSourceHashing.Sha256(bytes)), []);
     }
 
+    private static string MutateEmbeddedHtmlDescriptor(string metadata, Action<System.Text.Json.Nodes.JsonObject> mutate)
+    {
+        var root = System.Text.Json.Nodes.JsonNode.Parse(metadata)!.AsObject();
+        var descriptor = root["sourceDescriptor"]!.AsObject();
+        mutate(descriptor);
+        root["sourceDescriptorSha256"] = BundesligaContextSourceHashing.Sha256(System.Text.Encoding.UTF8.GetBytes(descriptor.ToJsonString()));
+        return root.ToJsonString();
+    }
     private static string SwapAggregateRows(string content)
     {
         var lines = content.Split("\r\n", StringSplitOptions.RemoveEmptyEntries);

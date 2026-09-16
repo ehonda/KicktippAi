@@ -100,14 +100,14 @@ public static class BundesligaClubEloRefresh
             },
             rawSha256 = rawBytes is null ? null : BundesligaContextSourceHashing.Sha256(rawBytes),
             rawByteLength = rawBytes?.LongLength,
-            parserContract = "club-elo-official-html-parser/v1",
+            parserContract = "club-elo-official-html-parser/v2",
             displayedDate,
             providerDateEvidence = displayedDate is null ? null : new
             {
                 kind = "OfficialHtmlHeadingLink", recipeId = "club-elo-official-html-displayed-date/v1",
                 field = "h1>a[href]", rawValue = displayedDate, ratedAt = displayedDate
             },
-            tableContract = "club-elo-official-html-table/v1",
+            tableContract = "club-elo-official-html-table/v2",
             tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
             nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1",
             nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,

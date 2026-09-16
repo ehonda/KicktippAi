@@ -1,0 +1,34 @@
+function JSSortableEloTable(data) {
+                 const tableBody = document.getElementById('eloTable').getElementsByTagName('tbody')[0];
+                 tableBody.innerHTML = ''; // Clear existing rows
+
+                 data.forEach(row => {
+                     const newRow = tableBody.insertRow();
+                     row.forEach((cell, index) => {
+                         const newCell = newRow.insertCell();
+                             newCell.className = (index === 0 || index === 4) ? 'l' : 'r';
+                         newCell.innerHTML = cell;
+                     });
+                 });
+             }
+
+             function sortTable(columnIndex) {
+                 const table = document.getElementById("eloTable");
+                 const rows = Array.from(table.rows).slice(1);
+                 const isAscending = table.rows[0].cells[columnIndex].classList.toggle('asc');
+
+                 rows.sort((rowA, rowB) => {
+                     const cellA = rowA.cells[columnIndex].textContent;
+                     const cellB = rowB.cells[columnIndex].textContent;
+
+                     if (!isNaN(cellA) && !isNaN(cellB)) {
+                         return isAscending ? cellA - cellB : cellB - cellA;
+                     }
+
+                     return isAscending ? cellA.localeCompare(cellB) : cellB.localeCompare(cellA);
+                 });
+
+                 rows.forEach(row => table.appendChild(row));
+             }
+
+             // Example data

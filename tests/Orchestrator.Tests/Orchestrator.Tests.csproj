@@ -51,7 +51,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <None Update="Commands/Operations/CollectContext/Fixtures/ClubElo/eligible.html;Commands/Operations/CollectContext/Fixtures/ClubElo/unknown-source-date.html;Commands/Operations/CollectContext/Fixtures/ClubElo/partial.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-dom.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-lexer.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-fragment.html" CopyToOutputDirectory="PreserveNewest" />
+        <None Update="Commands/Operations/CollectContext/Fixtures/ClubElo/eligible.html;Commands/Operations/CollectContext/Fixtures/ClubElo/unknown-source-date.html;Commands/Operations/CollectContext/Fixtures/ClubElo/partial.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-dom.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-lexer.html;Commands/Operations/CollectContext/Fixtures/ClubElo/hostile-fragment.html;Commands/Operations/CollectContext/Fixtures/ClubElo/current-official-2026-09-15.html;Commands/Operations/CollectContext/Fixtures/ClubElo/official-helper-prefix.txt;Commands/Operations/CollectContext/Fixtures/ClubElo/official-before-call.txt" CopyToOutputDirectory="PreserveNewest" />
     </ItemGroup>
 
 </Project>

@@ -1,7 +1,9 @@
 using EHonda.KicktippAi.Core;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using TestUtilities;
 using TUnit.Core;
 
@@ -1331,6 +1333,93 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     }
 
     [Test]
+    public async Task Html_Club_Elo_Firestore_round_trips_the_current_matched_grammar_pair()
+    {
+        var repository = CreateRepository();
+        var cycle = Cycle("0198f865-1468-7000-8000-000000000094", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(cycle);
+        await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        var observation = HtmlEloObservation(cycle.Identity, current: true);
+        await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), observation, Now().AddMinutes(1));
+        var stored = await repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo);
+        await Assert.That(stored!.Observation!.DescriptorJson).IsEqualTo(observation.DescriptorJson);
+    }
+    [Test]
+    public async Task Html_Club_Elo_Firestore_round_trips_a_rejected_current_pair_through_cycle_reconstruction()
+    {
+        var repository = CreateRepository();
+        var cycle = Cycle("0198f865-1468-7000-8000-000000000096", [BundesligaContextSource.ClubElo]);
+        await repository.CreateOrResumeCycleAsync(cycle);
+        await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+        var rejected = HtmlTransportEloObservation(cycle.Identity);
+        await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), rejected, Now().AddMinutes(1));
+
+        var stored = await repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo);
+        await Assert.That(stored!.Observation!.Disposition).IsEqualTo(BundesligaContextSourceDisposition.Rejected);
+        await Assert.That(stored.Observation.DescriptorJson).IsEqualTo(rejected.DescriptorJson);
+        using var descriptor = JsonDocument.Parse(stored.Observation.DescriptorJson);
+        await Assert.That(descriptor.RootElement.GetProperty("parserContract").GetString()).IsEqualTo("club-elo-official-html-parser/v2");
+        await Assert.That(descriptor.RootElement.GetProperty("tableContract").GetString()).IsEqualTo("club-elo-official-html-table/v2");
+    }
+    [Test]
+    public async Task Html_Club_Elo_Firestore_rejects_invalid_pairs_after_the_outer_descriptor_hash_is_recomputed()
+    {
+        var cases = new[]
+        {
+            ("parserContract", "club-elo-official-html-parser/v1", "club-elo-official-html-parser/v2", "club-elo-official-html-parser/v1"),
+            ("tableContract", "club-elo-official-html-table/v3", "club-elo-official-html-table/v2", "club-elo-official-html-table/v3"),
+            ("contract", "club-elo-official-html-descriptor/v2", "club-elo-official-html-descriptor/v1", "club-elo-official-html-descriptor/v2")
+        };
+        var sequence = 95;
+        foreach (var @case in cases)
+        {
+            await ClearAsync();
+            var repository = CreateRepository();
+            var cycle = Cycle($"0198f865-1468-7000-8000-{sequence++:D12}", [BundesligaContextSource.ClubElo]);
+            await repository.CreateOrResumeCycleAsync(cycle);
+            await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+            var observation = HtmlEloObservation(cycle.Identity, current: true);
+            await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), observation, Now().AddMinutes(1));
+
+            var mutatedDescriptor = observation.DescriptorJson.Replace(@case.Item3, @case.Item4, StringComparison.Ordinal);
+            var source = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(cycle.Identity, BundesligaContextSource.ClubElo));
+            await source.UpdateAsync($"observation.descriptor.{@case.Item1}", @case.Item2);
+            await source.UpdateAsync("observation.descriptorSha256", BundesligaContextSourceHashing.Sha256(Encoding.UTF8.GetBytes(mutatedDescriptor)));
+            await Assert.That(() => repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
+        }
+    }
+    [Test]
+    public async Task Html_Club_Elo_Firestore_rejects_missing_null_and_nonstring_nested_identities_with_recomputed_outer_hashes()
+    {
+        var cases = new (string Field, JsonNode? JsonValue, object? StoredValue, bool Remove)[]
+        {
+            ("parserContract", null, FieldValue.Delete, true),
+            ("parserContract", null, null, false),
+            ("parserContract", JsonValue.Create(2), 2L, false),
+            ("tableContract", null, FieldValue.Delete, true),
+            ("tableContract", null, null, false),
+            ("tableContract", JsonValue.Create(2), 2L, false)
+        };
+        var sequence = 100;
+        foreach (var @case in cases)
+        {
+            await ClearAsync();
+            var repository = CreateRepository();
+            var cycle = Cycle($"0198f865-1468-7000-8000-{sequence++:D12}", [BundesligaContextSource.ClubElo]);
+            await repository.CreateOrResumeCycleAsync(cycle);
+            await repository.ClaimSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), Now());
+            var observation = HtmlEloObservation(cycle.Identity, current: true);
+            await repository.FinalizeSourceAsync(cycle.Identity, BundesligaContextSource.ClubElo, Token('1'), observation, Now().AddMinutes(1));
+
+            var root = JsonNode.Parse(observation.DescriptorJson)!.AsObject();
+            if (@case.Remove) root.Remove(@case.Field); else root[@case.Field] = @case.JsonValue;
+            var source = fixture.Db.Collection(Observations).Document(BundesligaContextSourceHashing.SourceCycleStorageId(cycle.Identity, BundesligaContextSource.ClubElo));
+            await source.UpdateAsync($"observation.descriptor.{@case.Field}", @case.StoredValue);
+            await source.UpdateAsync("observation.descriptorSha256", BundesligaContextSourceHashing.Sha256(System.Text.Encoding.UTF8.GetBytes(root.ToJsonString())));
+            await Assert.That(() => repository.GetSourceCycleAsync(cycle.Identity, BundesligaContextSource.ClubElo)).Throws<InvalidDataException>();
+        }
+    }
+    [Test]
     public async Task Html_Club_Elo_Firestore_reconstruction_rejects_every_native_integer_coercion_and_nested_shape_hostile()
     {
         var mutations = new (string Field, double Value)[]
@@ -2190,7 +2279,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         });
         return new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.ArtifactCaptured, descriptor, new BundesligaContextSourcePayload("club-elo/source.csv", 3, rawSha256), []);
     }
-    private static BundesligaContextSourceObservation HtmlEloObservation(BundesligaContextSourceCycleIdentity identity)
+    private static BundesligaContextSourceObservation HtmlEloObservation(BundesligaContextSourceCycleIdentity identity, bool current = false)
     {
         var rawSha256 = new string('c', 64);
         var mapping = new[] { ("b04", "/Leverkusen", "Leverkusen"), ("bmg", "/Gladbach", "Gladbach"), ("bvb", "/Dortmund", "Dortmund"), ("fca", "/Augsburg", "Augsburg"), ("fcb", "/Bayern", "Bayern München"), ("fck", "/Koeln", "Köln"), ("fcu", "/UnionBerlin", "Union Berlin"), ("hsv", "/Hamburg", "Hamburg"), ("m05", "/Mainz", "Mainz"), ("rbl", "/RBLeipzig", "RB Leipzig"), ("s04", "/Schalke", "Schalke"), ("scf", "/Freiburg", "Freiburg"), ("scp", "/Paderborn", "Paderborn"), ("sge", "/Frankfurt", "Frankfurt"), ("sve", "/Elversberg", "Elversberg"), ("svw", "/Werder", "Werder"), ("tsg", "/Hoffenheim", "Hoffenheim"), ("vfb", "/Stuttgart", "Stuttgart") };
@@ -2199,9 +2288,9 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
         {
             contract = "club-elo-official-html-descriptor/v1", sourceUrl = "https://clubelo.com/GER",
             response = new { statusCode = 200, finalUrl = "https://clubelo.com/GER", redirectCount = 0, redirectLocation = (string?)null, mediaType = "text/html", charset = "utf-8", contentEncodings = Array.Empty<string>(), declaredContentLength = 3L },
-            rawSha256, rawByteLength = 3L, parserContract = "club-elo-official-html-parser/v1", displayedDate = "2026-09-04",
+            rawSha256, rawByteLength = 3L, parserContract = current ? "club-elo-official-html-parser/v2" : "club-elo-official-html-parser/v1", displayedDate = "2026-09-04",
             providerDateEvidence = new { kind = "OfficialHtmlHeadingLink", recipeId = "club-elo-official-html-displayed-date/v1", field = "h1>a[href]", rawValue = "2026-09-04", ratedAt = "2026-09-04" },
-            tableContract = "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
+            tableContract = current ? "club-elo-official-html-table/v2" : "club-elo-official-html-table/v1", tableHeader = new[] { "Club", "Elo", "+/-", "Golo" },
             nameMappingContract = "bundesliga-2026-27-club-elo-name-map/v1", nameMappingSha256 = BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256,
             sourceRows = rows, evaluation = "Eligible"
         });
@@ -2209,7 +2298,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     }
     private static BundesligaContextSourceObservation HtmlTransportEloObservation(BundesligaContextSourceCycleIdentity identity) => new(
         BundesligaContextSource.ClubElo, BundesligaContextSourceHashing.AttemptId(identity, BundesligaContextSource.ClubElo), Now(), BundesligaContextSourceDisposition.Rejected,
-        $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v1\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v1\",\"tableHeader\":[\"Club\",\"Elo\",\"\\u002B/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}",
+        $"{{\"contract\":\"club-elo-official-html-descriptor/v1\",\"sourceUrl\":\"https://clubelo.com/GER\",\"response\":null,\"rawSha256\":null,\"rawByteLength\":null,\"parserContract\":\"club-elo-official-html-parser/v2\",\"displayedDate\":null,\"providerDateEvidence\":null,\"tableContract\":\"club-elo-official-html-table/v2\",\"tableHeader\":[\"Club\",\"Elo\",\"\\u002B/-\",\"Golo\"],\"nameMappingContract\":\"bundesliga-2026-27-club-elo-name-map/v1\",\"nameMappingSha256\":\"{BundesligaContextSourceDescriptorContract.ClubEloHtmlNameMappingSha256}\",\"sourceRows\":null,\"evaluation\":\"TransportRejected\"}}",
         null, ["CLUB_ELO_TRANSPORT_REJECTED"]);
     private static BundesligaContextSourceObservation HtmlBootstrapRetentionObservation(
         BundesligaContextSourceCycleIdentity identity,
@@ -2217,7 +2306,7 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
     {
         if (selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected)
             return HtmlTransportEloObservation(identity);
-        var accepted = HtmlEloObservation(identity);
+        var accepted = HtmlEloObservation(identity, current: true);
         var stale = selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateStale;
         var evaluation = stale ? "StaleRejected" : "NotNewer";
         var date = stale ? "2026-08-29" : "2026-09-04";
