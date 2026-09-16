@@ -88,21 +88,25 @@ remain authoritative.
 | [0080](0080-bound-transitional-context-publication-recovery.md) | Bound transitional context-publication recovery | Accepted; narrowly supersedes ADR-0078's transitional inference paragraph |
 | [0081](0081-close-club-elo-html-publication-and-selection-seams.md) | Close Club Elo HTML publication and selection seams | Accepted; specified portions superseded/refined by ADR-0083 |
 | [0082](0082-close-dormant-roster-refresh-scope-with-r1-deferred.md) | Close the dormant roster-refresh scope with R1 deferred | Accepted; dormant closeout complete, R1 deferred |
-| [0083](0083-activate-official-club-elo-context-refresh.md) | Activate official Club Elo context refresh | Accepted |
+| [0083](0083-activate-official-club-elo-context-refresh.md) | Activate official Club Elo context refresh | Accepted; issue boundary and release graph partially succeeded by ADR-0084 |
+| [0084](0084-fence-context-source-issue-creation.md) | Fence context-source issue creation | Accepted; D0 documented, F2 pending |
 
 ## P1-04/P1-05 activation status — 2026-09-16
 
-[P1-04](../tasks/p1-04-club-elo-refresh.md) is operational activation work in
-progress under ADR-0083. [P1-05](../tasks/p1-05-roster-refresh.md) remains
-dormant and deferred under ADR-0082: R1 needs the exact ADR-0079 dcaribou
-sidecar and separate future owner gates. It has no source activity or provider
-adoption claim.
-
+[P1-04](../tasks/p1-04-club-elo-refresh.md) is governed jointly by ADR-0083
+and ADR-0084. D0 is complete documentation in this candidate. E2 and W2
+transport remain unimplemented, F2 is the required unimplemented durable issue
+fence, and V2/live validation/A2 remain blocked on accepted F2. The exact
+marker fence holds CreateUncertain and LegacyUncertain absence Pending for owner
+recovery and authorizes no runtime effect. [P1-05](../tasks/p1-05-roster-refresh.md)
+remains dormant and deferred under ADR-0082 with no source activity or
+provider-adoption claim.
 Merged PR #111 is prior dormant implementation evidence, not completion of the
-current activation. Its historical C3/E1 tip and CI record are preserved in
-the task/status records; this S0 milestone claims no parser-v2, W2, V2,
-live-validation or A2 implementation.
+current activation. Its historical C3/E1 tip and CI record are preserved only
+as history. D0 is complete documentation in this candidate; E2, W2 transport,
+F2, V2, live validation, and A2 remain unimplemented.
 
-ADR-0083 records the owner-authorized bounded Club Elo effects and their staged
-evidence gates. It does not authorize model calls, prediction/posting changes,
-roster work, new schedules, credential routing changes, or unrelated P1 work.
+ADR-0083 and ADR-0084 jointly record bounded Club Elo authority, the durable
+issue fence, and staged evidence gates. They do not authorize model calls,
+prediction/posting changes, roster work, new schedules, credential routing
+changes, or unrelated P1 work.

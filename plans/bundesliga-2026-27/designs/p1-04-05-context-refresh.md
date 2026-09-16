@@ -1,44 +1,39 @@
 # P1-04 / P1-05 context-refresh design
 
-- Current state: P1-04 operational activation in progress; P1-05/R1 dormant and deferred
-- Current authority: [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), with operative retained provisions of ADR-0074/0077/0078/0080/0081 and ADR-0082's P1-05 deferral
+- Current state: D0 complete in this candidate; E2 and W2 transport-only remain unimplemented; F2, V2, live validation and A2 are blocked
+- Current authority: [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md), with retained ADR-0074/0077/0078/0080/0081 provisions and ADR-0082 P1-05 deferral
 - Last reconciled: 2026-09-16
 
 ## Current operational design
 
-P1-04 moves through S0 → independent E2 and W2 → V2 → source-only live
-validation → A2 → closeout. E2 admits the exact v2 parser/table pair and
-bounded opaque official envelope while preserving historical v1 interpretation.
-W2 uploads one immutable same-run artifact and performs post-commit,
-marker-exact issue reconciliation. V2 wires explicit source-only commands and
-validation workflow inputs while normal scheduled source inputs remain false.
-A2 is the later, atomic all-eight normal-flag change after real evidence.
+D0 is complete documentation in this candidate. It freezes the production Club
+Elo issue fence as exact-marker, marker-wide durable state: Ready is armed to
+CreateUncertain by a current health/fence CAS before one POST; only the
+committing caller receives a grant; a valid response or unique exact-marker
+discovery permanently binds the issue number. A changed body, desired state,
+watermark, cycle, process, or run_attempt never creates a new fence lineage.
+Crash/response loss, delayed visibility, zero results, deleted issues, removed
+markers, duplicate markers, and pre-existing no-fence health remain Pending for
+owner-directed recovery. They never authorize automatic retry, expiry/reset,
+delete-and-recreate, or foreign edit.
 
-The source-only route uses ordinary preparation, selection, publication and
-receipt completion but resolves no Kicktipp/history/roster/model/OpenAI/Langfuse
-service. It validates these ordered receipts: `pes-squad-context`,
-`schadensfresse-context`, `relaxdays-tippt-context`, `arena-sol-xhigh-context`,
-`arena-sol-high-context`, `arena-luna-medium-context`, `arena-terra-xhigh-context`,
-and `arena-luna-none-context`. Five arena receipts share one arena head, giving
-four physical heads: pes-squad, schadensfresse, relaxdays-tippt and
-ehonda-ai-arena. No stage currently claims implementation or live evidence.
+E2 and W2 proceed only as independent parser/descriptor and transport-only
+work. W2 no longer owns issue projection. F2 starts only after reviewed D0 plus
+E2 and W2 transport clearance; it owns the Core/Firebase fence seam and the
+transferred issue projector/tests. V2, source-only live validation, and A2 are
+blocked until an accepted F2 candidate passes the full ADR-0084 combined
+validation and exact-head CI. Normal source inputs remain false, and D0 has no
+runtime, source, Firestore, GitHub, artifact, issue, or live effect.
 
-P1-05 remains source-off and `MetadataUnavailable`: no dcaribou sidecar/artifact
-probe, provider, observation, receipt, health, publication, issue or API action
-is allowed. The P1-04 source authority never adopts a roster provider.
-
-Rollback is a reviewed all-eight normal-flag-off commit. It retains heads and
-source state, leaves the existing production schedule/topology unchanged, and
-uses verified prior heads as fallback. Restoration needs a corrected reviewed
-tip, real accepted and later retention evidence, all receipts, heads,
-health/issues and a fresh gate. At or above 20 GiB effective free space there
-is no disk restriction.
-
+The fixed target remains eight ordered receipts across four physical heads.
+P1-05/R1 remains source-off and MetadataUnavailable under ADR-0082: no roster
+sidecar/artifact probe, provider, observation, receipt, fence, health,
+publication, issue, or API action is allowed.
 ## Historical dormant design record
 
 The remainder of this file is retained as historical dormant C3/E1 and P1-05
 design evidence. It is not the current activation state; where it conflicts
-with the section above, ADR-0083 and the current plan/task records control.
+with the section above, ADR-0083, ADR-0084, and the current plan/task records control.
 
 # Historical P1-04 / P1-05 context-refresh design
 
@@ -163,3 +158,15 @@ rejection of seed `Unchanged`; typed wrong types at every envelope/nested level
 with correct hash/order reachability; Core and actual development/production
 load; preserved infrastructure exceptions; coordinator state matrix; and the
 earlier 18,432/all-eight-lane/CSV/v1-v2/path/round-trip proofs.
+
+
+## D0 durable issue-create fence amendment — 2026-09-16
+
+[ADR-0084](../decisions/0084-fence-context-source-issue-creation.md) replaces
+only the issue persistence/recovery boundary. The durable marker-wide fence
+arms CreateUncertain before POST, binds verified exact-marker identity, and
+keeps legacy or uncertain absence Pending for owner-directed manual recovery.
+F2 owns the Core/Firebase fence seam and transferred issue paths after E2/W2
+transport; V2 wiring follows its combined transaction/process-loss/genesis/
+legacy/listing/CAS validation, review, and exact-head CI. No runtime/source/live
+effect exists; P1-05/R1 stays deferred.

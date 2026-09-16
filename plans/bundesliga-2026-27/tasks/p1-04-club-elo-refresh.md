@@ -1,31 +1,35 @@
 # P1-04 — Activate official Club Elo context refresh
 
-- Status: In progress — operational activation
+- Status: D0 durable issue-create fence documented; F2 and all runtime gates pending
 - Last reconciled: 2026-09-16
-- Depends on: accepted [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md)
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md)
+- Depends on: [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
 
 ## Outcome
 
-P1-04 completes only after a current official Club Elo observation is accepted,
-handed off immutably and reaches all eight ordered receipts and four physical
-community heads with truthful provenance, health and issue reconciliation.
-Merged PR #111 is prior dormant C3/E1 implementation, not current completion.
+P1-04 remains incomplete until the existing activation evidence gates and the
+new durable issue-create fence are accepted. D0 changes documentation only.
+F2 later ensures that the exact canonical marker has one durable lineage across
+bodies, watermarks, cycles, processes, and run_attempts: it arms before POST,
+binds verified identity, and exposes uncertainty or legacy absence as Pending
+manual recovery rather than creating again.
 
 ## Milestones
 
-- [x] S0: accepted durable activation specification and current-plan records.
+- [x] D0: accepted durable issue-create-fence documentation and ownership refreeze.
 - [ ] E2: parser-v2/current source grammar, versioned descriptor evidence and fixtures.
-- [ ] W2: immutable GitHub artifact transport and post-commit issue projection.
+- [ ] W2 transport: immutable GitHub artifact transport and Node bridge only.
+- [ ] F2: durable issue fence, atomic genesis, and transferred issue projector/tests.
 - [ ] V2: DI, source-only CLI and workflow validation path; normal flags remain false.
 - [ ] Live validation: real source-only development then production evidence.
 - [ ] A2: atomic all-eight normal source enable after evidence.
 - [ ] Closeout: final review/CI, merge, Pages and post-merge evidence.
 
-E2 and W2 may proceed independently after S0. V2 requires their cumulative
-acceptance; A2 requires V2 plus real operational evidence. Each milestone
-requires a scoped local commit, appropriate review and cumulative validation.
-
+The release graph is D0 -> E2 and W2 transport -> F2 -> V2 -> original live
+evidence -> A2 -> closeout. F2 requires the ADR-0084 real-transaction and
+controllable-HTTP crash/replay/genesis/legacy/listing/CAS matrix, solution build,
+full Core/FirebaseAdapter emulator/Orchestrator suites, deterministic Node/lock
+validation, fresh review, and exact-head CI. No runtime/source/live effect
+exists. P1-05/R1 remains ADR-0082 deferred.
 ## Fixed receipt contract
 
 ```text
@@ -78,3 +82,15 @@ owner. Rollback is a reviewed all-eight normal-flag-off commit; it does not
 delete source state, reset heads or change topology. Restoration needs a
 corrected reviewed tip, accepted then later distinct retention evidence, all
 receipts, correct heads/health/issues and a fresh activation gate.
+
+
+## D0 durable issue-create fence dependency
+
+ADR-0084 adds D0 documentation and F2 durable issue fencing before V2. The
+fence is marker-wide and durable across changed body, watermark, cycle,
+process, and run_attempt. F2 must arm CreateUncertain in a current-health CAS
+before one POST, bind only verified identity, re-admit POST/PATCH against
+current Pending health, and retain all uncertain or legacy absence cases for
+owner-directed manual recovery. It must prove crash/replay/genesis/legacy/
+listing/stale-CAS behavior under the ADR-0084 validation gate. No runtime or
+live source effect exists yet; P1-05/R1 remains deferred.

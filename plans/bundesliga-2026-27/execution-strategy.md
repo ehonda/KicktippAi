@@ -1,18 +1,27 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted current P1 strategy under [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
+- Status: D0 durable-fence refreeze accepted under [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](decisions/0084-fence-context-source-issue-creation.md)
 - Last updated: 2026-09-16
 
 ## Current activation strategy
 
-P1-04 is an operational activation lane, not a dormant-complete task. Merge of
-PR #111 is prior C3/E1 implementation input. The current graph is S0 → E2/W2
-in parallel → V2 → source-only live validation → A2 → closeout/post-merge.
-E2 proves the exact paired parser/table v2 and historical v1 compatibility; W2
-proves immutable artifact/issue transport; V2 adds explicit CLI/DI/workflow
-wiring while normal flags stay false. A2 is admitted only after real
-development and production source-only evidence.
+P1-04 remains dormant pending the durable issue-create fence. Merge of PR #111
+is prior C3/E1 implementation input. The current graph is D0 -> E2 and W2
+transport in parallel -> F2 -> V2 -> source-only live validation -> A2 ->
+closeout. E2 proves parser/descriptor compatibility; W2 proves immutable
+artifact/Node transport; F2 proves durable issue safety; V2 adds CLI/DI/workflow
+wiring while normal flags stay false. A2 is admitted only after real development
+and production source-only evidence.
 
+F2 arms Ready to CreateUncertain in a durable CAS before POST, issues one
+grant, binds only verified exact-marker identity, re-admits POST/PATCH against
+current Pending health, and preserves uncertainty across crash/response loss and
+new watermarks. First health/fence genesis is atomic; existing missing fences
+are LegacyUncertain. Empty, deleted, removed-marker, or duplicate evidence is
+manual-recovery Pending, never automatic retry/reset/delete/recreate. F2
+requires the ADR-0084 transaction/process-loss/genesis/legacy/list/stale-CAS
+matrix, solution build, full Core/FirebaseAdapter emulator/Orchestrator suites,
+deterministic Node/lock validation, fresh review, and exact-head CI.
 ## Owner and authority gates
 
 Production continuity stays fixed: existing cron/topology, models, prompts,
@@ -91,3 +100,15 @@ separate owner gates. This closeout authorizes or completes no W1/A1 or other
 P1 work, and changes no schedule, topology, model, prompt, credential, posting,
 or copy behavior. Operational/live validation and activation require separate
 owner authorization and evidence.
+
+
+## D0 durable issue-create fence refreeze — 2026-09-16
+
+The release graph now admits D0, then E2 and W2 transport, then F2 before V2.
+F2 owns the transferred issue projector/tests and strict durable fence seam.
+It must show one CAS grant before POST, permanent uncertainty after any
+post-arm loss, marker binding, atomic first-health genesis, legacy fail-closed
+behavior, bounded indeterminate listings, and stale-result CAS safety. Its
+combined solution/Core/FirebaseAdapter emulator/Orchestrator/Node validation,
+fresh review, and exact-head CI are mandatory. No implementation or live
+effect is credited by this documentation; P1-05/R1 remains deferred.

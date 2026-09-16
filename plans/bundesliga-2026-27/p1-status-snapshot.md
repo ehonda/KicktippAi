@@ -1,15 +1,16 @@
 # Bundesliga 2026/27 P1 status snapshot
 
 - Snapshot date: 2026-09-16
-- Scope: P1-04 operational activation and P1-05/R1 deferral
-- Current authority: [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
+- Scope: D0 durable issue-create fence documentation, P1-04 activation gates, and P1-05/R1 deferral
+- Current authority: [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](decisions/0084-fence-context-source-issue-creation.md)
 
 | Item | Current state | Next gate |
 | --- | --- | --- |
-| P1-04 | Operational activation in progress; S0 accepted | Independent E2 parser-v2 and W2 transport implementation/review |
-| V2/live validation/A2 | Not implemented or evidenced | Cumulative E2/W2, source-only development/production proof, then all-eight flag activation |
+| D0 | Accepted marker-wide durable-fence documentation | E2 and W2 transport clearance |
+| E2/W2 transport | Not implemented | Their independent parser/transport validation |
+| F2 | Not implemented; issue paths transfer from W2 | Combined transaction/process-loss/genesis/legacy/CAS validation and exact-head CI |
+| V2/live validation/A2 | Not implemented or evidenced | F2, source-only development/production proof, then all-eight flag activation |
 | P1-05/R1 | Dormant, deferred and source-off under ADR-0082 | Exact ADR-0079 sidecar and separate future owner authorization |
-
 Merged PR #111 is historical dormant implementation evidence, not a draft PR
 or current completion. It does not establish parser-v2, W2, V2, live
 validation, A2, all-eight receipts or a source-enabled schedule. P1-05 has no
@@ -81,3 +82,13 @@ separate owner gates. This closeout authorizes or completes no W1/A1 or other
 P1 work, and changes no schedule, topology, model, prompt, credential, posting,
 or copy behavior. Operational/live validation and activation require separate
 owner authorization and evidence.
+
+
+## D0 durable issue-create fence update — 2026-09-16
+
+D0 is documented under ADR-0084; F2 is not implemented. The durable
+marker-wide fence survives new bodies, watermarks, runs, and processes. It
+arms before POST, binds verified identity, and makes uncertain/legacy absence
+manual-recovery Pending. The release graph is D0 -> E2/W2 transport -> F2 ->
+V2 -> existing live gates -> A2 -> closeout. No source, Firestore, GitHub,
+artifact, issue, or live effect has occurred. P1-05/R1 remains deferred.

@@ -1,30 +1,25 @@
 # Bundesliga 2026/27 Competition Profile
 
-## Current activation state — 2026-09-16
+## Current activation state - 2026-09-16
 
-The current plan is [P1-04 operational activation](../../../../plans/bundesliga-2026-27/tasks/p1-04-club-elo-refresh.md)
-under [ADR-0083](../../../../plans/bundesliga-2026-27/decisions/0083-activate-official-club-elo-context-refresh.md).
-Merged PR #111 is prior dormant C3/E1 implementation evidence, not operational
-completion. S0 is accepted; E2 parser-v2, W2 transport, V2 wiring, source-only
-live validation and A2 scheduled enablement are not implemented or evidenced.
+The current authorities are [ADR-0083](../../../../plans/bundesliga-2026-27/decisions/0083-activate-official-club-elo-context-refresh.md)
+and [ADR-0084](../../../../plans/bundesliga-2026-27/decisions/0084-fence-context-source-issue-creation.md).
+D0 is complete documentation in this candidate. E2 parser/descriptor work and
+W2 transport-only work remain unimplemented; F2 is the required unimplemented
+durable issue-fence milestone. V2 wiring, source-only validation, and A2 remain
+blocked until an accepted F2 candidate passes its combined validation and
+exact-head CI.
 
-Use only the explicit Club Elo source-only route for validation. It reuses
-normal preparation/selection/publication/receipt behavior while resolving no
-Kicktipp, history, roster, model, OpenAI or Langfuse service. The production
-target is eight ordered receipts across four physical heads: pes-squad,
-schadensfresse, relaxdays-tippt and a shared arena context for five arena
-receipts. Normal source flags stay false until A2 after real evidence. The
-owner-authorized scope covers bounded Club Elo reads/context writes, GitHub
-handoff/issues, existing-schedule source activation after proof, Pages and a
-ready PR merge. It excludes models, prediction/posting, roster work, new
-schedules, credential changes and unrelated P1 work.
+The production Club Elo issue fence is exact-marker and marker-wide across body,
+watermark, cycle, process, and run_attempt. It arms CreateUncertain before one
+POST, permanently binds verified identity, and keeps legacy/uncertain empty,
+deleted, removed-marker, and duplicate evidence Pending for owner-directed
+recovery. It never expires, resets, retries, deletes, or replacement-creates.
+Normal source flags remain false and D0 has no runtime/source/Firestore/GitHub/
+artifact/issue/live effect.
 
-P1-05/R1 remains ADR-0082 dormant/deferred and `MetadataUnavailable`. Do not
-probe a sidecar/artifact, resolve or adopt a provider, or create roster source
-observations, receipts, health, publications, issues or API effects. Its exact
-ADR-0079 sidecar and separate future owner gates remain required. No disk
-restriction applies at or above 20 GiB effective free space.
-
+P1-05/R1 remains ADR-0082 deferred and MetadataUnavailable. It has no roster
+fence/provider/probe/observation/receipt/health/issue/API activity.
 ## Historical dormant profile record
 
 The remainder of this profile retains prior dormant C3/E1 and P1-05 scope
@@ -86,3 +81,14 @@ persistence authority. P0-14 proves collector order and WM26 isolation; P0-21
 is historical live evidence and must not be replayed for this documentation.
 This profile never calls WM26 collectors, `data/wm26/`, WM26 prompts,
 communities or schedules; a future domestic season requires its own profile.
+
+
+## D0 durable issue-create fence update — 2026-09-16
+
+ADR-0084 requires a marker-wide Club Elo production issue fence: Ready is armed
+to CreateUncertain by a durable CAS before one POST, then a verified exact
+marker binds its issue number. Body/watermark/run/process changes never permit
+another automatic create. Legacy and uncertain empty/deleted/duplicate cases
+are Pending for owner-directed recovery. F2 follows E2 and W2 transport, V2
+wires it after combined validation, and source flags remain false. There is no
+runtime/source/live effect. P1-05/R1 has no fence activity and remains deferred.

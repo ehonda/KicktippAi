@@ -1,35 +1,36 @@
 # P1-04 / P1-05 execution packet
 
-- Status: Active — S0 accepted; P1-04 operational activation in progress; P1-05/R1 deferred
-- Authority: [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
+- Status: D0 complete in this candidate; E2 and W2 transport-only pending; F2/V2/live/A2 blocked
+- Authority: [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](decisions/0084-fence-context-source-issue-creation.md)
 - Last reconciled: 2026-09-16
 
 ## Active execution packet
 
-S0 has the durable documents, ADR-0083 and the one-time successor-link blocks
-in ADR-0077/0081. It releases independent E2 parser-v2/source evidence and W2
-artifact/issue transport. V2 follows cumulative E2/W2 validation and owns
-source-only CLI/DI/workflow wiring. It keeps all normal workflow source inputs
-false. Live validation then proves development and production source-only
-cycles, one artifact, eight ordered receipts, four heads, health/issues, later
-retention and same-run replay. A2 alone changes the eight normal flags. C2
-records honest evidence only after A2 and final review.
+D0 is complete documentation only. It records one durable production Club Elo
+issue lineage per exact canonical marker. TryArmCreate CAS-arms Ready to
+CreateUncertain before POST and grants only the committing caller; BindObservedIssue
+permanently stores a validated number. New body/watermark/cycle/process/
+run_attempt data never grant another POST. Every uncertain or legacy absence,
+including crash after arm or POST, delayed fresh-process visibility, zero
+listing, deletion, removed marker, or duplicate marker, remains Pending for
+owner-directed recovery.
 
-The owner-authorized effects are bounded Club Elo reads/context writes/GitHub
-handoff and issue effects/existing-schedule activation after proof/Pages and
-ready-PR merge. They exclude model calls, prediction/posting, roster work, new
-schedules, credential-route changes and unrelated P1 work. Root performs
-fresh final review, exact-head CI and explicit-target push/merge checks.
+E2 and W2 are independent, but W2 is transport-only and its issue paths are
+transferred to F2. F2 begins after D0 review plus E2 and W2 transport clearance.
+It must pass the ADR-0084 transaction/process-loss/genesis/legacy/bounded-
+listing/stale-CAS matrix, solution build, full Core/FirebaseAdapter emulator/
+Orchestrator suites, deterministic Node and lock validation, fresh combined
+review, and exact-head CI. V2 wiring, source-only live validation, and A2 are
+blocked on that accepted F2 candidate; normal source inputs remain false.
 
-P1-05 is excluded. It remains `MetadataUnavailable` until its exact ADR-0079
-sidecar and a separate future authorization; it has no source/provider/adoption
-activity. No disk restriction applies at or above 20 GiB effective free space.
-
+P1-05/R1 remains ADR-0082 deferred and MetadataUnavailable. It has no source,
+provider, fence, observation, receipt, health, publication, issue, or API
+activity. D0 has no runtime/source/Firestore/GitHub/artifact/issue/live effect.
 ## Historical dormant execution packet
 
 The remaining packet is retained only for historical dormant C3/E1 and P1-05
 scope reconstruction. It is superseded for current state and release routing by
-ADR-0083 and this active packet.
+ADR-0083, ADR-0084, and this active packet.
 
 # Historical P1-04 / P1-05 execution packet
 
@@ -294,3 +295,15 @@ plans/bundesliga-2026-27/p1-status-snapshot.md
 plans/bundesliga-2026-27/tasks/p1-04-club-elo-refresh.md
 plans/bundesliga-2026-27/tasks/p1-05-roster-refresh.md
 ```
+
+
+## D0 durable issue-create fence amendment — 2026-09-16
+
+[ADR-0084](decisions/0084-fence-context-source-issue-creation.md) replaces
+only the issue persistence/recovery boundary. The durable marker-wide fence
+arms CreateUncertain before POST, binds verified exact-marker identity, and
+keeps legacy or uncertain absence Pending for owner-directed manual recovery.
+F2 owns the Core/Firebase fence seam and transferred issue paths after E2/W2
+transport; V2 wiring follows its combined transaction/process-loss/genesis/
+legacy/listing/CAS validation, review, and exact-head CI. No runtime/source/live
+effect exists; P1-05/R1 stays deferred.
