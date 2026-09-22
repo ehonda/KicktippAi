@@ -71,9 +71,9 @@ run state.
 
 ## `intake-research`
 
-- **Model:** `gpt-5.6-luna/medium` for mechanical bounded discovery;
+- **Model:** `gpt-6-luna/medium` for mechanical bounded discovery;
   `gpt-5.6-terra/medium` for broader bounded exploration; prefer
-  `gpt-5.6-sol/high` when open-ended conclusions will guide design.
+  `gpt-6-sol/high` when open-ended conclusions will guide design.
 - **Purpose:** gather repository/external facts for preview without making
   owner decisions.
 - **Inputs:** exact questions, source boundaries, and evidence requirements.
@@ -109,7 +109,7 @@ run state.
 
 ## `specification-reviewer`
 
-- **Model:** `gpt-5.6-sol/xhigh`.
+- **Model:** `gpt-6-sol/xhigh`.
 - **Purpose:** independently test architecture/specification completeness,
   consistency, ownership, continuity, and milestone independence.
 - **Inputs:** exact architecture packet and evidence, not an intended verdict.
@@ -144,7 +144,7 @@ run state.
 
 ## `implementation-reviewer`
 
-- **Model:** default `gpt-5.6-sol/xhigh`. `sol/high` is allowed only when the
+- **Model:** default `gpt-6-sol/xhigh`. `sol/high` is allowed only when the
   frozen preview records a bounded exact tip/paths, deterministic criteria, and
   no open ADR, invariant, ownership, architecture, or continuity question.
 - **Purpose:** independent correctness, regression, security, and contract
@@ -164,7 +164,7 @@ run state.
 
 ## `cumulative-validator-triage`
 
-- **Model:** `gpt-5.6-sol/high`.
+- **Model:** `gpt-6-sol/high`.
 - **Purpose:** validate the exact combined integration tip and perform bounded
   first-line failure attribution.
 - **Inputs/owned surfaces/effects:** exact combined tip, frozen union of gates,
@@ -184,7 +184,7 @@ run state.
 
 ## `deep-diagnosis`
 
-- **Model:** `gpt-5.6-sol/high`.
+- **Model:** `gpt-6-sol/high`.
 - **Purpose:** resolve difficult, unattributed, or non-architectural failures.
 - **Inputs:** preserved command/log evidence, exact tip/diff, and a bounded
   diagnostic question.
@@ -215,7 +215,7 @@ run state.
 
 ## `final-acceptance-reviewer`
 
-- **Model:** fresh `gpt-5.6-sol/xhigh` by default, with the same explicitly
+- **Model:** fresh `gpt-6-sol/xhigh` by default, with the same explicitly
   recorded deterministic `sol/high` exception as implementation review.
 - **Purpose:** decide final acceptance of the exact combined candidate.
 - **Inputs:** exact tip/full diff, frozen contract/invariants, validation
@@ -233,7 +233,7 @@ run state.
 
 ## `ci-status-monitor`
 
-- **Model:** `gpt-5.6-luna/low`.
+- **Model:** `gpt-6-luna/low`.
 - **Purpose:** mechanical exact-SHA status, check, and log collection.
 - **Inputs/owned surfaces/effects:** allowlisted repository, PR/workflow IDs,
   exact SHA, and root-authorized action; may read remote state and perform only
