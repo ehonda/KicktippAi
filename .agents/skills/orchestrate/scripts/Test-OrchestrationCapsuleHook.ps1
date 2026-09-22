@@ -205,7 +205,7 @@ try {
         lane_id = 'lane-a'
         agent_path = '/root/writer'
         role = 'milestone-writer'
-        model = 'gpt-5.6-terra'
+        model = 'gpt-6-sol'
         reasoning_effort = 'medium'
         owned_paths = @('src/lane-a')
         next_action = 'Apply bounded correction.'
@@ -244,7 +244,7 @@ try {
             lane_id = 'lane-a'
             agent_path = '/root/writer'
             role = 'milestone-writer'
-            model = 'gpt-5.6-terra'
+            model = 'gpt-6-sol'
             reasoning_effort = 'medium'
             owned_paths = @('src/lane-a')
             next_action = 'Duplicate ownership must be rejected.'

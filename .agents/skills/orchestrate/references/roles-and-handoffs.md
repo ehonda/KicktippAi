@@ -72,7 +72,7 @@ run state.
 ## `intake-research`
 
 - **Model:** `gpt-6-luna/medium` for mechanical bounded discovery;
-  `gpt-5.6-terra/medium` for broader bounded exploration; prefer
+  `gpt-6-sol/medium` for broader bounded exploration; prefer
   `gpt-6-sol/high` when open-ended conclusions will guide design.
 - **Purpose:** gather repository/external facts for preview without making
   owner decisions.
@@ -124,7 +124,7 @@ run state.
 
 ## `milestone-writer`
 
-- **Model:** `gpt-5.6-terra/medium`; use `high` for substantial ambiguity,
+- **Model:** `gpt-6-sol/medium`; use `high` for substantial ambiguity,
   integration risk, or difficult edge cases.
 - **Purpose:** implement one frozen milestone in one admitted worktree.
 - **Owns:** assigned paths, focused iterative tests, required pre-handoff build
