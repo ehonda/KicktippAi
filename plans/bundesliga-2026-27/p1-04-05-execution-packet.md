@@ -1,5 +1,38 @@
 # P1-04 / P1-05 execution packet
 
+- Status: Active — S0 accepted; P1-04 operational activation in progress; P1-05/R1 deferred
+- Authority: [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
+- Last reconciled: 2026-09-16
+
+## Active execution packet
+
+S0 has the durable documents, ADR-0083 and the one-time successor-link blocks
+in ADR-0077/0081. It releases independent E2 parser-v2/source evidence and W2
+artifact/issue transport. V2 follows cumulative E2/W2 validation and owns
+source-only CLI/DI/workflow wiring. It keeps all normal workflow source inputs
+false. Live validation then proves development and production source-only
+cycles, one artifact, eight ordered receipts, four heads, health/issues, later
+retention and same-run replay. A2 alone changes the eight normal flags. C2
+records honest evidence only after A2 and final review.
+
+The owner-authorized effects are bounded Club Elo reads/context writes/GitHub
+handoff and issue effects/existing-schedule activation after proof/Pages and
+ready-PR merge. They exclude model calls, prediction/posting, roster work, new
+schedules, credential-route changes and unrelated P1 work. Root performs
+fresh final review, exact-head CI and explicit-target push/merge checks.
+
+P1-05 is excluded. It remains `MetadataUnavailable` until its exact ADR-0079
+sidecar and a separate future authorization; it has no source/provider/adoption
+activity. No disk restriction applies at or above 20 GiB effective free space.
+
+## Historical dormant execution packet
+
+The remaining packet is retained only for historical dormant C3/E1 and P1-05
+scope reconstruction. It is superseded for current state and release routing by
+ADR-0083 and this active packet.
+
+# Historical P1-04 / P1-05 execution packet
+
 - Status: Closed — P1-04 dormant implementation complete; P1-05 dormant closeout complete under ADR-0082 with R1 deferred; reconciled 2026-09-15
 - Authority: ADR-0074 as refined by [ADR-0077](decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0079](decisions/0079-pin-roster-refresh-endpoints-and-close-c2-validation.md), [ADR-0080](decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0082](decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md)
 - Scope: dormant P1-04/P1-05 only; no source is enabled

@@ -1,5 +1,47 @@
 # Bundesliga 2026/27 execution strategy
 
+- Status: Accepted current P1 strategy under [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
+- Last updated: 2026-09-16
+
+## Current activation strategy
+
+P1-04 is an operational activation lane, not a dormant-complete task. Merge of
+PR #111 is prior C3/E1 implementation input. The current graph is S0 → E2/W2
+in parallel → V2 → source-only live validation → A2 → closeout/post-merge.
+E2 proves the exact paired parser/table v2 and historical v1 compatibility; W2
+proves immutable artifact/issue transport; V2 adds explicit CLI/DI/workflow
+wiring while normal flags stay false. A2 is admitted only after real
+development and production source-only evidence.
+
+## Owner and authority gates
+
+Production continuity stays fixed: existing cron/topology, models, prompts,
+credentials, posting and copy behavior do not change. The bounded owner
+authority covers Club Elo reads/context writes/GitHub handoff and issues/
+existing-schedule source activation after evidence/Pages and a ready PR merge.
+It excludes model calls, prediction/posting changes, roster, new schedules,
+credential-routing and unrelated P1 work. Rollback is reviewed all-eight
+flag-off; restoration needs corrected reviewed code and fresh accepting then
+retention evidence. The owner is recovery owner.
+
+Validate offline first, then local development dry run/persistence/distinct
+cycle, branch development source-only dispatch, branch production source-only
+dispatch with artifact/eight receipts/four heads, later distinct retention and
+same-run replay. A source-only pass never certifies the whole schedule. Final
+merge requires fresh independent acceptance and exact-head CI; post-merge
+checks main, Pages, a source-only dispatch and the next scheduled run.
+
+P1-05/R1 remains dormant under ADR-0082 and has no sidecar probe, provider or
+adoption action. At or above 20 GiB effective free space there is no disk
+restriction.
+
+## Historical dormant strategy
+
+The retained strategy below describes the prior dormant closeout only. ADR-0083
+and the preceding current strategy supersede it for activation sequencing.
+
+# Historical Bundesliga 2026/27 execution strategy
+
 - Status: Accepted current P1 strategy
 - Last updated: 2026-09-15
 
