@@ -7,6 +7,39 @@ namespace Orchestrator.Tests.Commands.Operations.CollectContext;
 
 public class ContextCollectionWorkflowContractTests
 {
+    [Test]
+    public async Task Optional_refresh_is_bounded_and_ordinary_collection_uses_default_success_without_sources()
+    {
+        var workflow = await ReadWorkflow("base-context-collection.yml");
+        await Assert.That(workflow).Contains("timeout-minutes: ${{ inputs.enable_club_elo_source && !inputs.context_source_only && 52 || 45 }}")
+            .And.Contains("id: source-setup").And.Contains("timeout-minutes: 2")
+            .And.Contains("id: source-refresh").And.Contains("timeout-minutes: 5")
+            .And.Contains("continue-on-error: ${{ !inputs.context_source_only }}")
+            .And.Contains("steps.source-setup.outcome == 'success'")
+            .And.Contains("steps.source-refresh.outcome").And.DoesNotContain("steps.source-refresh.conclusion");
+        var ordinary = Regex.Match(workflow, @"(?ms)      - name: Run context collection\r?\n(?<body>.*?)(?=      - name:)").Groups["body"].Value;
+        await Assert.That(ordinary).Contains("if: ${{ !inputs.context_source_only }}")
+            .And.Contains("collect-context profile").And.DoesNotContain("always()")
+            .And.DoesNotContain("--enable-club-elo-source").And.DoesNotContain("--context-source-cycle")
+            .And.DoesNotContain("continue-on-error");
+    }
+
+    [Test]
+    public async Task Validation_dispatch_is_mutually_exclusive_with_all_sixteen_normal_jobs_and_has_no_model_secrets()
+    {
+        var outer = await ReadWorkflow("buli2627-production-live-matchday.yml");
+        await Assert.That(Regex.Matches(outer, @"(?m)^    uses: \./\.github/workflows/base-context-collection.yml$").Count).IsEqualTo(8);
+        await Assert.That(Regex.Matches(outer, @"(?m)^      enable_club_elo_source: false$").Count).IsEqualTo(8);
+        await Assert.That(outer).Contains("github.event_name != 'workflow_dispatch' || inputs.club_elo_validation == 'off'")
+            .And.Contains("github.event_name == 'workflow_dispatch' && inputs.club_elo_validation != 'off'")
+            .And.Contains("cron: \"7 2,9 * * *\"").And.Contains("cancel-in-progress: false").And.DoesNotContain("always(");
+        var validation = await ReadWorkflow("buli2627-club-elo-validation.yml");
+        await Assert.That(validation).DoesNotContain("openai").And.DoesNotContain("langfuse").And.DoesNotContain("kicktipp_")
+            .And.DoesNotContain("schedule:").And.DoesNotContain("workflow_dispatch:").And.DoesNotContain("predictions.yml");
+        await Assert.That(Regex.Matches(validation, @"(?m)^      context_source_only: true$").Count).IsEqualTo(9);
+        for (var index = 1; index < BundesligaContextSourceContract.ProductionConsumers.Count; index++)
+            await Assert.That(validation).Contains($"needs: {BundesligaContextSourceContract.ProductionConsumers[index - 1]}");
+    }
     private static readonly string WorkflowsDirectory = Path.Combine(
         SolutionPathUtility.FindSolutionRoot(),
         ".github",
@@ -26,7 +59,7 @@ public class ContextCollectionWorkflowContractTests
             @"(?ms)^      publish_launch_roster_overlay:\s*\r?\n        description:.*\r?\n        required: false\s*\r?\n        default: false\s*\r?\n        type: boolean\s*$"))
             .IsTrue();
         await Assert.That(workflow)
-            .Contains("if: ${{ inputs.publish_launch_roster_overlay }}")
+            .Contains("if: ${{ !inputs.context_source_only && inputs.publish_launch_roster_overlay }}")
             .And.Contains("https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb")
             .And.Contains("collect-context rosters")
             .And.Contains("--duckdb-revision \"154367dfa6d6eb0b86332e332f9df0a080c7ddce\"")

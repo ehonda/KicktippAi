@@ -21,13 +21,39 @@ on:
         required: false
         default: false
         type: boolean
+      enable_club_elo_source:
+        description: 'Run an optional Club Elo refresh before ordinary context'
+        required: false
+        default: false
+        type: boolean
+      context_source_only:
+        description: 'Required source-only validation with no ordinary profile'
+        required: false
+        default: false
+        type: boolean
+      context_source_scope:
+        required: false
+        default: 'production-live'
+        type: string
+      context_source_cycle_id:
+        required: false
+        type: string
+      context_source_current_lane:
+        required: false
+        type: string
+      context_source_producer_lane:
+        required: false
+        type: string
+      context_source_consumers:
+        required: false
+        type: string
     secrets:
       kicktipp_username:
         description: 'Kicktipp username'
-        required: true
+        required: false
       kicktipp_password:
         description: 'Kicktipp password'
-        required: true
+        required: false
       firebase_project_id:
         description: 'Firebase project ID'
         required: true
@@ -42,32 +68,95 @@ jobs:
   context-collection:
     name: Context Collection
     runs-on: ubuntu-latest
-    timeout-minutes: 45
-    
+    timeout-minutes: ${{ inputs.enable_club_elo_source && !inputs.context_source_only && 52 || 45 }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
-        
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
-          
+
       - name: Restore dependencies
         run: dotnet restore
-        
+
       - name: Build project
         run: dotnet build --no-restore --configuration Release
 
+      - name: Validate context invocation
+        env:
+          SOURCE_ENABLED: ${{ inputs.enable_club_elo_source }}
+          SOURCE_ONLY: ${{ inputs.context_source_only }}
+          COMPETITION: ${{ inputs.competition }}
+          SCOPE: ${{ inputs.context_source_scope }}
+          COMMUNITY: ${{ inputs.community_context }}
+          CYCLE: ${{ inputs.context_source_cycle_id }}
+          LANE: ${{ inputs.context_source_current_lane }}
+          PRODUCER: ${{ inputs.context_source_producer_lane }}
+          CONSUMERS: ${{ inputs.context_source_consumers }}
+          KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
+          KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
+          INPUT_COMMUNITY-CONTEXT: ${{ inputs.community_context }}
+          INPUT_CYCLE-ID: ${{ inputs.context_source_cycle_id }}
+          INPUT_CURRENT-LANE: ${{ inputs.context_source_current_lane }}
+          INPUT_PRODUCER-LANE: ${{ inputs.context_source_producer_lane }}
+          INPUT_CONSUMERS: ${{ inputs.context_source_consumers }}
+        run: |
+          if [[ "$SOURCE_ONLY" == true && "$SOURCE_ENABLED" != true ]]; then exit 1; fi
+          if [[ "$SOURCE_ENABLED" == true && "$COMPETITION" != bundesliga-2026-27 ]]; then exit 1; fi
+          if [[ "$SOURCE_ONLY" != true && ( -z "$KICKTIPP_USERNAME" || -z "$KICKTIPP_PASSWORD" ) ]]; then exit 1; fi
+          if [[ "$SOURCE_ENABLED" == true && "$SCOPE" != development && "$SCOPE" != production-live ]]; then exit 1; fi
+          if [[ "$SOURCE_ENABLED" == true ]]; then
+            if [[ "$SCOPE" == development ]]; then
+              [[ "$COMMUNITY" == ehonda-dev-buli-2627 && -z "$CYCLE$LANE$PRODUCER$CONSUMERS" ]] || exit 1
+            else
+              [[ "$GITHUB_REPOSITORY" == ehonda/KicktippAi && "$CYCLE" == "gha:$GITHUB_REPOSITORY_ID:$GITHUB_RUN_ID" && "$PRODUCER" == pes-squad-context ]] || exit 1
+              [[ "$CONSUMERS" == pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context ]] || exit 1
+              case "$LANE:$COMMUNITY" in
+                pes-squad-context:pes-squad|schadensfresse-context:schadensfresse|relaxdays-tippt-context:relaxdays-tippt|arena-sol-xhigh-context:ehonda-ai-arena|arena-sol-high-context:ehonda-ai-arena|arena-luna-medium-context:ehonda-ai-arena|arena-terra-xhigh-context:ehonda-ai-arena|arena-luna-none-context:ehonda-ai-arena) ;;
+                *) exit 1 ;;
+              esac
+            fi
+          fi
+
+      - name: Setup optional source Node
+        id: source-setup
+        if: ${{ inputs.enable_club_elo_source }}
+        continue-on-error: ${{ !inputs.context_source_only }}
+        timeout-minutes: 2
+        uses: actions/setup-node@v6
+        with:
+          node-version: '24'
+
+      - name: Refresh Club Elo source only
+        id: source-refresh
+        if: ${{ inputs.enable_club_elo_source && steps.source-setup.outcome == 'success' }}
+        continue-on-error: ${{ !inputs.context_source_only }}
+        timeout-minutes: 5
+        uses: ./.github/scripts/context-source-artifact
+        with:
+          community-context: ${{ inputs.community_context }}
+          scope: ${{ inputs.context_source_scope }}
+          cycle-id: ${{ inputs.context_source_cycle_id }}
+          current-lane: ${{ inputs.context_source_current_lane }}
+          producer-lane: ${{ inputs.context_source_producer_lane }}
+          consumers: ${{ inputs.context_source_consumers }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+
       - name: Download pinned Bundesliga launch roster artifact
-        if: ${{ inputs.publish_launch_roster_overlay }}
+        if: ${{ !inputs.context_source_only && inputs.publish_launch_roster_overlay }}
         run: |
           curl --fail --location --retry 3 --retry-all-errors \
             --output "$RUNNER_TEMP/transfermarkt-datasets.duckdb" \
             "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb"
 
       - name: Publish pinned Bundesliga launch roster enrichment
-        if: ${{ inputs.publish_launch_roster_overlay }}
+        if: ${{ !inputs.context_source_only && inputs.publish_launch_roster_overlay }}
         run: |
           dotnet run --no-build \
             --project src/Orchestrator/Orchestrator.csproj \
@@ -85,8 +174,10 @@ jobs:
         env:
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
-        
+
       - name: Run context collection
+        id: ordinary-context
+        if: ${{ !inputs.context_source_only }}
         run: |
           dotnet run --no-build \
             --project src/Orchestrator/Orchestrator.csproj \
@@ -104,9 +195,17 @@ jobs:
 
       - name: Build summary
         if: always()
+        continue-on-error: true
+        env:
+          SOURCE_SETUP_OUTCOME: ${{ steps.source-setup.outcome }}
+          SOURCE_REFRESH_OUTCOME: ${{ steps.source-refresh.outcome }}
+          ORDINARY_OUTCOME: ${{ steps.ordinary-context.outcome }}
+          SOURCE_LANE: ${{ inputs.context_source_current_lane }}
+          SOURCE_CYCLE: ${{ inputs.context_source_cycle_id }}
         run: |
           {
             echo "## Context Collection Job"
+            printf -- '- Source setup outcome: %s\n- Source refresh outcome: %s\n- Lane: %s\n- Cycle: %s\n- Ordinary outcome: %s\n' "$SOURCE_SETUP_OUTCOME" "$SOURCE_REFRESH_OUTCOME" "$SOURCE_LANE" "$SOURCE_CYCLE" "$ORDINARY_OUTCOME"
             echo "- **Community context:** \`${{ inputs.community_context }}\`"
             echo "- **Requested competition:** \`${{ inputs.competition }}\`"
             echo "- **Pinned launch roster overlay:** \`${{ inputs.publish_launch_roster_overlay }}\`"

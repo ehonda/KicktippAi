@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using EHonda.KicktippAi.Core;
+using FirebaseAdapter;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Http.Resilience;
@@ -554,10 +555,48 @@ public static class ServiceRegistrationExtensions
         services.TryAddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
         services.TryAddSingleton<ICompetitionCollectionProfileResolver, CompetitionCollectionProfileResolver>();
         services.TryAddTransient<ICompetitionProfileCollectorExecutor, CompetitionProfileCollectorExecutor>();
+        services.TryAddTransient<IBundesligaContextSourceCycleRepository>(provider =>
+            new FirebaseContextSourceCycleRepository(provider.GetRequiredService<IFirebaseServiceFactory>().FirestoreDb,
+                provider.GetRequiredService<ILogger<FirebaseContextSourceCycleRepository>>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddTransient<IBundesligaContextSourceIssueFenceRepository>(provider =>
+            new FirebaseContextSourceIssueFenceRepository(provider.GetRequiredService<IFirebaseServiceFactory>().FirestoreDb,
+                provider.GetRequiredService<TimeProvider>()));
+        services.TryAddTransient<IContextSourceBundleArtifactStore, GitHubContextSourceArtifactStore>();
+        services.TryAddTransient<IBundesligaContextSourceObservationProvider>(provider =>
+            new BundesligaClubEloRefreshSource(new HttpClient(BundesligaClubEloRefreshSource.CreateHandler())
+                { Timeout = TimeSpan.FromSeconds(30) }, provider.GetRequiredService<IFirebaseServiceFactory>(),
+                provider.GetRequiredService<IBundesligaClubEloSource>(),
+                _ => Task.FromResult(BundesligaClubEloRefresh.CanonicalMappingBytes()), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddTransient<IBundesligaContextSourceIssueProjector, LazyContextSourceIssueProjector>();
+        services.TryAddTransient<ContextSourceCycleCoordinator>();
 
         // CollectContextProfileCommand and CollectContextDevCommand resolve and execute the same competition profile.
 
         return services;
+    }
+
+    // Construct the production-only projector after durable health is committed.
+    // Disabled and development calls never resolve its credentials or fence.
+    private sealed class LazyContextSourceIssueProjector(IServiceProvider provider) : IBundesligaContextSourceIssueProjector
+    {
+        public async Task<BundesligaContextSourceIssueProjectionAttempt> ProjectAsync(BundesligaContextSourceHealth health,
+            CancellationToken cancellationToken = default)
+        {
+            if (health.Scope != BundesligaContextSourceScope.ProductionLive || health.Source != BundesligaContextSource.ClubElo)
+                throw new InvalidOperationException("GITHUB_ISSUE_SCOPE_OR_REPOSITORY_INVALID");
+            var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN");
+            if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("GITHUB_ISSUE_TOKEN_MISSING");
+            // No factory resilience handlers or redirect-capable shared client may retry POST.
+            using var configured = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false })
+                { BaseAddress = new Uri("https://api.github.com/"), Timeout = TimeSpan.FromSeconds(30) };
+            configured.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            configured.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+            configured.DefaultRequestHeaders.UserAgent.ParseAdd("KicktippAi-context-source/1.0");
+            configured.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+            var projector = new GitHubContextSourceIssueProjector(configured,
+                provider.GetRequiredService<IBundesligaContextSourceIssueFenceRepository>(), Environment.GetEnvironmentVariable("GITHUB_REPOSITORY"));
+            return await projector.ProjectAsync(health, cancellationToken);
+        }
     }
 
     /// <summary>

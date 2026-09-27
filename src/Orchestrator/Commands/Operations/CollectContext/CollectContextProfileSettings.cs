@@ -34,6 +34,10 @@ public sealed class CollectContextProfileSettings : CollectContextSettings
     [Description("Enable the dormant Club Elo cycle source for this invocation")]
     public bool EnableClubEloSource { get; set; }
 
+    [CommandOption("--context-source-only")]
+    [Description("Prepare and collect only the enabled Club Elo source, without Kicktipp credentials or other collectors")]
+    public bool ContextSourceOnly { get; set; }
+
     [CommandOption("--enable-roster-source")]
     [Description("Enable the dormant roster cycle source for this invocation")]
     public bool EnableRosterSource { get; set; }

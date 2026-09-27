@@ -1,0 +1,19 @@
+name: Context source profile
+description: Run the bounded source-only profile using the Actions runtime environment
+inputs:
+  community-context:
+    required: true
+  scope:
+    required: true
+  cycle-id:
+    required: false
+  current-lane:
+    required: false
+  producer-lane:
+    required: false
+  consumers:
+    required: false
+runs:
+  using: node24
+  main: run-context-profile.mjs
+

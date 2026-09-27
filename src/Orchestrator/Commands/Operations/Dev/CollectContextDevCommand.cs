@@ -28,6 +28,14 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         try
         {
             profile = _profileResolver.ResolveForDevelopment(settings.Community, settings.Competition);
+            profile = profile with { ContextSourceFeatures = new(settings.EnableClubEloSource, settings.EnableRosterSource) };
+            if (settings.ContextSourceOnly)
+                CompetitionProfileCollectionRunner.ValidateSourceOnly(profile, settings.Matchdays, settings.FullSeason);
+            if (profile.ContextSourceFeatures.AnyEnabled)
+                EHonda.KicktippAi.Core.BundesligaContextSourceContract.ValidateConsumerAuthority(
+                    EHonda.KicktippAi.Core.BundesligaContextSourceScope.Development,
+                    EHonda.KicktippAi.Core.BundesligaContextSourceContract.DevelopmentLane,
+                    string.IsNullOrWhiteSpace(settings.CommunityContext) ? settings.Community.Trim() : settings.CommunityContext.Trim());
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -47,7 +55,8 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             settings.FullSeason,
             settings.RecentHistoryDateMap,
             settings.DryRun,
-            settings.Verbose);
+            settings.Verbose,
+            ContextSourceOnly: settings.ContextSourceOnly);
         return await CompetitionProfileCollectionRunner.ExecuteAsync(
             _console,
             _collectorExecutor,

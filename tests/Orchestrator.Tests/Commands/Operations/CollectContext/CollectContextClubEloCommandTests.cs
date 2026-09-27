@@ -12,8 +12,26 @@ using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 
 namespace Orchestrator.Tests.Commands.Operations.CollectContext;
 
+[NotInParallel("Telemetry")]
 public class CollectContextClubEloCommandTests
 {
+    [Test]
+    public async Task Disabled_collection_retains_exact_head_and_provenance_across_five_arena_invocations()
+    {
+        var loaded = BundesligaClubEloRefreshSourceTests.Loaded("ehonda-ai-arena", new DateOnly(2026, 9, 6));
+        var repository = new Mock<IDocumentPublicationRepository>(MockBehavior.Strict);
+        repository.Setup(value => value.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, "ehonda-ai-arena", It.IsAny<CancellationToken>())).ReturnsAsync(loaded);
+        var factory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+        factory.Setup(value => value.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27)).Returns(repository.Object);
+        var services = new Mock<IServiceProvider>(MockBehavior.Strict);
+        var seed = new Mock<IBundesligaClubEloSource>(MockBehavior.Strict);
+        var command = new CollectContextClubEloCommand(new TestConsole(), factory.Object, seed.Object, new FakeLogger<CollectContextClubEloCommand>(), services.Object);
+        for (var index = 0; index < 5; index++)
+            await Assert.That(await command.ExecuteWithSettingsAsync(new() { CommunityContext = "ehonda-ai-arena", Competition = CompetitionIds.Bundesliga2026_27 })).IsEqualTo(0);
+        repository.Verify(value => value.PublishAsync(It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        services.VerifyNoOtherCalls(); seed.VerifyNoOtherCalls();
+        await Assert.That(BundesligaClubEloPublication.ReconstructLastKnownGood(loaded).RatedAt).IsEqualTo(new DateOnly(2026, 9, 6));
+    }
     [Test]
     [Arguments("Eligible", false, "Published")]
     [Arguments("Eligible", true, "NotAttempted")]
@@ -282,7 +300,7 @@ public class CollectContextClubEloCommandTests
     }
 
     [Test]
-    public async Task Rejected_seed_fails_closed_before_read_or_publish()
+    public async Task Rejected_seed_without_head_fails_closed_before_publish()
     {
         var repository = CreatePublicationRepository();
         var factory = CreateMockFirebaseServiceFactoryFull(documentPublicationRepository: repository);
@@ -298,7 +316,7 @@ public class CollectContextClubEloCommandTests
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("MISSING_ALIAS:Schalke");
         repository.Verify(repository => repository.GetLastKnownGoodAsync(
-            It.IsAny<DocumentPublicationDefinition>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            It.IsAny<DocumentPublicationDefinition>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
         repository.Verify(repository => repository.PublishAsync(
             It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -360,7 +378,7 @@ public class CollectContextClubEloCommandTests
 
                 await Assert.That(exitCode).IsEqualTo(1);
                 repository.Verify(value => value.GetLastKnownGoodAsync(
-                    It.IsAny<DocumentPublicationDefinition>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+                    It.IsAny<DocumentPublicationDefinition>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
                 repository.Verify(value => value.PublishAsync(
                     It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
             }

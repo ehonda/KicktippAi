@@ -2,6 +2,12 @@ name: Bundesliga 2026/27 production live - Matchday
 
 on:
   workflow_dispatch:
+    inputs:
+      club_elo_validation:
+        description: 'Source-only validation without prediction jobs'
+        type: choice
+        default: 'off'
+        options: [off, development, production]
   schedule:
     - cron: "7 2,9 * * *"
 
@@ -12,12 +18,23 @@ concurrency:
 jobs:
   pes-squad-context:
     name: Context - pes-squad
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.club_elo_validation == 'off' }}
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "pes-squad"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "pes-squad-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}
@@ -53,12 +70,22 @@ jobs:
   schadensfresse-context:
     name: Context - schadensfresse
     needs: pes-squad-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "schadensfresse"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "schadensfresse-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.SCHADENSFRESSE_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.SCHADENSFRESSE_KICKTIPP_PASSWORD }}
@@ -94,12 +121,22 @@ jobs:
   relaxdays-tippt-context:
     name: Context - relaxdays-tippt
     needs: schadensfresse-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "relaxdays-tippt"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "relaxdays-tippt-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.RELAXDAYS_TIPPT_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.RELAXDAYS_TIPPT_KICKTIPP_PASSWORD }}
@@ -135,12 +172,22 @@ jobs:
   arena-sol-xhigh-context:
     name: Context - arena Sol xhigh production
     needs: relaxdays-tippt-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "ehonda-ai-arena"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-sol-xhigh-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD }}
@@ -176,12 +223,22 @@ jobs:
   arena-sol-high-context:
     name: Context - arena Sol high challenger
     needs: arena-sol-xhigh-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "ehonda-ai-arena"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-sol-high-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD }}
@@ -217,12 +274,22 @@ jobs:
   arena-luna-medium-context:
     name: Context - arena Luna medium challenger
     needs: arena-sol-high-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "ehonda-ai-arena"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-luna-medium-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_PASSWORD }}
@@ -258,12 +325,22 @@ jobs:
   arena-terra-xhigh-context:
     name: Context - arena Terra xhigh challenger
     needs: arena-luna-medium-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "ehonda-ai-arena"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-terra-xhigh-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD }}
@@ -299,12 +376,22 @@ jobs:
   arena-luna-none-context:
     name: Context - arena Luna none challenger
     needs: arena-terra-xhigh-matchday
+    permissions:
+      contents: read
+      actions: read
+      issues: write
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "ehonda-ai-arena"
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
+      enable_club_elo_source: false
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-luna-none-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD }}
@@ -336,3 +423,16 @@ jobs:
       firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       openai_api_key: ${{ secrets.OPENAI_API_KEY }}
       langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  club-elo-validation:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.club_elo_validation != 'off' }}
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    uses: ./.github/workflows/buli2627-club-elo-validation.yml
+    with:
+      mode: ${{ inputs.club_elo_validation }}
+    secrets:
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
