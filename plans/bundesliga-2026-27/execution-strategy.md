@@ -1,39 +1,20 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted current P1 strategy under [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md)
-- Last updated: 2026-09-16
+- Status: In progress; optional-refresh continuity contract accepted; runtime isolation and activation pending
+- Last reconciled: 2026-09-27
+- Current contract: [ADR-0085](decisions/0085-isolate-optional-club-elo-refresh.md), retaining [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](decisions/0084-fence-context-source-issue-creation.md) outside its partial successor boundary
 
-## Current activation strategy
+## Current route
 
-P1-04 is an operational activation lane, not a dormant-complete task. Merge of
-PR #111 is prior C3/E1 implementation input. The current graph is S0 → E2/W2
-in parallel → V2 → source-only live validation → A2 → closeout/post-merge.
-E2 proves the exact paired parser/table v2 and historical v1 compatibility; W2
-proves immutable artifact/issue transport; V2 adds explicit CLI/DI/workflow
-wiring while normal flags stay false. A2 is admitted only after real
-development and production source-only evidence.
+Reviewed successor documents → finite transport/security corrections and F2 real-transaction fence matrix → source-only/workflow/head-preservation implementation → focused regressions, one coherent solution build and exact-head required CI → bounded development/branch-production accepting, retention/rejection and replay evidence plus controlled refresh failure with ordinary continuation → all-eight activation → reviewed closeout/merge → existing-schedule monitoring.
 
-## Owner and authority gates
+D0 is accepted prior documentation; it is not runtime isolation. Prior dormant C3/E1 and merged PR #111 remain historical accepted implementation input. Current transport/security clearance, F2 acceptance, source-only isolation, focused/CI validation, live evidence, activation and closeout remain pending; no current candidate is credited as implemented or accepted here. Main's source flags remain false.
 
-Production continuity stays fixed: existing cron/topology, models, prompts,
-credentials, posting and copy behavior do not change. The bounded owner
-authority covers Club Elo reads/context writes/GitHub handoff and issues/
-existing-schedule source activation after evidence/Pages and a ready PR merge.
-It excludes model calls, prediction/posting changes, roster, new schedules,
-credential-routing and unrelated P1 work. Rollback is reviewed all-eight
-flag-off; restoration needs corrected reviewed code and fresh accepting then
-retention evidence. The owner is recovery owner.
+The new boundary requires early authorized source-only validation with no Kicktipp/history/roster/model resolution. Optional Node setup is bounded to two minutes and refresh to five, both continue-on-error; enabled jobs allow 52 minutes and disabled jobs 45. Required ordinary collection follows with source flags false and no cycle arguments under normal success conditions. Ordinary failures and workflow cancellation remain failures. Required source-only validation dispatch cannot false-pass. A nonblocking summary reports actual optional outcomes and stale/absent health truthfully.
 
-Validate offline first, then local development dry run/persistence/distinct
-cycle, branch development source-only dispatch, branch production source-only
-dispatch with artifact/eight receipts/four heads, later distinct retention and
-same-run replay. A source-only pass never certifies the whole schedule. Final
-merge requires fresh independent acceptance and exact-head CI; post-merge
-checks main, Pages, a source-only dispatch and the next scheduled run.
+Ordinary source-off collection validates and retains existing heads without republication or source-cycle access, preserving full provenance, dates, receipt and watermark; no-head seed publication remains, corrupt heads fail. Eight ordered receipts/four heads and sixteen jobs/eight context-match pairs remain fixed, including cron, secrets, model/prompt/cap routes, posting and copy. Rollback is reviewed all-eight flags-off with retained context and zero source-service interaction. P1-05/R1 remains deferred and source-disabled.
 
-P1-05/R1 remains dormant under ADR-0082 and has no sidecar probe, provider or
-adoption action. At or above 20 GiB effective free space there is no disk
-restriction.
+Historical 54 reds (P4/H12/Z31/Docker7) remain failed evidence. Concrete product/security defects block release and require focused passing regressions. Local Docker capability, repeated full-suite P confirmation and historical timeout attribution are no longer independent activation gates; required exact-runner CI carries unavailable local checks. CT correction 1/1 and diagnostic execution 1/1 remain spent. Runtime/concurrency diagnosis is parked; no .NET concurrency side program or budget alias is authorized. Timeout cause remains uncertain; production monitoring follows deployment.
 
 ## Historical dormant strategy
 

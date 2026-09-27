@@ -1,30 +1,24 @@
 # P1-04 — Activate official Club Elo context refresh
 
-- Status: In progress — operational activation
-- Last reconciled: 2026-09-16
-- Depends on: accepted [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md)
-- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0074](../decisions/0074-freeze-context-source-cycle-handoff-and-provenance.md), [ADR-0077](../decisions/0077-refresh-club-elo-from-official-html.md), [ADR-0078](../decisions/0078-refine-context-source-pre-artifact-and-publication-fence.md), [ADR-0080](../decisions/0080-bound-transitional-context-publication-recovery.md), [ADR-0081](../decisions/0081-close-club-elo-html-publication-and-selection-seams.md), and [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md)
+- Status: In progress; ADR-0085 continuity contract accepted; runtime/live/activation gates pending
+- Last reconciled: 2026-09-27
+- Depends on: [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
 
-## Outcome
+## Outcome and milestones
 
-P1-04 completes only after a current official Club Elo observation is accepted,
-handed off immutably and reaches all eight ordered receipts and four physical
-community heads with truthful provenance, health and issue reconciliation.
-Merged PR #111 is prior dormant C3/E1 implementation, not current completion.
+Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. Main remains source-disabled; accepted dormant C3/E1 and D0 documentation do not implement this isolation.
 
-## Milestones
+- [x] D0: prior accepted durable-fence documentation.
+- [ ] Reviewed ADR-0085 successor-document milestone.
+- [ ] Concrete finite transport/security corrections and F2 durable fence with ADR-0084 real-transaction correctness matrix.
+- [ ] Source-only profile/development request and early authorization; optional workflow boundary and strict retained-head preservation.
+- [ ] Focused regressions, one coherent solution build, fresh acceptance and exact-head required CI.
+- [ ] Existing bounded development/branch-production accepting, later retention/rejection and same-run replay evidence.
+- [ ] Controlled refresh failure with verified old Elo and required ordinary continuation; no prediction authority from this proof.
+- [ ] A2: reviewed atomic all-eight source activation.
+- [ ] Closeout/merge, Pages and next existing scheduled-run observation.
 
-- [x] S0: accepted durable activation specification and current-plan records.
-- [ ] E2: parser-v2/current source grammar, versioned descriptor evidence and fixtures.
-- [ ] W2: immutable GitHub artifact transport and post-commit issue projection.
-- [ ] V2: DI, source-only CLI and workflow validation path; normal flags remain false.
-- [ ] Live validation: real source-only development then production evidence.
-- [ ] A2: atomic all-eight normal source enable after evidence.
-- [ ] Closeout: final review/CI, merge, Pages and post-merge evidence.
-
-E2 and W2 may proceed independently after S0. V2 requires their cumulative
-acceptance; A2 requires V2 plus real operational evidence. Each milestone
-requires a scoped local commit, appropriate review and cumulative validation.
+This ordered graph replaces the serial local timeout/confirmation program. Known product/security defects remain blockers. Historical 54 reds (P4/H12/Z31/Docker7) stay failed evidence; no xfail/flake waiver or pass is implied. CT correction 1/1 and diagnostic execution 1/1 remain spent. Runtime/concurrency audit is parked and historical timeout cause remains uncertain. P1-05/R1 stays deferred.
 
 ## Fixed receipt contract
 
@@ -45,8 +39,8 @@ physical heads, never eight. Each lane selection and receipt is independent.
 
 ## Required evidence and release gates
 
-1. Run offline/emulator suites including hostile parser, eight-lane, replay and
-   late-cycle matrices.
+1. Pass ADR-0085 focused seam/regression matrices, the F2 real-transaction
+   correctness matrix, one coherent solution build and required exact-head CI.
 2. Run a real official local development source-only dry run on the reviewed
    tip and retain UTC/URL/response/hash/parser/date/coverage evidence privately.
 3. Persist one development source-only cycle and re-read its receipt, context,
@@ -60,7 +54,9 @@ physical heads, never eight. Each lane selection and receipt is independent.
    receipts, four heads, health and desired issue reconciliation.
 7. Run a distinct later production cycle and same-run replay; no fabricated
    `Unchanged`, reacquisition, reupload, head or health change is acceptable.
-8. Change all eight normal source flags atomically, then obtain fresh final
+8. Prove controlled refresh failure preserves verified old Elo and executable
+   ordinary collection; then change all eight normal source flags atomically
+   and obtain fresh final
    review, exact-head CI, merge and post-merge main/Pages/source-only/schedule
    observation.
 

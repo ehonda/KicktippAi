@@ -3,6 +3,10 @@
 - Status: Accepted
 - Date: 2026-09-16
 
+> **Partial-successor link — ADR-0084.** [ADR-0084](0084-fence-context-source-issue-creation.md) supersedes only this ADR's issue persistence/recovery boundary, necessary auxiliary-schema statement, literal W2 issue ownership, and six-milestone release graph. This ADR remains Accepted for all other provisions.
+
+> **Partial successor — ADR-0085.** [ADR-0085](0085-isolate-optional-club-elo-refresh.md) replaces only the optional-refresh/source-only/head-retention and release/validation boundaries it names. All remaining provisions of this Accepted ADR remain operative.
+
 ## Context
 
 PR #111 merged dormant C3/E1 implementation into the baseline. That is prior
