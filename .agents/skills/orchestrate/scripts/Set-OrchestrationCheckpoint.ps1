@@ -1176,7 +1176,7 @@ try {
     $capsule = New-Capsule @capsuleArguments
     $capsulePath = Join-Path $stageDirectory 'capsule.json'
     Write-AtomicUtf8File -Path $capsulePath -Content (
-        ($capsule | ConvertTo-Json -Depth 30) + [Environment]::NewLine)
+        ($capsule | ConvertTo-Json -Depth 30 -Compress) + [Environment]::NewLine)
 
     $sealArguments = @{
         Mode = 'Seal'
