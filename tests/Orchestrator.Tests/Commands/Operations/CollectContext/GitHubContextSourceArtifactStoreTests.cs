@@ -487,6 +487,7 @@ public class GitHubArtifactW2RPTests
     public async Task P_scope_survives_direct_child_exit_and_kills_inherited_pipe_descendant(bool deadline)
     {
         var fixture = new W2RProcessFixture();
+        fixture.RequireDescendantWitness = true;
         var stages = new System.Collections.Concurrent.ConcurrentQueue<string>();
         fixture.ScopeStage = stages.Enqueue;
         var observation = new W2ROutputObservation();
@@ -515,9 +516,19 @@ public class GitHubArtifactW2RPTests
                 if (deadline) budget.Cancel(); else caller.Cancel();
                 Exception? failure = null;
                 try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; operationFailure = exception; }
+                var descendant = fixture.DescendantExitWitness(); // first terminal observation, before any fallback
                 W2RSupport.Require(deadline ? failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_TIMEOUT" } : failure is OperationCanceledException,
                     "Fixed deadline/cancellation result must settle within cleanup budget");
-                W2RSupport.Require(fixture.Grandchild!.HasExited, "Retained process scope must kill descendant after direct child exits");
+                var descendantExited = descendant.Passed;
+                if (!descendantExited && OperatingSystem.IsLinux())
+                    Console.WriteLine($"W2R_P_SCOPE_FIRST_FAILED_WITNESS term=descendantHasExited " +
+                        $"operation={operation.Status} outcome={W2RProcessFixture.FixedOutcome(operation, operationFailure)} " +
+                        $"{descendant.Diagnostic} observer={fixture.DirectExit?.Status.ToString() ?? "absent"} " +
+                        $"readers={observation.ReaderCount} readersSettled={observation.ReadersSettled} pipesDisposed={observation.PipesDisposed} " +
+                        $"stages={string.Join(',', stages.ToArray())} harnessKills={fixture.HarnessKills}");
+                W2RSupport.Require(descendantExited && fixture.HarnessKills == 0 && fixture.Direct!.HasExited && fixture.DirectExit.IsCompleted &&
+                    observation.ReaderCount == 2 && observation.ReadersSettled && observation.PipesDisposed,
+                    "Retained process scope must terminate the same descendant and settle direct child, observer and both pipes before harness fallback: " + descendant.Diagnostic);
             }
             catch (Exception exception) { bodyFailure = exception; }
             finally
@@ -546,6 +557,9 @@ public class GitHubArtifactW2RPTests
     public async Task P_abnormal_live_child_exit_terminates_scope_and_sanitizes_output(string cause)
     {
         using var fixture = new W2RProcessFixture();
+        var stages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        fixture.LaunchTransition = stage => stages.Enqueue("launch:" + stage);
+        fixture.ScopeStage = stage => stages.Enqueue("scope:" + stage);
         await fixture.WriteHelper($$"""
             import fs from 'node:fs';
             process.stdout.write('synthetic-token-secret'); process.stderr.write('https://signed.invalid/?secret=synthetic-token-secret');
@@ -556,26 +570,51 @@ public class GitHubArtifactW2RPTests
         var releaseFault = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         async Task<string> FaultReader(StreamReader reader, CancellationToken token)
         { await releaseFault.Task.WaitAsync(token); throw new IOException("synthetic-token-secret"); }
-        var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start, budget.Token, cause == "reader-fault" ? FaultReader : null);
+        var observation = new W2ROutputObservation();
+        var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start, budget.Token, cause == "reader-fault" ? FaultReader : null,
+            observeOutputStream: observation.Wrap, observeOutputTask: observation.ReaderStarted);
         var operation = tool.ExecuteUploadAsync(fixture.Invocation, caller.Token);
         // Retain a separate handle because production disposes its direct Process object.
         Process? witness = null;
+        Exception? operationFailure = null, bodyFailure = null, fallbackFailure = null, fixtureFailure = null;
         try
         {
             await fixture.WaitForPidFile(); witness = Process.GetProcessById(fixture.Direct!.Id);
             if (cause == "caller") caller.Cancel(); else if (cause == "deadline") budget.Cancel(); else releaseFault.SetResult();
-            Exception? failure = null;
-            try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
-            W2RSupport.Require(failure is not null && failure is not TimeoutException, "Abnormal exit must settle within bounded cleanup");
-            W2RSupport.Require(!failure!.ToString().Contains("synthetic-token-secret", StringComparison.Ordinal), "Diagnostics must not retain helper output or reader secrets");
+            try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { operationFailure = exception; }
+            W2RSupport.Require(operationFailure is not null && operationFailure is not TimeoutException, "Abnormal exit must settle within bounded cleanup");
+            W2RSupport.Require(!operationFailure!.ToString().Contains("synthetic-token-secret", StringComparison.Ordinal), "Diagnostics must not retain helper output or reader secrets");
             W2RSupport.Require(witness.HasExited, "Every abnormal path must terminate and await owned process scope");
         }
+        catch (Exception exception) { bodyFailure = exception; }
         finally
         {
+            // Capture the original result before fallback signals or fixture kills can
+            // change the process state or replace the first failing assertion.
+            var beforeHarness = $"cause={cause} operation={operation.Status} outcome={W2RProcessFixture.FixedOutcome(operation, operationFailure)} " +
+                $"{fixture.LinuxDirectWitnessDiagnostic()} witnessPid={witness?.Id.ToString() ?? "absent"} witnessHasExited={W2RProcessFixture.ExitState(witness)} " +
+                $"directExit={fixture.DirectExit?.Status.ToString() ?? "absent"} readers={observation.ReaderCount} readersSettled={observation.ReadersSettled} " +
+                $"pipesDisposed={observation.PipesDisposed} stages={string.Join(',', stages.ToArray())} harnessKills={fixture.HarnessKills}";
+            if (bodyFailure is not null) Console.WriteLine("W2R_P_ORIGINAL_FIRST_FAILURE " + beforeHarness + $" bodyFailure={bodyFailure.GetType().Name}");
             caller.Cancel(); budget.Cancel();
-            if (witness is not null) { if (!witness.HasExited) witness.Kill(true); await witness.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); witness.Dispose(); }
-            await fixture.StopProcesses(); await W2RProcessFixture.Observe(operation);
+            try
+            {
+                if (witness is not null)
+                {
+                    if (!witness.HasExited) witness.Kill(true);
+                    await witness.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                }
+            }
+            catch (Exception exception) { fallbackFailure = exception; }
+            finally { witness?.Dispose(); }
+            try { await fixture.StopProcesses(); }
+            catch (Exception exception) { fixtureFailure = exception; }
+            await W2RProcessFixture.Observe(operation);
+            if (fallbackFailure is not null || fixtureFailure is not null)
+                Console.WriteLine("W2R_P_ORIGINAL_CLEANUP_FAILURE " + beforeHarness +
+                    $" fallbackFailure={fallbackFailure?.GetType().Name ?? "absent"} fixtureFailure={fixtureFailure?.GetType().Name ?? "absent"} harnessKillsAfter={fixture.HarnessKills}");
         }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, fallbackFailure, fixtureFailure);
     }
 
     [Test]
@@ -583,7 +622,7 @@ public class GitHubArtifactW2RPTests
     public async Task P_real_output_flood_bounds_reads_settles_readers_kills_scope_and_removes_scratch(string pipe)
     {
         const int outputCap = 1024 * 1024;
-        using var fixture = new W2RProcessFixture();
+        using var fixture = new W2RProcessFixture { RequireDescendantWitness = true };
         var childSource = $$"""
             const fs = require('node:fs');
             const timer = setInterval(() => {
@@ -608,6 +647,7 @@ public class GitHubArtifactW2RPTests
         using var caller = new CancellationTokenSource();
         var operation = store.UploadAsync(W2RSupport.Name, [new("manifest.json", [1]), new("bundle.sha256", [2])], false, 0, 7, caller.Token);
         Process? directWitness = null;
+        Exception? bodyFailure = null, harnessFailure = null, fallbackFailure = null;
         try
         {
             await fixture.CaptureGrandchild(); directWitness = Process.GetProcessById(fixture.Direct!.Id);
@@ -616,26 +656,35 @@ public class GitHubArtifactW2RPTests
             await File.WriteAllTextAsync(fixture.Sentinel, "release-flood");
             Exception? failure = null;
             try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
+            var descendant = fixture.DescendantExitWitness(); // first terminal observation, before assertions or fallback
             // Snapshot every invariant BEFORE caller cancellation, harness kill, pipe
             // disposal, or fallback scratch deletion can make a broken bridge look safe.
             var bytes = observation.BytesRead;
             var boundedRequests = observation.Reads.All(read => read.Before <= outputCap && read.Requested <= outputCap - read.Before + 1);
             var readersSettled = observation.ReadersSettled;
             var pipesDisposed = observation.PipesDisposed;
-            var directExited = directWitness.HasExited; var descendantExited = fixture.Grandchild!.HasExited;
+            var directExited = directWitness.HasExited; var descendantExited = descendant.Passed;
             var scratchRemoved = !Directory.Exists(Path.GetDirectoryName(bridge.Content!));
             var fixedFailure = failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_OUTPUT_LIMIT" };
-            W2RSupport.Require(fixedFailure && bytes == outputCap + 1 && boundedRequests && readersSettled && pipesDisposed && directExited && descendantExited && scratchRemoved,
-                $"Flood before harness cleanup: failure={failure?.GetType().Name}/{failure?.Message}, bytes={bytes}, boundedRequests={boundedRequests}, readersSettled={readersSettled}, pipesDisposed={pipesDisposed}, directExited={directExited}, descendantExited={descendantExited}, scratchRemoved={scratchRemoved}");
+            W2RSupport.Require(fixedFailure && bytes == outputCap + 1 && boundedRequests && readersSettled && pipesDisposed && directExited &&
+                fixture.DirectExit!.IsCompleted && descendantExited && scratchRemoved && fixture.HarnessKills == 0,
+                $"Flood before harness cleanup: failure={failure?.GetType().Name}/{failure?.Message}, bytes={bytes}, boundedRequests={boundedRequests}, readersSettled={readersSettled}, pipesDisposed={pipesDisposed}, directExited={directExited}, descendantExited={descendantExited}, scratchRemoved={scratchRemoved}, {descendant.Diagnostic}, harnessKills={fixture.HarnessKills}");
         }
+        catch (Exception exception) { bodyFailure = exception; }
         finally
         {
             caller.Cancel();
-            await fixture.StopProcesses();
-            if (directWitness is not null) { if (!directWitness.HasExited) directWitness.Kill(true); await directWitness.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); directWitness.Dispose(); }
+            try { await fixture.StopProcesses(); } catch (Exception exception) { harnessFailure = exception; }
+            try
+            {
+                if (directWitness is not null) { if (!directWitness.HasExited) directWitness.Kill(true); await directWitness.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+            }
+            catch (Exception exception) { fallbackFailure = exception; }
+            finally { directWitness?.Dispose(); }
             await W2RProcessFixture.Observe(operation);
             bridge.CleanupLeftoverScratch(); // never counted as product cleanup evidence
         }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, harnessFailure, fallbackFailure);
     }
 
     [Test]
@@ -706,47 +755,61 @@ public class GitHubArtifactW2RPTests
         var sentinel = Path.Combine(external, "sentinel"); await File.WriteAllTextAsync(sentinel, "external-intact");
         var tool = new W2RCountingUpload(); var bridge = new W2RRecordingBridge(tool);
         string? root = null, link = null;
+        Exception? stageFailure = null, bodyFailure = null, fixtureFailure = null;
         void Stage(string transition, string path)
         {
             if (transition != "before-delete") return;
-            root = path;
-            link = component == "content" ? Path.Combine(path, "content") : Path.Combine(path, "content", component);
-            if (component == "content")
+            try
             {
-                // Move the owned directory aside before placing the indirect path.
-                var displaced = Path.Combine(external, "owned-content"); Directory.Move(link, displaced);
-                Directory.CreateSymbolicLink(link, external);
+                root = path;
+                link = component == "content" ? Path.Combine(path, "content") : Path.Combine(path, "content", component);
+                if (component == "content")
+                {
+                    // Move the owned directory aside before placing the indirect path.
+                    var displaced = Path.Combine(external, "owned-content"); Directory.Move(link, displaced);
+                    Directory.CreateSymbolicLink(link, external);
+                }
+                else
+                {
+                    File.Delete(link);
+                    File.CreateSymbolicLink(link, sentinel);
+                }
             }
-            else
-            {
-                File.Delete(link);
-                File.CreateSymbolicLink(link, sentinel);
-            }
+            catch (Exception exception) { stageFailure = exception; throw; }
         }
         using var api = W2RSupport.Client(W2RSupport.ArtifactApi()); using var archive = W2RSupport.Client(W2RSupport.ArtifactApi());
         using var store = new GitHubContextSourceArtifactStore(bridge, api, archive, W2RSupport.Runtime, true,
             stagingTransitionForTests: Stage);
         try
         {
-            Exception? failure = null;
-            try { await store.UploadAsync(W2RSupport.Name, [new("manifest.json", [1]), new("bundle.sha256", [2])], false, 0, 7); }
-            catch (Exception exception) { failure = exception; }
-            W2RSupport.Require(failure is IOException { Message: "GITHUB_ARTIFACT_SCRATCH_INVALID", InnerException: null } &&
-                tool.Launches == 1 && root is not null && Directory.Exists(root) &&
-                File.Exists(sentinel) && await File.ReadAllTextAsync(sentinel) == "external-intact",
-                "Finite product deletion rejects an indirect staged directory or leaf with a fixed code and preserves the external sentinel");
+            try
+            {
+                Exception? failure = null;
+                try { await store.UploadAsync(W2RSupport.Name, [new("manifest.json", [1]), new("bundle.sha256", [2])], false, 0, 7); }
+                catch (Exception exception) { failure = exception; }
+                W2RSupport.Require(failure is IOException { Message: "GITHUB_ARTIFACT_SCRATCH_INVALID", InnerException: null } &&
+                    tool.Launches == 1 && root is not null && Directory.Exists(root) &&
+                    File.Exists(sentinel) && await File.ReadAllTextAsync(sentinel) == "external-intact",
+                    "Finite product deletion rejects an indirect staged directory or leaf with a fixed code and preserves the external sentinel");
+            }
+            catch (Exception exception) { bodyFailure = exception; }
         }
         finally
         {
-            if (root is not null && link is not null && Guid.TryParseExact(Path.GetFileName(root), "N", out _) &&
-                Path.GetDirectoryName(root) == Path.GetFullPath(Path.Combine(Path.GetTempPath(), "kicktippai-github-artifact")))
+            try
             {
-                if (component == "content" && Directory.Exists(link)) Directory.Delete(link);
-                if (component == "manifest.json" && File.Exists(link)) File.Delete(link);
-                bridge.CleanupLeftoverScratch();
+                if (root is not null && link is not null && Guid.TryParseExact(Path.GetFileName(root), "N", out _) &&
+                    Path.GetDirectoryName(root) == Path.GetFullPath(Path.Combine(Path.GetTempPath(), "kicktippai-github-artifact")))
+                {
+                    if (component == "content" && Directory.Exists(link)) Directory.Delete(link);
+                    if (component == "manifest.json" && File.Exists(link)) File.Delete(link);
+                    bridge.CleanupLeftoverScratch();
+                }
+                if (Directory.Exists(external)) Directory.Delete(external, true);
             }
-            if (Directory.Exists(external)) Directory.Delete(external, true);
+            catch (Exception exception) { fixtureFailure = exception; }
         }
+        W2RSupport.ThrowIndependentFailures(stageFailure, bodyFailure, fixtureFailure);
     }
     private sealed class W2RCountingUpload : IGitHubArtifactTool
     {
@@ -769,19 +832,43 @@ public class GitHubArtifactW2RPBridgeTests
     public async Task P_real_dual_pipe_exact_caps_require_eof_and_overflow_is_per_pipe(bool overflow)
     {
         using var fixture = new W2RProcessFixture(); var size = ArtifactPipeDrain.ByteCap + (overflow ? 1 : 0);
+        var stages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        fixture.LaunchTransition = stage => stages.Enqueue("native:" + stage);
+        fixture.ScopeStage = stage => stages.Enqueue("scope:" + stage);
         await fixture.WriteHelper($"process.stdout.write(Buffer.alloc({size}, 120)); process.stderr.write(Buffer.alloc({size}, 121)); " + (overflow ? "setInterval(() => {}, 1000);" : ""));
         var observation = new W2ROutputObservation();
         var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start, observeOutputStream: observation.Wrap, observeOutputTask: observation.ReaderStarted);
-        Exception? failure = null;
+        Exception? failure = null, bodyFailure = null, cleanupFailure = null;
+        Task? operation = null;
         try
         {
-            try { await tool.ExecuteUploadAsync(fixture.Invocation).WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
+            operation = tool.ExecuteUploadAsync(fixture.Invocation);
+            try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
             W2RSupport.Require(overflow ? failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_OUTPUT_LIMIT" } : failure is null, "Both exact per-pipe caps with EOF succeed; overflow fails with its fixed code");
             W2RSupport.Require(observation.ReadersSettled && observation.PipesDisposed && fixture.Direct!.HasExited, "Real dual-pipe completion must settle both readers, endpoints and native child before harness cleanup");
             W2RSupport.Require(observation.Reads.All(read => read.Requested <= 4096) && observation.Reads.GroupBy(read => read.Pipe).All(group => group.Sum(read => read.Returned) <= ArtifactPipeDrain.ByteCap + 1), "Requests and consumption obey independent per-pipe limits");
             W2RSupport.Require(overflow ? observation.BytesRead >= ArtifactPipeDrain.ByteCap + 1 && observation.BytesRead <= 2L * (ArtifactPipeDrain.ByteCap + 1) : observation.BytesRead == 2L * ArtifactPipeDrain.ByteCap, "The policy permits two exact caps and bounds simultaneous overflow without retaining output");
         }
-        finally { await fixture.StopProcesses(); }
+        catch (Exception exception) { bodyFailure = exception; }
+        finally
+        {
+            var pipeReads = string.Join(',', observation.Reads.GroupBy(read => read.Pipe).OrderBy(group => group.Key, StringComparer.Ordinal)
+                .Select(group => $"{group.Key}:bytes={group.Sum(read => read.Returned)},zeroReads={group.Count(read => read.Returned == 0)}"));
+            var exitCode = fixture.DirectExit is { IsCompletedSuccessfully: true } directExit
+                ? directExit.Result.ToString(System.Globalization.CultureInfo.InvariantCulture) : "unavailable";
+            var beforeHarness = $"overflow={overflow} operation={operation?.Status.ToString() ?? "absent"} " +
+                $"outcome={W2RProcessFixture.FixedOutcome(operation, failure)} failure={failure?.GetType().Name ?? "absent"} " +
+                $"{fixture.LinuxDirectIdentityDiagnostic()} directExit={fixture.DirectExit?.Status.ToString() ?? "absent"} directExitCode={exitCode} " +
+                $"readers={observation.ReaderCount} readersSettled={observation.ReadersSettled} pipesDisposed={observation.PipesDisposed} " +
+                $"bytes={observation.BytesRead} pipeReads={pipeReads} stages={string.Join(',', stages.ToArray())} harnessKills={fixture.HarnessKills}";
+            if (bodyFailure is not null) Console.WriteLine("W2R_P_BRIDGE_CAP_FIRST_FAILURE " + beforeHarness + $" bodyFailure={bodyFailure.GetType().Name}");
+            try { await fixture.StopProcesses(); } catch (Exception exception) { cleanupFailure = exception; }
+            if (cleanupFailure is not null)
+                Console.WriteLine("W2R_P_BRIDGE_CAP_CLEANUP_FAILURE " + beforeHarness +
+                    $" cleanupFailure={cleanupFailure.GetType().Name} harnessKillsAfter={fixture.HarnessKills}");
+            if (operation is not null) await W2RProcessFixture.Observe(operation);
+        }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, cleanupFailure);
     }
 
     [Test]
@@ -789,6 +876,9 @@ public class GitHubArtifactW2RPBridgeTests
     public async Task P_caller_signal_during_confirmed_native_cleanup_has_deterministic_precedence(string cause)
     {
         using var fixture = new W2RProcessFixture();
+        var stages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        fixture.LaunchTransition = stage => stages.Enqueue("launch:" + stage);
+        fixture.ScopeStage = stage => stages.Enqueue("scope:" + stage);
         var ending = cause == "helper-failure" ? "process.exit(7);" : cause == "output-limit" ? $"process.stdout.write(Buffer.alloc({ArtifactPipeDrain.ByteCap + 1})); setInterval(() => {{}}, 1000);" : "setInterval(() => {}, 1000);";
         await fixture.WriteHelper($"import fs from 'node:fs'; fs.writeFileSync({JsonSerializer.Serialize(fixture.PidFile)}, String(process.pid)); {ending}");
         using var caller = new CancellationTokenSource(); using var deadline = new CancellationTokenSource();
@@ -796,9 +886,13 @@ public class GitHubArtifactW2RPBridgeTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         async Task<string> FaultReader(StreamReader reader, CancellationToken token) { await fault.Task.WaitAsync(token); throw new IOException("synthetic-reader-secret"); }
-        var tool = new NodeGitHubArtifactTool(fixture.Workspace, (launch, token) => new ConfirmationGate(fixture.Start(launch, token), entered, release), deadline.Token,
-            cause == "reader-fault" ? FaultReader : null);
+        var observation = new W2ROutputObservation();
+        var tool = new NodeGitHubArtifactTool(fixture.Workspace,
+            (launch, token) => new ConfirmationGate(fixture.Start(launch, token), entered, release, stage => stages.Enqueue("callback:" + stage)),
+            deadline.Token, cause == "reader-fault" ? FaultReader : null,
+            observeOutputStream: observation.Wrap, observeOutputTask: observation.ReaderStarted);
         var operation = tool.ExecuteUploadAsync(fixture.Invocation, caller.Token);
+        Exception? operationFailure = null, bodyFailure = null, fixtureFailure = null;
         try
         {
             await fixture.WaitForPidFile();
@@ -806,12 +900,27 @@ public class GitHubArtifactW2RPBridgeTests
             if (cause == "reader-fault") fault.TrySetResult();
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
             caller.Cancel(); deadline.Cancel(); release.TrySetResult();
-            Exception? failure = null;
-            try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
-            W2RSupport.Require(failure is OperationCanceledException canceled && canceled.CancellationToken == caller.Token && canceled.InnerException is null && fixture.Direct!.HasExited,
+            try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { operationFailure = exception; }
+            W2RSupport.Require(operationFailure is OperationCanceledException canceled && canceled.CancellationToken == caller.Token && canceled.InnerException is null && fixture.Direct!.HasExited,
                 "A caller signal before outcome selection outranks deadline, reader, helper and output-limit results after actual native confirmation");
         }
-        finally { caller.Cancel(); release.TrySetResult(); fault.TrySetResult(); await fixture.StopProcesses(); await W2RProcessFixture.Observe(operation); }
+        catch (Exception exception) { bodyFailure = exception; }
+        finally
+        {
+            var beforeHarness = $"cause={cause} operation={operation.Status} outcome={W2RProcessFixture.FixedOutcome(operation, operationFailure)} " +
+                $"{fixture.LinuxDirectWitnessDiagnostic()} directExit={fixture.DirectExit?.Status.ToString() ?? "absent"} " +
+                $"readers={observation.ReaderCount} readersSettled={observation.ReadersSettled} pipesDisposed={observation.PipesDisposed} " +
+                $"entered={entered.Task.Status} released={release.Task.Status} callerCanceled={caller.IsCancellationRequested} " +
+                $"deadlineCanceled={deadline.IsCancellationRequested} stages={string.Join(',', stages.ToArray())} harnessKills={fixture.HarnessKills}";
+            if (bodyFailure is not null) Console.WriteLine("W2R_P_BRIDGE_FIRST_FAILURE " + beforeHarness + $" bodyFailure={bodyFailure.GetType().Name}");
+            caller.Cancel(); release.TrySetResult(); fault.TrySetResult();
+            try { await fixture.StopProcesses(); }
+            catch (Exception exception) { fixtureFailure = exception; }
+            await W2RProcessFixture.Observe(operation);
+            if (fixtureFailure is not null)
+                Console.WriteLine("W2R_P_BRIDGE_CLEANUP_FAILURE " + beforeHarness + $" fixtureFailure={fixtureFailure.GetType().Name} harnessKillsAfter={fixture.HarnessKills}");
+        }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, fixtureFailure);
     }
 
     [Test]
@@ -854,13 +963,30 @@ public class GitHubArtifactW2RPBridgeTests
     }
 
     // A gate around real native confirmation, never an alternative process owner.
-    private sealed class ConfirmationGate(IArtifactProcessScope actual, TaskCompletionSource entered, TaskCompletionSource release) : IArtifactProcessScope
+    private sealed class ConfirmationGate(IArtifactProcessScope actual, TaskCompletionSource entered, TaskCompletionSource release,
+        Action<string> stage) : IArtifactProcessScope
     {
         public int ProcessId => actual.ProcessId; public Task<int> DirectExit => actual.DirectExit;
         public Stream StandardOutput => actual.StandardOutput; public Stream StandardError => actual.StandardError;
-        public void TerminateScope() => actual.TerminateScope();
+        public void TerminateScope()
+        {
+            stage("terminate-enter");
+            try { actual.TerminateScope(); stage("terminate-return"); }
+            catch { stage("terminate-throw"); throw; }
+        }
         public async Task<bool> ConfirmTerminatedAsync(CancellationToken token)
-        { var confirmed = await actual.ConfirmTerminatedAsync(token); entered.TrySetResult(); await release.Task.WaitAsync(token); return confirmed; }
+        {
+            stage($"confirm-enter tokenCanceled={token.IsCancellationRequested}");
+            bool confirmed;
+            try { confirmed = await actual.ConfirmTerminatedAsync(token); }
+            catch { stage($"confirm-throw tokenCanceled={token.IsCancellationRequested}"); throw; }
+            stage($"confirm-{(confirmed ? "true" : "false")} tokenCanceled={token.IsCancellationRequested}");
+            entered.TrySetResult();
+            try { await release.Task.WaitAsync(token); }
+            catch { stage($"release-wait-throw tokenCanceled={token.IsCancellationRequested}"); throw; }
+            stage($"confirm-released tokenCanceled={token.IsCancellationRequested}");
+            return confirmed;
+        }
         public Task<bool> ReleaseAsync(CancellationToken token) => actual.ReleaseAsync(token);
         public Task<bool> SettleObserverAsync(CancellationToken token) => actual.SettleObserverAsync(token);
         public void Dispose() => actual.Dispose();
@@ -882,29 +1008,166 @@ public class GitHubArtifactW2RPNativeTests
     [Test]
     public async Task P_native_launch_description_seals_canonical_paths_and_collections()
     {
-        using var fixture = new W2RProcessFixture();
-        await fixture.WriteHelper($"import fs from 'node:fs'; fs.writeFileSync({JsonSerializer.Serialize(fixture.Sentinel)}, process.cwd());");
-        var workspace = Path.Combine(fixture.Workspace, "unused", "..", ".");
-        var invocation = fixture.Invocation with { ContentDirectory = Path.Combine(fixture.Invocation.ContentDirectory, "unused", "..") };
-        var admitted = ValidatedArtifactLaunch.Admit(workspace, invocation);
-        W2RSupport.Require(admitted.Workspace == Path.GetFullPath(fixture.Workspace) && admitted.Arguments[1] == fixture.Helper && admitted.Arguments[6] == fixture.Invocation.ContentDirectory,
-            "Admission and native cwd/argv must share the same canonical path values");
-        W2RSupport.Require(admitted.Arguments is not string[] && admitted.Environment is not string[], "Backing launch arrays must not escape admission");
-        foreach (var values in new[] { admitted.Arguments, admitted.Environment })
+        var fixture = new W2RProcessFixture();
+        using var caller = new CancellationTokenSource();
+        var stages = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var callbackFaults = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var output = new W2RNativeTimeoutOutputProbe();
+        Task? operation = null;
+        Exception? bodyFailure = null, diagnosticFailure = null, harnessActionFailure = null, stopFailure = null,
+            residualFailure = null, fixtureFailure = null;
+        var firstVerdictRecorded = false;
+        void RecordStage(string source, string stage)
         {
-            var rejected = false;
-            try { ((IList<string>)values)[0] = "unadmitted-replacement"; } catch (NotSupportedException) { rejected = true; }
-            W2RSupport.Require(rejected, "Launch argument and environment views must reject mutation");
+            try { stages.Enqueue(source + ":" + stage); }
+            catch (Exception exception) { callbackFaults.Enqueue(source + "-" + exception.GetType().Name); }
         }
-        var copy = admitted.Arguments.ToArray(); copy[1] = "unadmitted-replacement";
-        W2RSupport.Require(admitted.Arguments[1] == fixture.Helper, "Consumer copies must not mutate the admitted helper");
-        var tool = new NodeGitHubArtifactTool(workspace, fixture.Start);
         try
         {
-            await tool.ExecuteUploadAsync(invocation).WaitAsync(TimeSpan.FromSeconds(10));
-            W2RSupport.Require(await File.ReadAllTextAsync(fixture.Sentinel) == fixture.Workspace, "The actual native helper must execute in the admitted canonical cwd");
+            try
+            {
+                await fixture.WriteHelper($"import fs from 'node:fs'; fs.writeFileSync({JsonSerializer.Serialize(fixture.Sentinel)}, process.cwd());");
+                var workspace = Path.Combine(fixture.Workspace, "unused", "..", ".");
+                var invocation = fixture.Invocation with { ContentDirectory = Path.Combine(fixture.Invocation.ContentDirectory, "unused", "..") };
+                var admitted = ValidatedArtifactLaunch.Admit(workspace, invocation);
+                W2RSupport.Require(admitted.Workspace == Path.GetFullPath(fixture.Workspace) && admitted.Arguments[1] == fixture.Helper && admitted.Arguments[6] == fixture.Invocation.ContentDirectory,
+                    "Admission and native cwd/argv must share the same canonical path values");
+                W2RSupport.Require(admitted.Arguments is not string[] && admitted.Environment is not string[], "Backing launch arrays must not escape admission");
+                foreach (var values in new[] { admitted.Arguments, admitted.Environment })
+                {
+                    var rejected = false;
+                    try { ((IList<string>)values)[0] = "unadmitted-replacement"; } catch (NotSupportedException) { rejected = true; }
+                    W2RSupport.Require(rejected, "Launch argument and environment views must reject mutation");
+                }
+                var copy = admitted.Arguments.ToArray(); copy[1] = "unadmitted-replacement";
+                W2RSupport.Require(admitted.Arguments[1] == fixture.Helper, "Consumer copies must not mutate the admitted helper");
+                fixture.LaunchTransition = stage => RecordStage("launch", stage);
+                fixture.ScopeStage = stage => RecordStage("scope", stage);
+                fixture.CaptureLinuxSpawnedChild = OperatingSystem.IsLinux();
+                fixture.DecorateScope = output.DecorateScope;
+                var tool = new NodeGitHubArtifactTool(workspace, fixture.Start,
+                    observeOutputStream: output.Wrap, observeOutputTask: output.ReaderStarted);
+                operation = tool.ExecuteUploadAsync(invocation, caller.Token);
+                Exception? firstFailure = null;
+                try { await operation.WaitAsync(TimeSpan.FromSeconds(10)); }
+                catch (Exception exception) { firstFailure = exception; }
+                // The first result is fixed before cancellation, fixture recovery,
+                // another wait, or any attempt to improve a pending observation.
+                var firstState = operation.Status;
+                var snapshotFaults = new List<string>();
+                string Capture(string name, Func<string> sample)
+                {
+                    try { return sample(); }
+                    catch (Exception exception)
+                    {
+                        snapshotFaults.Add(name + "-" + exception.GetType().Name);
+                        return "unavailable";
+                    }
+                }
+                var firstStages = Capture("stages", () => string.Join(',', stages.ToArray()));
+                W2RProcessFixture.TimeoutIdentitySnapshot? identitySample = null;
+                var identity = Capture("identity", () =>
+                {
+                    identitySample = fixture.LinuxDirectIdentitySnapshotForTimeout();
+                    return identitySample.Diagnostic;
+                });
+                var directExit = Capture("direct-exit", () => fixture.DirectExit is { } exit
+                    ? exit.Status + (exit.IsCompletedSuccessfully ? ":" + exit.Result.ToString(System.Globalization.CultureInfo.InvariantCulture) : "")
+                    : "unavailable-prepublication");
+                var pipes = Capture("pipes", output.Snapshot);
+                var sentinel = Capture("sentinel", () => BoundedSentinelWitness(fixture));
+                var callbackErrors = Capture("callbacks", () => string.Join(',', callbackFaults.ToArray().Concat(output.CallbackFaults)));
+                var probeErrors = Capture("probe", () => string.Join(',', output.ProbeFaults));
+                if (identitySample?.Complete != true) snapshotFaults.Add("identity-incomplete");
+                var complete = callbackErrors.Length == 0 && probeErrors.Length == 0 && snapshotFaults.Count == 0;
+                firstVerdictRecorded = true;
+                try
+                {
+                    Console.WriteLine($"W2R_P_NATIVE_DESCRIPTION_FIRST_VERDICT result={W2RProcessFixture.FixedOutcome(operation, firstFailure)} " +
+                        $"waitFailure={firstFailure?.GetType().Name ?? "absent"} operationState={firstState} " +
+                        $"stages={firstStages} identity={identity} directExit={directExit} " +
+                        $"pipes={pipes} sentinel={sentinel} callbackFaults={callbackErrors} probeFaults={probeErrors} " +
+                        $"snapshotFaults={string.Join(',', snapshotFaults)} diagnosticComplete={complete} harnessKills={fixture.HarnessKills}");
+                }
+                catch (Exception exception) { diagnosticFailure = exception; }
+                if (!complete) diagnosticFailure = new InvalidOperationException("W2R_ASSERT: Native timeout diagnostic capture incomplete");
+                if (firstFailure is not null) System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(firstFailure).Throw();
+                W2RSupport.Require(await File.ReadAllTextAsync(fixture.Sentinel) == fixture.Workspace, "The actual native helper must execute in the admitted canonical cwd");
+            }
+            catch (Exception exception) { bodyFailure = exception; }
         }
-        finally { await fixture.StopProcesses(); }
+        finally
+        {
+            if (operation is { IsCompleted: false } && firstVerdictRecorded)
+            {
+                try { caller.Cancel(); }
+                catch (Exception exception) { harnessActionFailure = exception; }
+                try { Console.WriteLine("W2R_P_NATIVE_DESCRIPTION_HARNESS_ACTION caller-cancel-after-first-verdict"); }
+                catch (Exception exception) { diagnosticFailure ??= exception; }
+            }
+            try { await fixture.StopProcesses(); } catch (Exception exception) { stopFailure = exception; }
+            if (operation is not null)
+            {
+                await W2RProcessFixture.Observe(operation);
+                if (!operation.IsCompleted) residualFailure = new InvalidOperationException("W2R_ASSERT: Native description operation pending after bounded recovery");
+            }
+            var terminalIdentity = "unavailable";
+            var terminalPipes = "unavailable";
+            var terminalDirectExit = "unavailable-prepublication";
+            try
+            {
+                var terminal = fixture.LinuxDirectIdentitySnapshotForTimeout();
+                terminalIdentity = terminal.Diagnostic;
+                terminalPipes = output.Snapshot();
+                if (fixture.DirectExit is { } exit)
+                    terminalDirectExit = exit.Status + (exit.IsCompletedSuccessfully
+                        ? ":" + exit.Result.ToString(System.Globalization.CultureInfo.InvariantCulture) : "");
+                if (terminal.Residual || fixture.DirectExit is { IsCompleted: false } || !output.RecoverySettled ||
+                    output.CallbackFaults.Count != 0 || output.ProbeFaults.Count != 0)
+                    residualFailure = residualFailure is null
+                        ? new InvalidOperationException("W2R_ASSERT: Native description identity or pipe residual after bounded recovery")
+                        : new AggregateException(residualFailure, new InvalidOperationException("W2R_ASSERT: Native description identity or pipe residual after bounded recovery"));
+            }
+            catch (Exception exception)
+            {
+                residualFailure = residualFailure is null ? exception : new AggregateException(residualFailure, exception);
+            }
+            try { fixture.Dispose(); } catch (Exception exception) { fixtureFailure = exception; }
+            try
+            {
+                Console.WriteLine($"W2R_P_NATIVE_DESCRIPTION_RECOVERY operation={operation?.Status.ToString() ?? "absent"} " +
+                    $"eventualOutcome={W2RProcessFixture.FixedOutcome(operation, null)} " +
+                    $"harnessActionFailure={harnessActionFailure?.GetType().Name ?? "absent"} " +
+                    $"stopFailure={stopFailure?.GetType().Name ?? "absent"} " +
+                    $"fixtureFailure={fixtureFailure?.GetType().Name ?? "absent"} residual={residualFailure is not null} " +
+                    $"terminalIdentity={terminalIdentity} terminalPipes={terminalPipes} terminalDirectExit={terminalDirectExit} " +
+                    $"observedProductReaps={stages.Count(stage => stage == "launch:waitpid-reaped")} " +
+                    $"harnessKills={fixture.HarnessKills} stages={string.Join(',', stages.ToArray())}");
+            }
+            catch (Exception exception) { diagnosticFailure ??= exception; }
+        }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, diagnosticFailure, harnessActionFailure, stopFailure, residualFailure, fixtureFailure);
+    }
+
+    private static string BoundedSentinelWitness(W2RProcessFixture fixture)
+    {
+        try
+        {
+            using var file = new FileStream(fixture.Sentinel, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            var buffer = new byte[4097];
+            var count = 0;
+            while (count < buffer.Length)
+            {
+                var read = file.Read(buffer.AsSpan(count));
+                if (read == 0) break;
+                count += read;
+            }
+            if (count == buffer.Length) return "present-over-4096-bytes";
+            return "present-cwd-match-" +
+                buffer.AsSpan(0, count).SequenceEqual(Encoding.UTF8.GetBytes(fixture.Workspace));
+        }
+        catch (FileNotFoundException) { return "absent"; }
+        catch (DirectoryNotFoundException) { return "absent"; }
     }
 
     [Test]
@@ -996,7 +1259,7 @@ public class GitHubArtifactW2RPNativeTests
     [Test]
     public async Task P_native_first_action_and_ordinary_descendant_have_original_scope_membership()
     {
-        using var fixture = new W2RProcessFixture();
+        using var fixture = new W2RProcessFixture { RequireDescendantWitness = true };
         var descendant = $"require('node:fs').writeFileSync({JsonSerializer.Serialize(fixture.DescendantReady)}, String(process.pid)); setInterval(() => {{}}, 1000);";
         await fixture.WriteHelper($$"""
             import fs from 'node:fs';
@@ -1017,6 +1280,7 @@ public class GitHubArtifactW2RPNativeTests
         var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start,
             observeOutputStream: observation.Wrap, observeOutputTask: observation.ReaderStarted);
         var operation = tool.ExecuteUploadAsync(fixture.Invocation, caller.Token);
+        Exception? bodyFailure = null, harnessFailure = null;
         try
         {
             await fixture.WaitForFile(fixture.LeaderReady);
@@ -1038,11 +1302,20 @@ public class GitHubArtifactW2RPNativeTests
             caller.Cancel();
             Exception? failure = null;
             try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
-            W2RSupport.Require(failure is OperationCanceledException && fixture.Direct.HasExited && fixture.Grandchild.HasExited &&
-                observation.ReadersSettled && observation.PipesDisposed && fixture.DirectExit!.IsCompleted,
-                "Native scope, both pipes and observer settle before harness fallback");
+            var descendantExit = fixture.DescendantExitWitness();
+            W2RSupport.Require(failure is OperationCanceledException && fixture.Direct.HasExited && descendantExit.Passed &&
+                observation.ReaderCount == 2 && observation.ReadersSettled && observation.PipesDisposed && fixture.DirectExit!.IsCompleted &&
+                fixture.HarnessKills == 0,
+                "Native scope, same-identity descendant, both pipes and observer settle before harness fallback: " + descendantExit.Diagnostic);
         }
-        finally { caller.Cancel(); await fixture.StopProcesses(); await W2RProcessFixture.Observe(operation); }
+        catch (Exception exception) { bodyFailure = exception; }
+        finally
+        {
+            caller.Cancel();
+            try { await fixture.StopProcesses(); } catch (Exception exception) { harnessFailure = exception; }
+            await W2RProcessFixture.Observe(operation);
+        }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, harnessFailure);
     }
 
     [Test]
@@ -1160,29 +1433,78 @@ public class GitHubArtifactW2RPNativeTests
     public async Task P_linux_partial_pipe_transfer_rolls_back_all_native_owners(string faultStage)
     {
         if (!OperatingSystem.IsLinux()) return;
-        using var fixture = new W2RProcessFixture(); await fixture.WriteHelper("setInterval(() => {}, 1000);");
-        fixture.CaptureLinuxSpawnedChild = true;
+        var fixture = new W2RProcessFixture();
         var transitions = new System.Collections.Concurrent.ConcurrentQueue<string>();
         var closed = new System.Collections.Concurrent.ConcurrentQueue<string>();
-        fixture.ObserveLinuxPipeClose = closed.Enqueue;
-        fixture.LaunchTransition = stage =>
-        {
-            transitions.Enqueue(stage);
-            if (stage == faultStage) throw new IOException("synthetic-transfer-secret");
-        };
-        var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start);
+        Exception? setupFailure = null, bodyFailure = null, harnessFailure = null, fixtureFailure = null;
         try
         {
-            Exception? failure = null;
-            try { await tool.ExecuteUploadAsync(fixture.Invocation).WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
-            W2RSupport.Require(failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_START_FAILED", InnerException: null } &&
-                !failure.ToString().Contains("synthetic-transfer-secret", StringComparison.Ordinal) &&
-                fixture.Direct is not null && fixture.Direct.HasExited && transitions.Contains("parent-child-endpoints-closed") &&
-                transitions.Contains(faultStage) && transitions.Count(stage => stage == "waitpid-reaped") == 1 &&
-                closed.Contains("stdout") && (faultStage == "stdout-transferred" || closed.Contains("stderr")),
-                "Fault after each owned fd transfer closes native pipes and exclusively reaps the independently retained child");
+            try { await fixture.WriteHelper("setInterval(() => {}, 1000);"); }
+            catch (Exception exception)
+            {
+                setupFailure = exception;
+                Console.WriteLine($"W2R_P_PARTIAL_TRANSFER_SETUP faultStage={faultStage} failureType={exception.GetType().Name}");
+            }
+            if (setupFailure is null)
+            {
+                fixture.CaptureLinuxSpawnedChild = true;
+                fixture.ObserveLinuxPipeClose = closed.Enqueue;
+                fixture.LaunchTransition = stage =>
+                {
+                    transitions.Enqueue(stage);
+                    if (stage == faultStage) throw new IOException("synthetic-transfer-secret");
+                };
+                try
+                {
+                    var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start);
+                    Exception? operationFailure = null;
+                    try { await tool.ExecuteUploadAsync(fixture.Invocation).WaitAsync(TimeSpan.FromSeconds(5)); }
+                    catch (Exception exception) { operationFailure = exception; }
+                    // Freeze the first body and native evidence before fixture recovery.
+                    // The procfs snapshot never waits or reaps; waitid WNOWAIT then
+                    // independently confirms that the product consumed its child.
+                    var recorded = transitions.ToArray();
+                    var closedPipes = closed.ToArray();
+                    var terminal = fixture.CaptureDirectTerminalWitness();
+                    var nativeReaped = fixture.Direct is { } direct && NativeFixture.WaitidSeesEchildAfterReap(direct.Id);
+                    // Do not ask Process to inspect exit while the native status
+                    // might still be retained; its terminal state is secondary.
+                    var directExited = nativeReaped && fixture.Direct is { } retained && retained.HasExited;
+                    Console.WriteLine($"W2R_P_PARTIAL_TRANSFER_FIRST_WITNESS faultStage={faultStage} " +
+                        $"operation={W2RProcessFixture.FixedOutcome(null, operationFailure)} " +
+                        $"operationType={operationFailure?.GetType().Name ?? "none"} " +
+                        $"stages={string.Join(',', recorded)} closedPipes={string.Join(',', closedPipes)} " +
+                        $"directExit={fixture.DirectExit?.Status.ToString() ?? "unavailable-prepublication"} " +
+                        $"scopeStages=unavailable-prepublication nativeReaped={nativeReaped} " +
+                        $"directHasExited={directExited} harnessKills={fixture.HarnessKills} {terminal.Diagnostic}");
+                    W2RSupport.Require(operationFailure is IOException { Message: "GITHUB_ARTIFACT_HELPER_START_FAILED", InnerException: null } &&
+                        !operationFailure.ToString().Contains("synthetic-transfer-secret", StringComparison.Ordinal) &&
+                        terminal.ProductReapCompatible && nativeReaped && directExited && fixture.HarnessKills == 0 &&
+                        recorded.Contains("parent-child-endpoints-closed") && recorded.Contains(faultStage) &&
+                        recorded.Count(stage => stage == "waitpid-reaped") == 1 &&
+                        closedPipes.Contains("stdout") && (faultStage == "stdout-transferred" || closedPipes.Contains("stderr")),
+                        "Fault after each owned fd transfer closes native pipes and exclusively reaps the independently retained child: " + terminal.Diagnostic);
+                    Console.WriteLine($"W2R_P_PARTIAL_TRANSFER_FIRST_ASSERTION faultStage={faultStage} result=passed");
+                }
+                catch (Exception exception)
+                {
+                    bodyFailure = exception;
+                    Console.WriteLine($"W2R_P_PARTIAL_TRANSFER_FIRST_ASSERTION faultStage={faultStage} " +
+                        $"result=failed failureType={exception.GetType().Name} harnessKills={fixture.HarnessKills}");
+                }
+            }
         }
-        finally { await fixture.StopProcesses(); }
+        finally
+        {
+            try { await fixture.StopProcesses(); } catch (Exception exception) { harnessFailure = exception; }
+            try { fixture.Dispose(); } catch (Exception exception) { fixtureFailure = exception; }
+            Console.WriteLine($"W2R_P_PARTIAL_TRANSFER_CLEANUP faultStage={faultStage} " +
+                $"setupFailure={setupFailure?.GetType().Name ?? "absent"} " +
+                $"bodyFailure={bodyFailure?.GetType().Name ?? "absent"} " +
+                $"harnessFailure={harnessFailure?.GetType().Name ?? "absent"} " +
+                $"fixtureFailure={fixtureFailure?.GetType().Name ?? "absent"} harnessKills={fixture.HarnessKills}");
+        }
+        W2RSupport.ThrowIndependentFailures(setupFailure, bodyFailure, harnessFailure, fixtureFailure);
     }
 
     [Test]
@@ -1219,21 +1541,47 @@ public class GitHubArtifactW2RPNativeTests
         var stages = new System.Collections.Concurrent.ConcurrentQueue<string>(); fixture.LaunchTransition = stages.Enqueue;
         fixture.LinuxWaitErrorForTests = phase => phase == "waitid-terminate" ? 10 : null;
         var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start);
+        var directPid = 0;
         try
         {
             Exception? failure = null;
             try { await tool.ExecuteUploadAsync(fixture.Invocation).WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
-            W2RSupport.Require(failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_CLEANUP_FAILED", InnerException: null } &&
-                fixture.Direct!.HasExited && stages.Contains("waitid-echild-lost") && !stages.Contains("waitpid-reaped") &&
-                NativeFixture.WaitidRetainsExitedChild(fixture.Direct.Id),
+            directPid = fixture.Direct!.Id;
+            var cleanupFailure = failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_CLEANUP_FAILED", InnerException: null };
+            var directExited = fixture.Direct.HasExited;
+            var identityLost = stages.Contains("waitid-echild-lost");
+            var productDidNotReap = !stages.Contains("waitpid-reaped");
+            var retainedForTest = NativeFixture.WaitidRetainsExitedChild(directPid);
+            if (!cleanupFailure || !directExited || !identityLost || !productDidNotReap || !retainedForTest)
+                Console.WriteLine($"W2R_P_NATIVE_ECHILD_FIRST_FAILED_WITNESS cleanupFailure={cleanupFailure} directPid={directPid} directHasExited={directExited} " +
+                    $"identityLost={identityLost} productDidNotReap={productDidNotReap} retainedForTest={retainedForTest} stages={string.Join(',', stages.ToArray())} harnessKills={fixture.HarnessKills}");
+            // WNOWAIT retention is the direct, native proof that this exact child
+            // has exited but remains unconsumed. Process.HasExited is expected to
+            // remain false until this test's targeted consuming reap below.
+            var directIsNonExecutingRetainedZombie = retainedForTest;
+            W2RSupport.Require(cleanupFailure && identityLost && productDidNotReap && directIsNonExecutingRetainedZombie,
                 "Injected ECHILD marks the identity lost, refuses PGID use and does not claim a successful native release");
         }
         finally
         {
-            await fixture.StopProcesses();
-            if (fixture.Direct is not null && NativeFixture.WaitidRetainsExitedChild(fixture.Direct.Id))
-                W2RSupport.Require(NativeFixture.TargetedTestReap(fixture.Direct.Id),
-                    "Only this test's independently retained child is reaped after the deliberate identity-loss injection");
+            // The product deliberately lost ownership after injected ECHILD. Preserve
+            // that proof, then let this test consume precisely its retained zombie
+            // before generic fixture cleanup can wait on it.
+            if (directPid != 0 && NativeFixture.WaitidRetainsExitedChild(directPid))
+            {
+                W2RSupport.Require(NativeFixture.TargetedTestReap(directPid) && NativeFixture.WaitidSeesEchildAfterReap(directPid),
+                    "Only this test's exact retained child consumes the injected-ECHILD zombie after product no-reap proof");
+                await fixture.StopProcesses();
+            }
+            else
+            {
+                // Setup/body failure cleanup uses the same identity-bound direct
+                // fallback; it earns no product-release credit.
+                await fixture.StopProcesses();
+                if (directPid != 0 && NativeFixture.WaitidRetainsExitedChild(directPid))
+                    W2RSupport.Require(NativeFixture.TargetedTestReap(directPid) && NativeFixture.WaitidSeesEchildAfterReap(directPid),
+                        "Only the fixture-failure branch reaps its exact retained direct child after it is no longer executing");
+            }
         }
     }
 
@@ -1290,7 +1638,8 @@ public class GitHubArtifactW2RPNativeTests
     public async Task P_linux_owned_pipe_close_preserves_nonzero_helper_result()
     {
         if (!OperatingSystem.IsLinux()) return; // The gate targets the Linux fd adapter.
-        using var fixture = new W2RProcessFixture();
+        using var fixture = new W2RProcessFixture { RequireDescendantWitness = true };
+        var stages = new System.Collections.Concurrent.ConcurrentQueue<string>(); fixture.ScopeStage = stages.Enqueue;
         await fixture.WriteHelper($$"""
             import {spawn} from 'node:child_process';
             import fs from 'node:fs';
@@ -1315,6 +1664,7 @@ public class GitHubArtifactW2RPNativeTests
         var tool = new NodeGitHubArtifactTool(fixture.Workspace, fixture.Start,
             observeOutputStream: observation.Wrap, observeOutputTask: observation.ReaderStarted);
         var operation = tool.ExecuteUploadAsync(fixture.Invocation);
+        Exception? bodyFailure = null, harnessFailure = null;
         try
         {
             await fixture.CaptureGrandchild();
@@ -1327,18 +1677,31 @@ public class GitHubArtifactW2RPNativeTests
             releaseRead.TrySetResult();
             Exception? failure = null;
             try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch (Exception exception) { failure = exception; }
+            var descendant = fixture.DescendantExitWitness(); // preserve the first snapshot even on unexpected outcome
             W2RSupport.Require(failure is IOException { Message: "GITHUB_ARTIFACT_HELPER_FAILED", InnerException: null },
                 "Owned close after nonzero direct exit must not manufacture a competing IO result");
-            W2RSupport.Require(observation.ReadersSettled && observation.PipesDisposed &&
-                fixture.Direct!.HasExited && fixture.Grandchild!.HasExited && fixture.DirectExit.IsCompleted,
-                "Native scope, both drains, both endpoints and observer settle before harness cleanup");
+            var readersSettled = observation.ReadersSettled;
+            var pipesDisposed = observation.PipesDisposed;
+            var directExited = fixture.Direct!.HasExited;
+            var descendantExited = descendant.Passed;
+            var observerSettled = fixture.DirectExit.IsCompleted;
+            if ((!readersSettled || !pipesDisposed || !directExited || !descendantExited || !observerSettled) && OperatingSystem.IsLinux())
+                Console.WriteLine($"W2R_P_NATIVE_FIRST_FAILED_WITNESS terms=readersSettled:{readersSettled},pipesDisposed:{pipesDisposed},directHasExited:{directExited},descendantHasExited:{descendantExited},observerSettled:{observerSettled} " +
+                    $"operation={operation.Status} outcome={W2RProcessFixture.FixedOutcome(operation, failure)} {descendant.Diagnostic} " +
+                    $"readers={observation.ReaderCount} stages={string.Join(',', stages.ToArray())} harnessKills={fixture.HarnessKills}");
+            W2RSupport.Require(readersSettled && pipesDisposed && directExited && descendantExited && observerSettled &&
+                observation.ReaderCount == 2 && fixture.HarnessKills == 0,
+                "Native scope, same-identity descendant, both drains, both endpoints and observer settle before harness cleanup: " + descendant.Diagnostic);
         }
+        catch (Exception exception) { bodyFailure = exception; }
         finally
         {
             releaseRead.TrySetResult();
             await File.WriteAllTextAsync(fixture.GateFile, "release");
-            await fixture.StopProcesses(); await W2RProcessFixture.Observe(operation);
+            try { await fixture.StopProcesses(); } catch (Exception exception) { harnessFailure = exception; }
+            await W2RProcessFixture.Observe(operation);
         }
+        W2RSupport.ThrowIndependentFailures(bodyFailure, harnessFailure);
     }
 
     [Test]
@@ -1502,7 +1865,7 @@ public class GitHubArtifactW2RPNativeTests
         private static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string name, uint access, uint share,
             IntPtr security, uint creation, uint flags, IntPtr template);
         internal static Microsoft.Win32.SafeHandles.SafeFileHandle OpenDirectoryWithoutDeleteSharing(string path) =>
-            CreateFileW(path, 0, 0x1 | 0x2, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
+            CreateFileW(path, 0x80000000, 0x1 | 0x2, IntPtr.Zero, 3, 0x02000000, IntPtr.Zero);
     }
 }
 
@@ -1531,6 +1894,17 @@ internal sealed class W2RProcessFixture : IDisposable
     internal Process? Direct { get; private set; }
     internal Task<int>? DirectExit { get; private set; }
     internal Process? Grandchild { get; private set; }
+    internal bool RequireDescendantWitness { get; set; }
+    private string? _retainedLeaderPgid;
+    private LinuxIdentity? _leaderIdentity;
+    private LinuxIdentity? _descendantIdentity;
+    private string? _pidNamespace;
+    private bool _earlyIdentityAttempted;
+    private string? _earlyIdentityFailure;
+    private string? _directAcquisitionFailure;
+    private bool _identityReconciliationAttempted;
+    private string? _identityReconciliationFailure;
+    private DescendantWitness? _firstDescendantWitness;
     internal int HarnessKills { get; private set; }
     internal GitHubArtifactToolInvocation Invocation => new(W2RSupport.Name, Path.Combine(_scratch, "content"), 0, 7);
     internal W2RProcessFixture()
@@ -1566,14 +1940,60 @@ internal sealed class W2RProcessFixture : IDisposable
                 Direct = Process.GetProcessById(pid);
                 _ = Direct.SafeHandle;
             } : null,
-            ObserveLinuxSpawnedChild = CaptureLinuxSpawnedChild ? pid => Direct = Process.GetProcessById(pid) : null,
+            ObserveLinuxSpawnedChild = CaptureLinuxSpawnedChild ? pid =>
+            {
+                // This callback precedes all pipe-transfer fault hooks and native
+                // rollback still owns the unreaped child. Procfs and GetProcessById
+                // are observations only; neither waits for the child.
+                _earlyIdentityAttempted = true;
+                try
+                {
+                    var identity = ReadLinuxIdentity(pid);
+                    var pidNamespace = ReadPidNamespace();
+                    if (identity.Pgid != pid || pidNamespace.Length == 0) _earlyIdentityFailure = "unexpected-pgid-or-namespace";
+                    else
+                    {
+                        _leaderIdentity = identity; _pidNamespace = pidNamespace;
+                        _retainedLeaderPgid = identity.Pgid.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                    }
+                }
+                catch (Exception exception)
+                { _earlyIdentityFailure = "capture-" + exception.GetType().Name; }
+                try { Direct = Process.GetProcessById(pid); }
+                catch (Exception exception)
+                { _directAcquisitionFailure = "process-" + exception.GetType().Name; }
+            } : null,
             LinuxWaitErrorForTests = LinuxWaitErrorForTests,
             ObserveWindowsAssignment = ObserveWindowsAssignment,
             WindowsAssignmentGateForTests = WindowsAssignmentGateForTests,
             ObserveIdentity = pid =>
             {
-                Direct ??= Process.GetProcessById(pid);
+                if (!CaptureLinuxSpawnedChild) Direct ??= Process.GetProcessById(pid);
                 if (OperatingSystem.IsWindows()) _ = Direct.SafeHandle;
+                if (OperatingSystem.IsLinux())
+                {
+                    if (CaptureLinuxSpawnedChild)
+                    {
+                        _identityReconciliationAttempted = true;
+                        try
+                        {
+                            var later = ReadLinuxIdentity(pid);
+                            var laterNamespace = ReadPidNamespace();
+                            if (_leaderIdentity is not { } early || _pidNamespace is null ||
+                                later.Pid != early.Pid || later.StartTime != early.StartTime ||
+                                later.Pgid != early.Pgid || laterNamespace != _pidNamespace)
+                                _identityReconciliationFailure = "identity-mismatch-or-unavailable-baseline";
+                        }
+                        catch (Exception exception)
+                        { _identityReconciliationFailure = "reconcile-" + exception.GetType().Name; }
+                    }
+                    else
+                    {
+                        _leaderIdentity = ReadLinuxIdentity(pid);
+                        _pidNamespace = ReadPidNamespace();
+                    }
+                    _retainedLeaderPgid = _leaderIdentity?.Pgid.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                }
             }
         };
         var scope = launcher.Start(launch, token);
@@ -1593,20 +2013,243 @@ internal sealed class W2RProcessFixture : IDisposable
         using var watchdog = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         while (!File.Exists(path)) await Task.Delay(10, watchdog.Token);
     }
-    internal async Task CaptureGrandchild() { await WaitForPidFile(); Grandchild = Process.GetProcessById(int.Parse(await File.ReadAllTextAsync(PidFile), System.Globalization.CultureInfo.InvariantCulture)); }
+    internal async Task CaptureGrandchild()
+    {
+        await WaitForPidFile();
+        var pid = int.Parse(await File.ReadAllTextAsync(PidFile), System.Globalization.CultureInfo.InvariantCulture);
+        if (OperatingSystem.IsLinux())
+        {
+            var leader = _leaderIdentity ?? throw new InvalidDataException("Missing retained leader identity");
+            W2RSupport.Require(leader.Pid == Direct?.Id && leader.Pgid == leader.Pid &&
+                leader.State is not ('Z' or 'X') && _pidNamespace is not null,
+                "Valid retained leader PID/start-time/PGID and PID namespace must precede descendant capture");
+            var descendant = ReadLinuxIdentity(pid);
+            W2RSupport.Require(descendant.Pgid == leader.Pgid && descendant.State is not ('Z' or 'X'),
+                "The first descendant PID/start-time/PGID baseline must be live in the retained leader group");
+            _descendantIdentity = descendant;
+        }
+        Grandchild = Process.GetProcessById(pid);
+    }
+    internal sealed record DescendantWitness(bool Passed, string Diagnostic);
+    private sealed record LinuxIdentity(int Pid, char State, int Ppid, int Pgid, ulong StartTime)
+    {
+        internal string Diagnostic => $"pid={Pid},start={StartTime},pgid={Pgid},ppid={Ppid},state={State}";
+    }
+    internal sealed record DirectTerminalWitness(bool ProductReapCompatible, string Diagnostic);
+    internal DirectTerminalWitness CaptureDirectTerminalWitness()
+    {
+        var baseline = _leaderIdentity;
+        var status = "unavailable-baseline";
+        LinuxIdentity? terminal = null;
+        if (baseline is not null && _pidNamespace is not null)
+        {
+            try
+            {
+                if (ReadPidNamespace() != _pidNamespace) status = "pid-namespace-changed";
+                else
+                {
+                    try { terminal = ReadLinuxIdentity(baseline.Pid); status = "present"; }
+                    catch (FileNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+                    catch (DirectoryNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            { status = "unavailable-" + exception.GetType().Name; }
+        }
+        var verdict = terminal is null ? status :
+            terminal.Pid != baseline!.Pid || terminal.StartTime != baseline.StartTime ? "identity-replaced" :
+            terminal.Pgid != baseline.Pgid ? "escaped-group" :
+            terminal.State is 'Z' or 'X' ? "same-identity-nonexecuting-unreaped" : "same-identity-live";
+        return new(verdict == "disappeared" && _earlyIdentityAttempted && _earlyIdentityFailure is null &&
+            _directAcquisitionFailure is null && _identityReconciliationFailure is null,
+            $"directIdentity={verdict} baseline={baseline?.Diagnostic ?? "absent"} terminal={terminal?.Diagnostic ?? status} " +
+            $"earlyCapture={(_earlyIdentityAttempted ? _earlyIdentityFailure ?? "ok" : "not-reached")} " +
+            $"independentProcess={(_earlyIdentityAttempted ? _directAcquisitionFailure ?? "ok" : "not-reached")} " +
+            $"laterReconciliation={(_identityReconciliationAttempted ? _identityReconciliationFailure ?? "ok" : "not-reached")} " +
+            $"pidNamespace={_pidNamespace ?? "absent"}");
+    }
+    internal DescendantWitness DescendantExitWitness()
+    {
+        if (_firstDescendantWitness is not null) return _firstDescendantWitness;
+        if (!OperatingSystem.IsLinux())
+            return _firstDescendantWitness = new(Grandchild?.HasExited == true,
+                $"windowsDescendantHasExited={ExitState(Grandchild)} harnessKills={HarnessKills}");
+        var baseline = _descendantIdentity;
+        var leader = _leaderIdentity;
+        var status = "unavailable-baseline";
+        LinuxIdentity? terminal = null;
+        if (baseline is not null && leader is not null)
+        {
+            try
+            {
+                if (ReadPidNamespace() != _pidNamespace) status = "pid-namespace-changed";
+                else
+                {
+                    try { terminal = ReadLinuxIdentity(baseline.Pid); status = "present"; }
+                    catch (FileNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+                    catch (DirectoryNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+                }
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+            { status = "unavailable-" + exception.GetType().Name; }
+        }
+        var verdict = status == "disappeared" ? "disappeared" : terminal is null ? status :
+            terminal.StartTime != baseline!.StartTime || terminal.Pid != baseline.Pid ? "identity-replaced" :
+            terminal.Pgid != baseline.Pgid ? "escaped-group" :
+            terminal.State is 'Z' or 'X' ? "same-identity-nonexecuting" : "same-identity-live";
+        var passed = verdict is "disappeared" or "same-identity-nonexecuting";
+        var handle = ExitState(Grandchild); // diagnostic only, after the decisive procfs snapshot
+        return _firstDescendantWitness = new(passed,
+            $"descendantVerdict={verdict} baseline={baseline?.Diagnostic ?? "absent"} terminal={terminal?.Diagnostic ?? status} " +
+            $"leader={leader?.Diagnostic ?? "absent"} pidNamespace={_pidNamespace ?? "absent"} descendantHasExited={handle} harnessKills={HarnessKills}");
+    }
+    private static string ReadPidNamespace() => new FileInfo("/proc/self/ns/pid").LinkTarget ?? throw new InvalidDataException("Missing procfs PID namespace");
+    private static bool ProcfsAvailable()
+    {
+        try { return ReadLinuxIdentity(Environment.ProcessId).Pid == Environment.ProcessId && ReadPidNamespace().Length > 0; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException) { return false; }
+    }
+    private static LinuxIdentity ReadLinuxIdentity(int pid)
+    {
+        var stat = File.ReadAllText($"/proc/{pid}/stat");
+        var open = stat.IndexOf('('); var close = stat.LastIndexOf(')');
+        if (open <= 1 || close <= open || close + 2 >= stat.Length || stat[open - 1] != ' ' || stat[close + 1] != ' ' ||
+            !int.TryParse(stat.AsSpan(0, open - 1), System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var actualPid) || actualPid != pid)
+            throw new InvalidDataException("Malformed procfs PID/command");
+        var fields = stat[(close + 2)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (fields.Length < 20 || fields[0].Length != 1 || !"RSDTtZXxKWPI".Contains(fields[0][0]) ||
+            !int.TryParse(fields[1], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var ppid) ||
+            !int.TryParse(fields[2], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var pgid) ||
+            !ulong.TryParse(fields[19], System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var start) ||
+            ppid < 0 || pgid <= 0 || start == 0)
+            throw new InvalidDataException("Malformed procfs identity fields");
+        return new(actualPid, fields[0][0], ppid, pgid, start);
+    }
     internal async Task StopProcesses()
     {
-        // Recover the independently addressable PID even if a readiness assertion failed.
-        if (Grandchild is null && File.Exists(PidFile) && int.TryParse(await File.ReadAllTextAsync(PidFile), out var pid))
+        Exception? descendantCleanupFailure = null;
+        try
         {
-            try { Grandchild = Process.GetProcessById(pid); } catch (ArgumentException) { }
+            if (OperatingSystem.IsLinux()) await StopLinuxDescendant();
+            else
+            {
+                // Windows still owns the independent Process handle and Job evidence.
+                if (Grandchild is null && File.Exists(PidFile) && int.TryParse(await File.ReadAllTextAsync(PidFile), out var pid))
+                {
+                    try { Grandchild = Process.GetProcessById(pid); } catch (ArgumentException) { }
+                }
+                if (Grandchild is not null)
+                {
+                    try { if (!Grandchild.HasExited) { HarnessKills++; Grandchild.Kill(true); } await Grandchild.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
+                    catch (InvalidOperationException) { }
+                    catch (System.ComponentModel.Win32Exception) when (Grandchild.HasExited) { }
+                }
+            }
         }
-        foreach (var process in new[] { Grandchild, Direct })
+        catch (Exception exception) { descendantCleanupFailure = exception; }
+        Exception? directCleanupFailure = null;
+        if (Direct is { } process)
         {
-            if (process is null) continue;
-            try { if (!process.HasExited) { HarnessKills++; process.Kill(true); } await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)); }
-            catch (InvalidOperationException) { /* bridge disposed direct handle; retained descendant/witness is independent */ }
-            catch (System.ComponentModel.Win32Exception) when (process.HasExited) { /* process exited between HasExited and Kill */ }
+            try
+            {
+                if (OperatingSystem.IsLinux()) await StopLinuxDirect(process);
+                else
+                {
+                    if (!process.HasExited) { HarnessKills++; process.Kill(true); }
+                    await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                }
+            }
+            catch (InvalidOperationException) when (!OperatingSystem.IsLinux()) { /* Windows bridge disposed its retained handle */ }
+            catch (System.ComponentModel.Win32Exception) when (!OperatingSystem.IsLinux() && process.HasExited) { /* Windows process exited between HasExited and Kill */ }
+            catch (Exception exception) { directCleanupFailure = exception; }
+        }
+        W2RSupport.ThrowIndependentFailures(descendantCleanupFailure, directCleanupFailure);
+    }
+    private async Task StopLinuxDirect(Process process)
+    {
+        var baseline = _leaderIdentity ?? throw new InvalidDataException("Missing retained direct-child identity at cleanup");
+        if (_pidNamespace is null || ReadPidNamespace() != _pidNamespace)
+            throw new InvalidDataException("PID namespace unavailable or changed at direct-child cleanup");
+        LinuxIdentity current;
+        try { current = ReadLinuxIdentity(baseline.Pid); }
+        catch (FileNotFoundException) when (ProcfsAvailable()) { return; }
+        catch (DirectoryNotFoundException) when (ProcfsAvailable()) { return; }
+        if (current.Pid != baseline.Pid || current.StartTime != baseline.StartTime || current.Pgid != baseline.Pgid)
+            throw new InvalidDataException("Direct-child identity changed at cleanup; refusing stale PID kill");
+        if (current.State is 'Z' or 'X') return; // exited, retained zombie; only the native owner may reap
+        var beforeKill = ReadLinuxIdentity(baseline.Pid);
+        if (beforeKill.StartTime != baseline.StartTime || beforeKill.Pgid != baseline.Pgid)
+            throw new InvalidDataException("Direct-child identity changed before cleanup kill");
+        if (beforeKill.State is 'Z' or 'X') return;
+        HarnessKills++;
+        process.Kill(true);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (true)
+        {
+            try
+            {
+                var after = ReadLinuxIdentity(baseline.Pid);
+                if (after.StartTime != baseline.StartTime || after.Pgid != baseline.Pgid)
+                    throw new InvalidDataException("Direct-child identity changed after cleanup kill");
+                if (after.State is 'Z' or 'X') return; // nonexecuting; do not claim a fixture or product reap
+            }
+            catch (FileNotFoundException) when (ProcfsAvailable()) { return; }
+            catch (DirectoryNotFoundException) when (ProcfsAvailable()) { return; }
+            await Task.Delay(10, deadline.Token);
+        }
+    }
+    private async Task StopLinuxDescendant()
+    {
+        if (!RequireDescendantWitness) return;
+        if (_pidNamespace is null || ReadPidNamespace() != _pidNamespace)
+            throw new InvalidDataException("PID namespace unavailable or changed at descendant cleanup");
+        var baseline = _descendantIdentity;
+        if (baseline is null && File.Exists(PidFile))
+        {
+            // On setup failure, recover only a child still attached to the exact live leader.
+            if (!int.TryParse(await File.ReadAllTextAsync(PidFile), out var pid) || _leaderIdentity is not { } leader)
+                throw new InvalidDataException("Cannot identify descendant for bounded setup cleanup");
+            var currentLeader = ReadLinuxIdentity(leader.Pid);
+            var candidate = ReadLinuxIdentity(pid);
+            if (currentLeader.StartTime != leader.StartTime || candidate.Ppid != leader.Pid || candidate.Pgid != leader.Pgid)
+                throw new InvalidDataException("Unknown descendant identity at setup cleanup; refusing stale PID kill");
+            baseline = candidate;
+            _descendantIdentity = candidate;
+        }
+        if (baseline is null) return;
+        // A decisive first verdict cannot be changed by fallback cleanup. A witnessed
+        // zombie is retained by its parent; this fixture does not reap it.
+        if (_firstDescendantWitness is { Passed: true }) return;
+        LinuxIdentity current;
+        try { current = ReadLinuxIdentity(baseline.Pid); }
+        catch (FileNotFoundException) when (ProcfsAvailable()) { return; }
+        catch (DirectoryNotFoundException) when (ProcfsAvailable()) { return; }
+        if (current.Pid != baseline.Pid || current.StartTime != baseline.StartTime || current.Pgid != baseline.Pgid)
+            throw new InvalidDataException("Descendant identity changed at cleanup; refusing stale PID kill");
+        if (current.State is 'Z' or 'X') return;
+        // Check identity immediately again before using the PID. The bounded recovery
+        // never uses an unknown or replaced PID as its target.
+        var beforeKill = ReadLinuxIdentity(baseline.Pid);
+        if (beforeKill.StartTime != baseline.StartTime || beforeKill.Pgid != baseline.Pgid)
+            throw new InvalidDataException("Descendant identity changed before cleanup kill");
+        if (beforeKill.State is 'Z' or 'X') return;
+        var process = Grandchild ?? Process.GetProcessById(baseline.Pid);
+        HarnessKills++;
+        process.Kill(true);
+        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (true)
+        {
+            try
+            {
+                var after = ReadLinuxIdentity(baseline.Pid);
+                if (after.StartTime != baseline.StartTime || after.Pgid != baseline.Pgid)
+                    throw new InvalidDataException("Descendant identity changed after cleanup kill");
+                if (after.State is 'Z' or 'X') return;
+            }
+            catch (FileNotFoundException) when (ProcfsAvailable()) { return; }
+            catch (DirectoryNotFoundException) when (ProcfsAvailable()) { return; }
+            await Task.Delay(10, deadline.Token);
         }
     }
     internal static async Task Observe(Task operation) { try { await operation.WaitAsync(TimeSpan.FromSeconds(5)); } catch { } }
@@ -1618,6 +2261,103 @@ internal sealed class W2RProcessFixture : IDisposable
         catch (InvalidOperationException) { return "unavailable"; }
         catch (System.ComponentModel.Win32Exception) { return "unavailable"; }
     }
+    internal string LinuxDescendantWitnessDiagnostic()
+    {
+        var leaderPid = Direct?.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "absent";
+        var descendantPid = Grandchild?.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "absent";
+        var descendant = Grandchild is null ? ("absent", "absent", "absent", "absent", "absent") : TryReadProcStat(Grandchild.Id);
+        return $"leaderPid={leaderPid} leaderPgid={_retainedLeaderPgid ?? "unavailable"} " +
+            $"leaderHasExited={ExitState(Direct)} descendantPid={descendantPid} descendantHasExited={ExitState(Grandchild)} " +
+            $"descendantProcState={descendant.Item1} descendantPpid={descendant.Item2} descendantPgid={descendant.Item3} descendantStartTime={descendant.Item4} descendantProc={descendant.Item5}";
+    }
+    internal string LinuxDirectWitnessDiagnostic()
+    {
+        var pid = Direct?.Id.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "absent";
+        var stat = Direct is null ? ("absent", "absent", "absent", "absent", "absent") : TryReadProcStat(Direct.Id);
+        return $"directPid={pid} retainedLeaderPgid={_retainedLeaderPgid ?? "unavailable"} directHasExited={ExitState(Direct)} " +
+            $"directProcState={stat.Item1} directPpid={stat.Item2} directPgid={stat.Item3} directStartTime={stat.Item4} directProc={stat.Item5}";
+    }
+    internal string LinuxDirectIdentityDiagnostic()
+    {
+        if (!OperatingSystem.IsLinux()) return $"directHasExited={ExitState(Direct)}";
+        var baseline = _leaderIdentity;
+        if (baseline is null) return $"directIdentity=unavailable-baseline directHasExited={ExitState(Direct)}";
+        LinuxIdentity? terminal = null;
+        var status = "unavailable";
+        try
+        {
+            if (ReadPidNamespace() != _pidNamespace) status = "pid-namespace-changed";
+            else
+            {
+                try { terminal = ReadLinuxIdentity(baseline.Pid); status = "present"; }
+                catch (FileNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+                catch (DirectoryNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+            }
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
+        { status = "unavailable-" + exception.GetType().Name; }
+        var verdict = terminal is null ? status :
+            terminal.Pid != baseline.Pid || terminal.StartTime != baseline.StartTime ? "identity-replaced" :
+            terminal.Pgid != baseline.Pgid ? "escaped-group" :
+            terminal.State is 'Z' or 'X' ? "same-identity-nonexecuting-unreaped" : "same-identity-live";
+        return $"directIdentity={verdict} leaderBaseline={baseline.Diagnostic} leaderTerminal={terminal?.Diagnostic ?? status} " +
+            $"directHasExited={ExitState(Direct)}";
+    }
+    internal sealed record TimeoutIdentitySnapshot(bool Complete, bool Residual, string Verdict, string Diagnostic);
+    internal TimeoutIdentitySnapshot LinuxDirectIdentitySnapshotForTimeout()
+    {
+        if (!OperatingSystem.IsLinux())
+        {
+            var state = ExitState(Direct);
+            return new(state is "exited" or "live", state != "exited", state,
+                $"directPid={Direct?.Id.ToString() ?? "absent"},directHandle={state}");
+        }
+        var baseline = _leaderIdentity;
+        LinuxIdentity? terminal = null;
+        var status = baseline is null ? (_earlyIdentityAttempted ? "baseline-unavailable" : "spawn-callback-unreached") : "unavailable";
+        try
+        {
+            if (baseline is null) { /* No retrospective baseline may replace the early capture. */ }
+            else if (_pidNamespace is null || ReadPidNamespace() != _pidNamespace) status = "pid-namespace-unavailable-or-changed";
+            else
+            {
+                try { terminal = ReadLinuxIdentity(baseline.Pid); status = "present"; }
+                catch (FileNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+                catch (DirectoryNotFoundException) { status = ProcfsAvailable() ? "disappeared" : "procfs-unavailable"; }
+            }
+        }
+        catch (Exception exception) { status = "unavailable-" + exception.GetType().Name; }
+        var verdict = terminal is null ? status :
+            terminal.Pid != baseline!.Pid || terminal.StartTime != baseline.StartTime ? "identity-replaced" :
+            terminal.Pgid != baseline.Pgid ? "escaped-group" :
+            terminal.State is 'Z' or 'X' ? "same-identity-nonexecuting-unreaped" : "same-identity-live";
+        // This snapshot intentionally does not query Process.HasExited, waitid or
+        // waitpid while the native owner may still hold the child's exit status.
+        var acquisition = _earlyIdentityAttempted ? _directAcquisitionFailure ?? (Direct is null ? "missing" : "ok") : "not-reached";
+        var capture = _earlyIdentityAttempted ? _earlyIdentityFailure ?? (baseline is null ? "missing" : "ok") : "not-reached";
+        var reconciliation = _identityReconciliationAttempted ? _identityReconciliationFailure ?? "ok" : "not-reached";
+        var complete = _earlyIdentityAttempted && baseline is not null && capture == "ok" && acquisition == "ok" &&
+            _identityReconciliationFailure is null && (_identityReconciliationAttempted || DirectExit is null) &&
+            verdict is ("disappeared" or "same-identity-live" or "same-identity-nonexecuting-unreaped");
+        return new(complete, !complete || verdict != "disappeared", verdict,
+            $"baseline={baseline?.Diagnostic ?? "unavailable"},terminal={terminal?.Diagnostic ?? status},verdict={verdict}," +
+            $"capture={capture},acquisition={acquisition},reconciliation={reconciliation},identityComplete={complete}," +
+            $"pidNamespace={_pidNamespace ?? "absent"},retainedPid={Direct?.Id.ToString() ?? "absent"}");
+    }
+    private static (string State, string Ppid, string Pgid, string StartTime, string Presence) TryReadProcStat(int pid)
+    {
+        try
+        {
+            var path = $"/proc/{pid}/stat";
+            if (!File.Exists(path)) return ("unavailable", "unavailable", "unavailable", "unavailable", "missing");
+            var stat = File.ReadAllText(path); var close = stat.LastIndexOf(')');
+            if (close < 0 || close + 2 >= stat.Length) return ("invalid", "invalid", "invalid", "invalid", "malformed");
+            var fields = stat[(close + 2)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            return fields.Length > 19 ? (fields[0], fields[1], fields[2], fields[19], "present") : ("invalid", "invalid", "invalid", "invalid", "malformed");
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        { return ("unavailable", "unavailable", "unavailable", "unavailable", "unreadable"); }
+    }
     internal static string FixedOutcome(Task? operation, Exception? observedFailure)
     {
         var failure = observedFailure ?? operation?.Exception?.GetBaseException();
@@ -1626,8 +2366,10 @@ internal sealed class W2RProcessFixture : IDisposable
             IOException { Message: "GITHUB_ARTIFACT_HELPER_TIMEOUT" } => "helper-timeout",
             IOException { Message: "GITHUB_ARTIFACT_HELPER_CLEANUP_FAILED" } => "cleanup-failed",
             IOException { Message: "GITHUB_ARTIFACT_HELPER_IO_FAILED" } => "io-failed",
+            IOException { Message: "GITHUB_ARTIFACT_HELPER_FAILED" } => "helper-failed",
+            IOException { Message: "GITHUB_ARTIFACT_HELPER_OUTPUT_LIMIT" } => "output-limit",
             OperationCanceledException => "canceled",
-            null => operation?.IsCompletedSuccessfully == true ? "success" : "pending",
+            null => operation?.IsCompletedSuccessfully == true ? "success" : operation?.IsCanceled == true ? "canceled" : "pending",
             _ => "fault-" + failure.GetType().Name
         };
     }
@@ -1860,6 +2602,27 @@ public class GitHubArtifactW2RZTests
         await Assert.That((await W2RSupport.Probe(zip.Build().Bytes)).Disposition).IsEqualTo(ContextSourceArtifactProbeDisposition.Present);
     }
 
+    [Test]
+    [Arguments((ushort)0)] [Arguments((ushort)0x800)]
+    [Arguments((ushort)8)] [Arguments((ushort)0x808)]
+    public async Task Z_reviewed_flag_combinations_and_matching_timestamps_pass(ushort flags)
+    {
+        var zip = new W2RZip();
+        foreach (var entry in zip.Entries)
+        {
+            entry.Flags = flags; entry.Descriptor = (flags & 8) != 0;
+            entry.Time = 0x1234; entry.Date = 0x5822;
+        }
+        var probe = await W2RSupport.Probe(zip.Build().Bytes);
+        await Assert.That(probe.Disposition).IsEqualTo(ContextSourceArtifactProbeDisposition.Present);
+        foreach (var entry in zip.Entries)
+            W2RSupport.Require(probe.Entries.Single(actual => actual.Path == entry.Name).Bytes.SequenceEqual(entry.Payload), "Exact allowed flags payload");
+    }
+
+    [Test]
+    [Arguments(false)] [Arguments(true)]
+    public Task Z_raw_pinned_producer_single_local_timestamp_violation_is_conflict(bool includeHtml)
+        => W2RReviewedLinuxProducer.VerifyRawTimestampConflict(includeHtml);
     // Descriptor profile is intentionally provisional until the exact-package fixture emitted
     // by JT has been independently reviewed. These tests establish a precise grammar candidate;
     // they are not a substitute for embedding the root-generated Linux package bytes below.
@@ -2223,6 +2986,207 @@ internal sealed class W2ROutputObservation
     }
 }
 
+// The launch-description diagnostic observes the same streams and completion
+// tasks that the bridge uses. It never initiates a read or closes a pipe.
+internal sealed class W2RNativeTimeoutOutputProbe
+{
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, Pipe> _pipes = new();
+    private readonly System.Collections.Concurrent.ConcurrentQueue<string> _callbackFaults = new();
+    internal IReadOnlyCollection<string> CallbackFaults => _callbackFaults.ToArray();
+    internal IReadOnlyCollection<string> ProbeFaults => _pipes.Select(pair => pair.Value.ProbeFault is { } fault
+        ? pair.Key + "-" + fault : null).OfType<string>().ToArray();
+    internal bool RecoverySettled => _pipes.Count == 2 && _pipes.Values.All(pipe =>
+        Volatile.Read(ref pipe.Reader)?.IsCompleted == true && Volatile.Read(ref pipe.Disposed) != 0 &&
+        Volatile.Read(ref pipe.EndpointAnyDisposed) != 0 && Volatile.Read(ref pipe.EndpointObserved) != 0);
+
+    internal IArtifactProcessScope DecorateScope(IArtifactProcessScope actual)
+    {
+        try
+        {
+            var stdout = _pipes.GetOrAdd("stdout", _ => new Pipe());
+            var stderr = _pipes.GetOrAdd("stderr", _ => new Pipe());
+            var output = new EndpointStream(actual.StandardOutput, stdout);
+            var error = new EndpointStream(actual.StandardError, stderr);
+            Interlocked.Exchange(ref stdout.EndpointObserved, 1);
+            Interlocked.Exchange(ref stderr.EndpointObserved, 1);
+            return new EndpointScope(actual, output, error);
+        }
+        catch (Exception exception)
+        {
+            _callbackFaults.Enqueue("endpoint-decoration-" + exception.GetType().Name);
+            return actual;
+        }
+    }
+
+    internal Stream Wrap(string name, Stream actual)
+    {
+        try
+        {
+            if (name is not ("stdout" or "stderr"))
+            {
+                _callbackFaults.Enqueue("stream-name");
+                return actual;
+            }
+            var pipe = _pipes.GetOrAdd(name, _ => new Pipe());
+            if (Interlocked.CompareExchange(ref pipe.ReaderWrapped, 1, 0) != 0)
+            {
+                _callbackFaults.Enqueue("stream-duplicate");
+                return actual;
+            }
+            return new ProbeStream(actual, pipe);
+        }
+        catch (Exception exception)
+        {
+            _callbackFaults.Enqueue("stream-" + exception.GetType().Name);
+            return actual;
+        }
+    }
+
+    internal void ReaderStarted(string name, Task reader)
+    {
+        try
+        {
+            if (!_pipes.TryGetValue(name, out var pipe) || Interlocked.CompareExchange(ref pipe.Reader, reader, null) is not null)
+                _callbackFaults.Enqueue("reader-missing-or-duplicate");
+        }
+        catch (Exception exception) { _callbackFaults.Enqueue("reader-" + exception.GetType().Name); }
+    }
+
+    internal string Snapshot()
+    {
+        string One(string name)
+        {
+            if (!_pipes.TryGetValue(name, out var pipe)) return name + ":unavailable-before-drain";
+            var reader = Volatile.Read(ref pipe.Reader);
+            var result = reader is Task<ArtifactDrainResult> { IsCompletedSuccessfully: true } completed
+                ? completed.Result.ToString() : "unavailable";
+            return $"{name}:bytes={Interlocked.Read(ref pipe.Bytes)},reads={Volatile.Read(ref pipe.Reads)}," +
+                $"eof={Volatile.Read(ref pipe.Eof) != 0},reader={reader?.Status.ToString() ?? "unavailable"}," +
+                $"readerResult={result},readerDisposeEntered={Volatile.Read(ref pipe.DisposeEntered) != 0}," +
+                $"readerDisposed={Volatile.Read(ref pipe.Disposed) != 0},readFault={Volatile.Read(ref pipe.ReadFault) ?? "absent"}," +
+                $"readerDisposeFault={Volatile.Read(ref pipe.DisposeFault) ?? "absent"}," +
+                $"endpointObserved={Volatile.Read(ref pipe.EndpointObserved) != 0}," +
+                $"directEndpointDisposeEntered={Volatile.Read(ref pipe.EndpointDisposeEntered) != 0}," +
+                $"directEndpointDisposed={Volatile.Read(ref pipe.EndpointDisposed) != 0}," +
+                $"directEndpointDisposeFault={Volatile.Read(ref pipe.EndpointDisposeFault) ?? "absent"}," +
+                $"endpointAnyDisposed={Volatile.Read(ref pipe.EndpointAnyDisposed) != 0}";
+        }
+        return One("stdout") + ";" + One("stderr");
+    }
+
+    private sealed class Pipe
+    {
+        internal Task? Reader;
+        internal int ReaderWrapped;
+        internal long Bytes;
+        internal int Reads;
+        internal int Eof;
+        internal int DisposeEntered;
+        internal int Disposed;
+        internal string? ReadFault;
+        internal string? DisposeFault;
+        internal string? ProbeFault;
+        internal int EndpointObserved;
+        internal int EndpointDisposeEntered;
+        internal int EndpointDisposed;
+        internal int EndpointAnyDisposed;
+        internal string? EndpointDisposeFault;
+    }
+
+    private sealed class ProbeStream(Stream actual, Pipe pipe) : Stream
+    {
+        private void Record(int requested, int count)
+        {
+            try
+            {
+                Interlocked.Increment(ref pipe.Reads);
+                Interlocked.Add(ref pipe.Bytes, count);
+                if (requested != 0 && count == 0) Interlocked.Exchange(ref pipe.Eof, 1);
+            }
+            catch (Exception exception) { pipe.ProbeFault = exception.GetType().Name; }
+        }
+        public override int Read(byte[] buffer, int offset, int count)
+        {
+            try { var read = actual.Read(buffer, offset, count); Record(count, read); return read; }
+            catch (Exception exception) { pipe.ReadFault = exception.GetType().Name; throw; }
+        }
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            => ReadAsync(buffer.AsMemory(offset, count), cancellationToken).AsTask();
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            try { var read = await actual.ReadAsync(buffer, cancellationToken); Record(buffer.Length, read); return read; }
+            catch (Exception exception) { pipe.ReadFault = exception.GetType().Name; throw; }
+        }
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                Interlocked.Exchange(ref pipe.DisposeEntered, 1);
+                try
+                {
+                    if (actual is EndpointStream endpoint) endpoint.DisposeFromReader();
+                    else actual.Dispose();
+                    Interlocked.Exchange(ref pipe.Disposed, 1);
+                }
+                catch (Exception exception) { pipe.DisposeFault = exception.GetType().Name; throw; }
+            }
+            base.Dispose(disposing);
+        }
+        public override bool CanRead => actual.CanRead; public override bool CanSeek => false; public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private sealed class EndpointScope(IArtifactProcessScope actual, Stream stdout, Stream stderr) : IArtifactProcessScope
+    {
+        public int ProcessId => actual.ProcessId;
+        public Task<int> DirectExit => actual.DirectExit;
+        public Stream StandardOutput => stdout;
+        public Stream StandardError => stderr;
+        public void TerminateScope() => actual.TerminateScope();
+        public Task<bool> ConfirmTerminatedAsync(CancellationToken token) => actual.ConfirmTerminatedAsync(token);
+        public Task<bool> ReleaseAsync(CancellationToken token) => actual.ReleaseAsync(token);
+        public Task<bool> SettleObserverAsync(CancellationToken token) => actual.SettleObserverAsync(token);
+        public void Dispose() => actual.Dispose();
+    }
+
+    private sealed class EndpointStream(Stream actual, Pipe pipe) : Stream
+    {
+        internal void DisposeFromReader() { Close(false); base.Dispose(true); }
+        private void Close(bool direct)
+        {
+            if (direct) Interlocked.Exchange(ref pipe.EndpointDisposeEntered, 1);
+            try
+            {
+                actual.Dispose();
+                Interlocked.Exchange(ref pipe.EndpointAnyDisposed, 1);
+                if (direct) Interlocked.Exchange(ref pipe.EndpointDisposed, 1);
+            }
+            catch (Exception exception)
+            {
+                if (direct) pipe.EndpointDisposeFault = exception.GetType().Name;
+                throw;
+            }
+        }
+        protected override void Dispose(bool disposing) { if (disposing) Close(true); base.Dispose(disposing); }
+        public override int Read(byte[] buffer, int offset, int count) => actual.Read(buffer, offset, count);
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken token)
+            => actual.ReadAsync(buffer, offset, count, token);
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken token = default) => actual.ReadAsync(buffer, token);
+        public override bool CanRead => actual.CanRead; public override bool CanSeek => false; public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position { get => throw new NotSupportedException(); set => throw new NotSupportedException(); }
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+}
+
 // Immutable ORIGINAL Linux producer captures. Their generator identity is separate
 // from this later test revision. Image/npm are root-attested execution provenance;
 // all bytes/metadata/payloads below are checked offline without reading scratch logs.
@@ -2329,6 +3293,18 @@ internal static class W2RReviewedLinuxProducer
         var order = ValidateProfile(bytes, includeHtml);
         W2RSupport.Require(order.SequenceEqual(exemplar.Names), "Original capture order is preserved by its raw bytes");
         await VerifyConsumer(bytes, includeHtml);
+    }
+    internal static async Task VerifyRawTimestampConflict(bool includeHtml)
+    {
+        // First accept the untouched exact package-produced archive and all its
+        // payloads. Then change one known local field; every layout byte stays fixed.
+        await VerifyRaw(includeHtml);
+        var original = Convert.FromBase64String(Exemplars[includeHtml ? 1 : 0].Base64);
+        var hostile = (byte[])original.Clone();
+        W2RSupport.Require(U32(hostile, 0) == 0x04034b50 && U16(hostile, 10) == 0, "Reviewed first local timestamp");
+        hostile[10] = 1;
+        W2RSupport.Require(original.Where((value, index) => value != hostile[index]).Count() == 1, "Only one local timestamp byte changed");
+        await Assert.That((await W2RSupport.Probe(hostile)).Disposition).IsEqualTo(ContextSourceArtifactProbeDisposition.Conflict);
     }
     internal static async Task VerifySyntheticPermutation(bool includeHtml, int index)
     {

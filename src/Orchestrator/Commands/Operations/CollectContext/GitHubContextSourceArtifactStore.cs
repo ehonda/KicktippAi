@@ -1047,33 +1047,127 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
             if (!result.Select(x => x.Path).ToHashSet(StringComparer.Ordinal).SetEquals(metadata.Keys) || !result.Any(x => x.Path == "manifest.json") || !result.Any(x => x.Path == "bundle.sha256")) throw new ArtifactConflictException(); return result.OrderBy(x => x.Path, StringComparer.Ordinal).ToArray();
         }
         catch (ArtifactConflictException) { throw; } catch (Exception exception) when (exception is InvalidDataException or ArgumentException or OverflowException or IOException or NotSupportedException) { throw new ArtifactConflictException(); }
-    }    private static Dictionary<string, ZipBound> ValidateCentralDirectory(byte[] data)
+    }    // Structure is read only at proven record offsets. Payload signatures have no authority.
+    private static Dictionary<string, ZipBound> ValidateCentralDirectory(byte[] data)
     {
-        if (data.Length < 22) throw new ArtifactConflictException(); var eocd = data.Length - 22;
-        if (U32(data, eocd) != 0x06054b50 || U16(data, eocd + 4) != 0 || U16(data, eocd + 6) != 0 || U16(data, eocd + 8) != U16(data, eocd + 10) || U16(data, eocd + 8) == ushort.MaxValue || U32(data, eocd + 12) == uint.MaxValue || U32(data, eocd + 16) == uint.MaxValue || U16(data, eocd + 20) != 0) throw new ArtifactConflictException();
-        var entries = U16(data, eocd + 10); var centralSize = U32(data, eocd + 12); var centralOffset = U32(data, eocd + 16);
-        if (entries is < 2 or > 3 || centralOffset > data.Length || centralSize > data.Length - centralOffset || centralOffset + centralSize != eocd) throw new ArtifactConflictException();
-        var result = new Dictionary<string, ZipBound>(StringComparer.Ordinal); var folded = new HashSet<string>(StringComparer.OrdinalIgnoreCase); var ranges = new List<(long Start, long End)>(); var cursor = checked((int)centralOffset); ulong declared = 0;
-        for (var index = 0; index < entries; index++)
-        {
-            if (cursor > data.Length - 46 || U32(data, cursor) != 0x02014b50) throw new ArtifactConflictException();
-            var madeBy = U16(data, cursor + 4); var flags = U16(data, cursor + 8); var method = U16(data, cursor + 10); var crc = U32(data, cursor + 16); var compressed = U32(data, cursor + 20); var expanded = U32(data, cursor + 24); var nameLength = U16(data, cursor + 28); var extraLength = U16(data, cursor + 30); var commentLength = U16(data, cursor + 32); var disk = U16(data, cursor + 34); var attrs = U32(data, cursor + 38); var localOffset = U32(data, cursor + 42); var record = checked(46 + nameLength + extraLength + commentLength);
-            if (cursor > data.Length - record || disk != 0 || extraLength != 0 || commentLength != 0 || !SafeFlags(flags) || method is not (0 or 8) || compressed == uint.MaxValue || expanded == uint.MaxValue || localOffset > centralOffset || localOffset > data.Length - 30 || U32(data, checked((int)localOffset)) != 0x04034b50 || !RegularFile(madeBy, attrs)) throw new ArtifactConflictException();
-            var name = ReadUtf8(data, cursor + 46, nameLength); if (!IsAllowedName(name) || !folded.Add(name)) throw new ArtifactConflictException();
-            var local = checked((int)localOffset); var localFlags = U16(data, local + 6); var localMethod = U16(data, local + 8); var localCrc = U32(data, local + 14); var localCompressed = U32(data, local + 18); var localExpanded = U32(data, local + 22); var localNameLength = U16(data, local + 26); var localExtraLength = U16(data, local + 28); var dataOffsetLong = checked((long)local + 30L + localNameLength + localExtraLength);
-            if (localExtraLength != 0 || !SafeFlags(localFlags) || localFlags != flags || localMethod != method || localCrc != crc || localCompressed != compressed || localExpanded != expanded || dataOffsetLong > centralOffset || compressed > centralOffset - dataOffsetLong || ReadUtf8(data, local + 30, localNameLength) != name) throw new ArtifactConflictException();
-            declared += expanded; if (declared > MaxExpandedBytes || !result.TryAdd(name, new(compressed, expanded, crc))) throw new ArtifactConflictException(); ranges.Add((local, dataOffsetLong + compressed)); cursor += record;
-        }
-        if (cursor != centralOffset + centralSize) throw new ArtifactConflictException(); long expectedStart = 0; foreach (var range in ranges.OrderBy(range => range.Start)) { if (range.Start != expectedStart || range.End < range.Start || range.End > centralOffset) throw new ArtifactConflictException(); expectedStart = range.End; } if (expectedStart != centralOffset) throw new ArtifactConflictException(); return result;
+        var envelope = ReadZipEnvelope(data);
+        var central = ReadCentralRecords(data, envelope);
+        var locals = central.Select(record => ReadLocalRecord(data, envelope, record)).ToArray();
+        ValidateLocalCoverage(locals, envelope.CentralOffset);
+        return central.ToDictionary(record => record.Name,
+            record => new ZipBound(record.Compressed, record.Expanded, record.Crc), StringComparer.Ordinal);
     }
-    private static bool SafeFlags(ushort flags) => (flags & ~0x0800) == 0;
-    private static bool RegularFile(ushort madeBy, uint attrs)
+
+    private static ZipEnvelope ReadZipEnvelope(byte[] data)
     {
-        var os = madeBy >> 8; var dos = (ushort)(attrs & 0xffff);
-        if (os == 3) return ((attrs >> 16) & 0xF000) == 0x8000 && (dos & 0x0458) == 0;
-        if (os == 0) return (dos & 0x0458) == 0;
-        return false;
-    }    private static int MaximumFor(string name) => name switch { "manifest.json" => MaxManifestBytes, "bundle.sha256" => MaxHashBytes, "club-elo/source.html" => MaxHtmlBytes, _ => throw new ArtifactConflictException() };
+        if (data.Length < 22) throw new ArtifactConflictException();
+        var end = data.Length - 22;
+        if (U32(data, end) != 0x06054b50 || U16(data, end + 4) != 0 || U16(data, end + 6) != 0 ||
+            U16(data, end + 8) != U16(data, end + 10) || U16(data, end + 20) != 0) throw new ArtifactConflictException();
+        var count = U16(data, end + 10);
+        var size = U32(data, end + 12); var offset = U32(data, end + 16);
+        if (count is < 2 or > 3 || size == uint.MaxValue || offset == uint.MaxValue) throw new ArtifactConflictException();
+        ZipRange(offset, size, end);
+        if ((long)offset + size != end) throw new ArtifactConflictException();
+        return new(count, checked((int)offset), end);
+    }
+
+    private static ZipCentralRecord[] ReadCentralRecords(byte[] data, ZipEnvelope envelope)
+    {
+        var records = new List<ZipCentralRecord>();
+        var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var cursor = envelope.CentralOffset; ulong expandedTotal = 0;
+        for (var index = 0; index < envelope.Count; index++)
+        {
+            ZipRange(cursor, 46, envelope.End);
+            if (U32(data, cursor) != 0x02014b50) throw new ArtifactConflictException();
+            var creator = U16(data, cursor + 4); var version = U16(data, cursor + 6);
+            var flags = U16(data, cursor + 8); var method = U16(data, cursor + 10);
+            var time = U16(data, cursor + 12); var date = U16(data, cursor + 14);
+            var crc = U32(data, cursor + 16); var compressed = U32(data, cursor + 20); var expanded = U32(data, cursor + 24);
+            var nameLength = U16(data, cursor + 28); var extraLength = U16(data, cursor + 30); var commentLength = U16(data, cursor + 32);
+            var disk = U16(data, cursor + 34); var internalAttributes = U16(data, cursor + 36);
+            var attributes = U32(data, cursor + 38); var localOffset = U32(data, cursor + 42);
+            var recordLength = checked(46 + nameLength + extraLength + commentLength);
+            ZipRange(cursor, recordLength, envelope.End);
+            if (version != 20 || !SafeFlags(flags) || method is not (0 or 8) ||
+                ((flags & 8) != 0 && method != 0) || disk != 0 || internalAttributes != 0 || extraLength != 0 || commentLength != 0 ||
+                compressed == uint.MaxValue || expanded == uint.MaxValue || localOffset == uint.MaxValue ||
+                !RegularFile(creator, attributes) || (method == 0 && compressed != expanded)) throw new ArtifactConflictException();
+            var name = ReadUtf8(data, cursor + 46, nameLength);
+            if (!IsAllowedName(name) || !names.Add(name) || expanded > MaximumFor(name)) throw new ArtifactConflictException();
+            expandedTotal += expanded;
+            if (expandedTotal > MaxExpandedBytes) throw new ArtifactConflictException();
+            records.Add(new(name, version, flags, method, time, date, crc, compressed, expanded, localOffset));
+            cursor = checked(cursor + recordLength);
+        }
+        if (cursor != envelope.End || !names.Contains("manifest.json") || !names.Contains("bundle.sha256")) throw new ArtifactConflictException();
+        return records.ToArray();
+    }
+
+    private static ZipLocalRecord ReadLocalRecord(byte[] data, ZipEnvelope envelope, ZipCentralRecord central)
+    {
+        ZipRange(central.LocalOffset, 30, envelope.CentralOffset);
+        var local = checked((int)central.LocalOffset);
+        if (U32(data, local) != 0x04034b50 || U16(data, local + 4) != central.Version ||
+            U16(data, local + 6) != central.Flags || U16(data, local + 8) != central.Method ||
+            U16(data, local + 10) != central.Time || U16(data, local + 12) != central.Date) throw new ArtifactConflictException();
+        var crc = U32(data, local + 14); var compressed = U32(data, local + 18); var expanded = U32(data, local + 22);
+        var nameLength = U16(data, local + 26); var extraLength = U16(data, local + 28);
+        var headerLength = checked(30 + nameLength + extraLength);
+        ZipRange(local, headerLength, envelope.CentralOffset);
+        if (extraLength != 0 || ReadUtf8(data, local + 30, nameLength) != central.Name) throw new ArtifactConflictException();
+        var payload = checked(local + headerLength);
+        ZipRange(payload, central.Compressed, envelope.CentralOffset);
+        var end = checked(payload + (int)central.Compressed);
+        if ((central.Flags & 8) == 0)
+        {
+            if (crc != central.Crc || compressed != central.Compressed || expanded != central.Expanded) throw new ArtifactConflictException();
+        }
+        else
+        {
+            // Locked Linux @actions/artifact 6.2.1 emits STORE with zero local fields
+            // and exactly this signed, 32-bit descriptor. No ZIP64/unsigned variant.
+            if (crc != 0 || compressed != 0 || expanded != 0) throw new ArtifactConflictException();
+            ZipRange(end, 16, envelope.CentralOffset);
+            if (U32(data, end) != 0x08074b50 || U32(data, end + 4) != central.Crc ||
+                U32(data, end + 8) != central.Compressed || U32(data, end + 12) != central.Expanded) throw new ArtifactConflictException();
+            end = checked(end + 16);
+        }
+        return new(local, end);
+    }
+
+    private static void ValidateLocalCoverage(ZipLocalRecord[] records, int centralOffset)
+    {
+        var expected = 0;
+        foreach (var record in records.OrderBy(record => record.Start))
+        {
+            if (record.Start != expected || record.End < record.Start || record.End > centralOffset) throw new ArtifactConflictException();
+            expected = record.End;
+        }
+        if (expected != centralOffset) throw new ArtifactConflictException();
+    }
+
+    private static void ZipRange(long offset, long length, long limit)
+    {
+        if (offset < 0 || length < 0 || offset > limit || length > limit - offset) throw new ArtifactConflictException();
+    }
+    private static bool SafeFlags(ushort flags) => (flags & ~0x0808) == 0;
+    private static bool RegularFile(ushort madeBy, uint attributes)
+    {
+        var platform = madeBy >> 8; var version = madeBy & 0xff;
+        // Legacy .NET fixtures use creator 2.0; the pinned Linux producer uses 4.5.
+        if (version != 20 && !(platform == 3 && version == 45)) return false;
+        var dos = attributes & 0xffff;
+        if ((dos & ~0x27u) != 0) return false; // read-only, hidden, system, archive only
+        if (platform == 3) return ((attributes >> 16) & 0xf000) == 0x8000;
+        return platform == 0 && (attributes >> 16) == 0;
+    }
+    private sealed record ZipEnvelope(int Count, int CentralOffset, int End);
+    private sealed record ZipCentralRecord(string Name, ushort Version, ushort Flags, ushort Method, ushort Time, ushort Date,
+        uint Crc, uint Compressed, uint Expanded, uint LocalOffset);
+    private sealed record ZipLocalRecord(int Start, int End);
+    private static int MaximumFor(string name) => name switch { "manifest.json" => MaxManifestBytes, "bundle.sha256" => MaxHashBytes, "club-elo/source.html" => MaxHtmlBytes, _ => throw new ArtifactConflictException() };
     private static Artifact ParseArtifact(JsonElement value) { if (!value.TryGetProperty("id", out var id) || !id.TryGetInt64(out var artifactId) || artifactId <= 0 || !value.TryGetProperty("expired", out var expired) || expired.ValueKind is not JsonValueKind.True and not JsonValueKind.False || !value.TryGetProperty("workflow_run", out var run) || run.ValueKind != JsonValueKind.Object || !run.TryGetProperty("id", out var runId) || !runId.TryGetInt64(out var parsedRunId) || parsedRunId <= 0) throw new ArtifactConflictException(); return new(artifactId, expired.GetBoolean(), parsedRunId); }
     private bool HasNextPage(HttpResponseMessage response, int page)
     {
@@ -1110,8 +1204,8 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
     private static uint Crc32(ReadOnlySpan<byte> bytes)
     {
         uint crc = 0xffffffff; foreach (var value in bytes) { crc ^= value; for (var bit = 0; bit < 8; bit++) crc = (crc >> 1) ^ ((crc & 1) == 0 ? 0u : 0xedb88320u); } return ~crc;
-    }    private static ushort U16(byte[] bytes, int offset) { if (offset < 0 || offset > bytes.Length - 2) throw new ArtifactConflictException(); return BitConverter.ToUInt16(bytes, offset); }
-    private static uint U32(byte[] bytes, int offset) { if (offset < 0 || offset > bytes.Length - 4) throw new ArtifactConflictException(); return BitConverter.ToUInt32(bytes, offset); }
+    }    private static ushort U16(byte[] bytes, int offset) { if (offset < 0 || offset > bytes.Length - 2) throw new ArtifactConflictException(); return System.Buffers.Binary.BinaryPrimitives.ReadUInt16LittleEndian(bytes.AsSpan(offset, 2)); }
+    private static uint U32(byte[] bytes, int offset) { if (offset < 0 || offset > bytes.Length - 4) throw new ArtifactConflictException(); return System.Buffers.Binary.BinaryPrimitives.ReadUInt32LittleEndian(bytes.AsSpan(offset, 4)); }
     internal static string ResolveContained(string root, string relative) { if (string.IsNullOrWhiteSpace(relative) || relative.Contains('\\') || relative.StartsWith('/') || relative.Contains(':') || relative.Split('/').Any(value => value is "" or "." or "..")) throw new IOException("GITHUB_ARTIFACT_PATH_INVALID"); var basePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar; var resolved = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar))); if (!resolved.StartsWith(basePath, ArtifactLaunchAdmission.PathComparison)) throw new IOException("GITHUB_ARTIFACT_PATH_INVALID"); return resolved; }
     private static HttpClient CreateApiClient(string token) { var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { BaseAddress = ApiOrigin, Timeout = Timeout.InfiniteTimeSpan }; client.DefaultRequestHeaders.UserAgent.ParseAdd("KicktippAi-context-source/1.0"); client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json"); client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28"); client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token); return client; }
     private static string CreateScratchDirectory()
