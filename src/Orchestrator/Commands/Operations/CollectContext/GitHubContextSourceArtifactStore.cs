@@ -944,7 +944,7 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
     {
         _tool = new NodeGitHubArtifactTool(); _runtime = GitHubArtifactRuntime.FromEnvironment(); _ownsClients = true;
         var token = Environment.GetEnvironmentVariable("GITHUB_TOKEN"); if (string.IsNullOrWhiteSpace(token)) throw new InvalidOperationException("GITHUB_ARTIFACT_TOKEN_MISSING");
-        _api = CreateApiClient(token); _archive = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { Timeout = TimeSpan.FromSeconds(30) };
+        _api = CreateApiClient(token); _archive = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { Timeout = Timeout.InfiniteTimeSpan };
     }
     internal GitHubContextSourceArtifactStore(IGitHubArtifactTool tool, HttpClient api, HttpClient archive, GitHubArtifactRuntime runtime, bool testSeam = false, CancellationToken testOperationDeadline = default, TimeProvider? operationTimeProvider = null,
         Action<string, string>? stagingTransitionForTests = null)
@@ -996,7 +996,11 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
         var result = new List<Artifact>(); int? total = null; var listed = 0;
         for (var page = 1; page <= 100; page++)
         {
-            using var response = await _api.GetAsync($"repos/{_runtime.Repository}/actions/runs/{_runtime.RunId}/artifacts?per_page=100&page={page}", cancellationToken); if (!response.IsSuccessStatusCode) throw new ArtifactListingException();
+            cancellationToken.ThrowIfCancellationRequested();
+            var listingUri = new Uri(ApiOrigin, $"repos/{_runtime.Repository}/actions/runs/{_runtime.RunId}/artifacts?per_page=100&page={page}");
+            using var response = await _api.GetAsync(listingUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            if (!response.IsSuccessStatusCode || response.Content.Headers.ContentLength is > MaxListingJsonBytes ||
+                (response.RequestMessage?.RequestUri is { } requested && requested != listingUri)) throw new ArtifactListingException();
             byte[] listing; try { await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken); listing = await ReadLimitedAsync(stream, MaxListingJsonBytes, cancellationToken); } catch (ArtifactConflictException) { throw new ArtifactListingException(); } using var document = JsonDocument.Parse(listing);
             if (document.RootElement.ValueKind != JsonValueKind.Object || !document.RootElement.TryGetProperty("total_count", out var countValue) || !countValue.TryGetInt32(out var count) || count < 0 || !document.RootElement.TryGetProperty("artifacts", out var items) || items.ValueKind != JsonValueKind.Array || items.GetArrayLength() > 100) throw new ArtifactListingException();
             total ??= count; listed += items.GetArrayLength(); if (total != count || listed > total) throw new ArtifactListingException();
@@ -1005,19 +1009,30 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
                 if (!item.TryGetProperty("name", out var name) || name.ValueKind != JsonValueKind.String) throw new ArtifactListingException();
                 if (string.Equals(name.GetString(), artifactName, StringComparison.Ordinal)) result.Add(ParseArtifact(item));
             }
+            var hasNext = HasNextPage(response, page);
             if (listed == total)
             {
-                if (items.GetArrayLength() == 100 && HasNextPage(response, page)) throw new ArtifactListingException();
+                if (hasNext) throw new ArtifactListingException();
                 return result;
             }
-            if (items.GetArrayLength() != 100 || !HasNextPage(response, page)) throw new ArtifactListingException();
+            if (items.GetArrayLength() != 100 || !hasNext) throw new ArtifactListingException();
         }
         throw new ArtifactListingException();
     }    private async Task<byte[]> DownloadArchiveAsync(long artifactId, CancellationToken cancellationToken)
     {
-        using var response = await _api.GetAsync($"repos/{_runtime.Repository}/actions/artifacts/{artifactId}/zip", HttpCompletionOption.ResponseHeadersRead, cancellationToken); if (response.StatusCode is not HttpStatusCode.Found and not HttpStatusCode.Redirect) throw new IOException("GITHUB_ARTIFACT_ARCHIVE_FAILED");
+        cancellationToken.ThrowIfCancellationRequested();
+        var archiveUri = new Uri(ApiOrigin, $"repos/{_runtime.Repository}/actions/artifacts/{artifactId}/zip");
+        using var response = await _api.GetAsync(archiveUri, HttpCompletionOption.ResponseHeadersRead, cancellationToken); if (response.StatusCode is not HttpStatusCode.Found and not HttpStatusCode.Redirect ||
+            (response.RequestMessage?.RequestUri is { } apiRequested && apiRequested != archiveUri)) throw new IOException("GITHUB_ARTIFACT_ARCHIVE_FAILED");
         var location = response.Headers.Location; if (location is null || !location.IsAbsoluteUri || location.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(location.UserInfo)) throw new ArtifactConflictException();
-        using var signed = await _archive.GetAsync(location, HttpCompletionOption.ResponseHeadersRead, cancellationToken); if (!signed.IsSuccessStatusCode) { if (signed.StatusCode == HttpStatusCode.TooManyRequests || (int)signed.StatusCode >= 500) throw new IOException("GITHUB_ARTIFACT_ARCHIVE_INDETERMINATE"); throw new ArtifactConflictException(); } if ((signed.RequestMessage?.RequestUri is { } requested && requested != location) || signed.Content.Headers.ContentLength is > MaxCompressedBytes) throw new ArtifactConflictException(); await using var stream = await signed.Content.ReadAsStreamAsync(cancellationToken); return await ReadLimitedAsync(stream, MaxCompressedBytes, cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        using var signed = await _archive.GetAsync(location, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+        if ((signed.RequestMessage?.RequestUri is { } requested && requested != location) || (int)signed.StatusCode is >= 300 and < 400) throw new ArtifactConflictException();
+        // Failed authorization, expired signed URLs, timeouts and service errors do not
+        // establish immutable content conflict or authoritative absence.
+        if (!signed.IsSuccessStatusCode) throw new IOException("GITHUB_ARTIFACT_ARCHIVE_INDETERMINATE");
+        if (signed.Content.Headers.ContentLength is > MaxCompressedBytes) throw new ArtifactConflictException();
+        await using var stream = await signed.Content.ReadAsStreamAsync(cancellationToken); return await ReadLimitedAsync(stream, MaxCompressedBytes, cancellationToken);
     }
     internal static IReadOnlyList<ContextSourceArtifactEntry> InspectArchiveForTests(byte[] archive) => ParseArchive(archive);
     private static IReadOnlyList<ContextSourceArtifactEntry> ParseArchive(byte[] archive)
@@ -1078,7 +1093,19 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
     private static void ValidateUploadEntries(IReadOnlyList<ContextSourceArtifactEntry> entries) { if (entries.Count is < 2 or > 3 || entries.Any(x => !x.IsRegularFile || x.LinkTarget is not null) || entries.Select(x => x.Path).Distinct(StringComparer.Ordinal).Count() != entries.Count || !entries.Any(x => x.Path == "manifest.json") || !entries.Any(x => x.Path == "bundle.sha256")) throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT"); foreach (var entry in entries) { _ = ResolveContained("C:\\scratch", entry.Path); if (entry.Bytes.Length > MaximumFor(entry.Path)) throw new InvalidDataException("HANDOFF_ARTIFACT_CONFLICT"); } }
     private static bool IsAllowedName(string name) => name is "manifest.json" or "bundle.sha256" or "club-elo/source.html";
     private static byte[] ReadLimited(Stream stream, int expected, int maximum) { if (expected > maximum) throw new ArtifactConflictException(); var bytes = new byte[expected]; var offset = 0; while (offset < expected) { var read = stream.Read(bytes, offset, expected - offset); if (read == 0) throw new ArtifactConflictException(); offset += read; } if (stream.ReadByte() != -1) throw new ArtifactConflictException(); return bytes; }
-    private static async Task<byte[]> ReadLimitedAsync(Stream stream, int maximum, CancellationToken cancellationToken) { await using var target = new MemoryStream(); var buffer = new byte[81920]; int read; while ((read = await stream.ReadAsync(buffer, cancellationToken)) != 0) { if (target.Length > maximum - read) throw new ArtifactConflictException(); await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken); } return target.ToArray(); }
+    private static async Task<byte[]> ReadLimitedAsync(Stream stream, int maximum, CancellationToken cancellationToken)
+    {
+        await using var target = new MemoryStream(); var buffer = new byte[81920];
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var allowance = checked(maximum - (int)target.Length);
+            var read = await stream.ReadAsync(buffer.AsMemory(0, Math.Min(buffer.Length, allowance + 1)), cancellationToken);
+            if (read == 0) return target.ToArray();
+            if (read > allowance) throw new ArtifactConflictException();
+            await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+        }
+    }
     private static string ReadUtf8(byte[] bytes, int offset, int count) { if (offset < 0 || count < 0 || offset > bytes.Length - count) throw new ArtifactConflictException(); var text = new UTF8Encoding(false, true).GetString(bytes, offset, count); if (Encoding.UTF8.GetByteCount(text) != count) throw new ArtifactConflictException(); return text; }
     private static uint Crc32(ReadOnlySpan<byte> bytes)
     {
@@ -1086,7 +1113,7 @@ public sealed class GitHubContextSourceArtifactStore : IContextSourceBundleArtif
     }    private static ushort U16(byte[] bytes, int offset) { if (offset < 0 || offset > bytes.Length - 2) throw new ArtifactConflictException(); return BitConverter.ToUInt16(bytes, offset); }
     private static uint U32(byte[] bytes, int offset) { if (offset < 0 || offset > bytes.Length - 4) throw new ArtifactConflictException(); return BitConverter.ToUInt32(bytes, offset); }
     internal static string ResolveContained(string root, string relative) { if (string.IsNullOrWhiteSpace(relative) || relative.Contains('\\') || relative.StartsWith('/') || relative.Contains(':') || relative.Split('/').Any(value => value is "" or "." or "..")) throw new IOException("GITHUB_ARTIFACT_PATH_INVALID"); var basePath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root)) + Path.DirectorySeparatorChar; var resolved = Path.GetFullPath(Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar))); if (!resolved.StartsWith(basePath, ArtifactLaunchAdmission.PathComparison)) throw new IOException("GITHUB_ARTIFACT_PATH_INVALID"); return resolved; }
-    private static HttpClient CreateApiClient(string token) { var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }) { BaseAddress = ApiOrigin, Timeout = TimeSpan.FromSeconds(30) }; client.DefaultRequestHeaders.UserAgent.ParseAdd("KicktippAi-context-source/1.0"); client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json"); client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28"); client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token); return client; }
+    private static HttpClient CreateApiClient(string token) { var client = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false, UseCookies = false }) { BaseAddress = ApiOrigin, Timeout = Timeout.InfiniteTimeSpan }; client.DefaultRequestHeaders.UserAgent.ParseAdd("KicktippAi-context-source/1.0"); client.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json"); client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28"); client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token); return client; }
     private static string CreateScratchDirectory()
     {
         string? root = null;
