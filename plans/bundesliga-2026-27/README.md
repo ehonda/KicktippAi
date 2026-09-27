@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 implementation plan
 
-- Program state: P0 complete; P1-04 D0 durable-fence documentation accepted with implementation and live gates pending; P1-05/R1 dormant and deferred
-- Last reconciled: 2026-09-16
+- Program state: P0 complete; P1-04 in progress under accepted ADR-0085 continuity contract; runtime/live gates pending; P1-05/R1 dormant and deferred
+- Last reconciled: 2026-09-27
 - Current policy: [execution strategy](execution-strategy.md)
 
 Production continuity is unchanged while the activation gates run: the existing
@@ -13,12 +13,13 @@ excluded.
 
 | Lane | State | Next gate |
 | --- | --- | --- |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | D0 durable-fence contract accepted; no runtime effects | E2 and W2 transport clearance, then F2 |
-| E2 and W2 transport | Not implemented | Their independent parser/transport validation; W2 issue paths transfer to F2 |
-| F2 | Not implemented | Combined Core/Firebase/Orchestrator/Node validation, fresh acceptance and exact-head CI |
-| V2 | Not implemented | Accepted F2 candidate; wire the fence repository while normal flags stay false |
-| Live validation, A2 and closeout | Not implemented | V2, real source-only evidence, all-eight final flag diff and final review |
-| [P1-05](tasks/p1-05-roster-refresh.md) | Deferred under ADR-0082 | Exact ADR-0079 dcaribou sidecar and separate future owner gates |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; ADR-0085 accepted intent, isolation not implemented | Review successor documents |
+| Transport/security and [F2](tasks/p1-04-issue-create-fence.md) | Acceptance pending | Concrete defect regressions and real-transaction fence matrix |
+| Source-only/workflow/head preservation | Not implemented | Accepted transport/security/F2 candidate |
+| Focused validation and exact-head CI | Pending | One coherent build, focused seam matrices and required runner project checks |
+| Live validation, A2 and closeout | Not implemented | Bounded accepting/retention/rejection/replay plus controlled refresh failure and ordinary continuation, then all-eight enable and reviewed closeout/merge/monitoring |
+| [P1-05](tasks/p1-05-roster-refresh.md) | Deferred under ADR-0082 | Exact ADR-0079 sidecar and separate future owner gates |
+
 Merged PR #111 is prior dormant C3/E1 implementation evidence. It does not
 complete operational activation and does not prove parser-v2, W2, V2,
 source-only live validation, scheduled enablement or all-eight receipts.
@@ -31,10 +32,8 @@ The operative source decisions are [ADR-0074](decisions/0074-freeze-context-sour
 [ADR-0082](decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md),
 [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md), and
 [ADR-0084](decisions/0084-fence-context-source-issue-creation.md).
-ADR-0083 and ADR-0084 are jointly operative for activation: ADR-0084 makes D0
-documentation complete in this candidate, keeps W2 transport-only, and makes F2
-the required unimplemented issue-fence milestone. Their remaining accepted
-provisions and the ADR-0077/0081 refinements stay operative.
+[ADR-0085](decisions/0085-isolate-optional-club-elo-refresh.md) is the current partial successor for source-only execution, optional production refresh, verified head retention and finite release gates. ADR-0083/0084 retain their other invariants, including F2's durable issue fence and real-transaction correctness matrix. Historical timeout causation is uncertain and the runtime audit is parked. Historical 54 reds remain failed evidence; concrete product/security defects still block release. CT correction 1/1 and diagnostic execution 1/1 remain spent.
+
 ## Authority, targets and gates
 
 The owner-authorized scope is bounded Club Elo context work: current official
@@ -47,7 +46,7 @@ Eight receipt lanes target four physical community heads: `pes-squad`,
 `schadensfresse`, `relaxdays-tippt`, and the shared `ehonda-ai-arena` context
 for its five distinct arena receipts. The fixed lane order and evidence recipe
 are in [P1-04](tasks/p1-04-club-elo-refresh.md). Source flags are false until
-A2; D0 is documentation complete in this candidate, while F2 remains required and unimplemented. D0 claims no downstream runtime or live result.
+A2. Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. No current runtime isolation or live result is credited.
 
 P1-05 is `MetadataUnavailable` pending its exact sidecar. It performs no
 sidecar/artifact probe and has no provider resolution, observation, receipt,
@@ -65,26 +64,3 @@ percentage warning is not a restriction.
 - [execution packet](p1-04-05-execution-packet.md)
 - [P1 status snapshot](p1-status-snapshot.md)
 - [decision index](decisions/README.md)
-
-
-## D0 durable issue-create fence update — 2026-09-16
-
-[ADR-0084](decisions/0084-fence-context-source-issue-creation.md) accepts the
-marker-wide durable issue-create fence. The exact canonical marker, rather than
-body hash, desired state, watermark, cycle, process, or run_attempt, is the
-stable identity. A transaction arms Ready to CreateUncertain before POST and
-only its committed caller receives one grant. Valid response or one unique
-exact-marker discovery binds the issue number. Legacy no-fence health and
-uncertain, zero-match, deleted, removed-marker, or duplicate-marker evidence
-remain Pending for owner-directed manual recovery; they never retry, expire,
-reset, delete, foreign-edit, or replacement-create.
-
-The refrozen graph is D0 -> E2 and W2 transport -> F2 -> V2 -> existing live
-evidence -> A2 -> closeout. F2 owns the durable Core/Firebase seam and the
-transferred issue projector/tests; E2 retains its 13 parser/descriptor paths,
-W2 retains only artifact/package/Node paths, and V2 wires the repository after
-F2 acceptance. F2 requires real transaction/process-loss/genesis/legacy/list/
-stale-CAS matrices, solution build, full Core/FirebaseAdapter emulator/
-Orchestrator suites, deterministic Node/lock validation, fresh review, and
-exact-head CI. D0 implements no runtime/source/Firestore/GitHub/artifact/issue
-or live effect. P1-05/R1 remains ADR-0082 deferred.

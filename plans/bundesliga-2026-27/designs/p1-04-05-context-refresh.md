@@ -1,34 +1,21 @@
 # P1-04 / P1-05 context-refresh design
 
-- Current state: D0 complete in this candidate; E2 and W2 transport-only remain unimplemented; F2, V2, live validation and A2 are blocked
-- Current authority: [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md), with retained ADR-0074/0077/0078/0080/0081 provisions and ADR-0082 P1-05 deferral
-- Last reconciled: 2026-09-16
+- Status: In progress; optional-refresh continuity contract accepted; runtime isolation and activation pending
+- Last reconciled: 2026-09-27
+- Current contract: [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retaining [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md) outside its partial successor boundary
 
-## Current operational design
+## Current route
 
-D0 is complete documentation in this candidate. It freezes the production Club
-Elo issue fence as exact-marker, marker-wide durable state: Ready is armed to
-CreateUncertain by a current health/fence CAS before one POST; only the
-committing caller receives a grant; a valid response or unique exact-marker
-discovery permanently binds the issue number. A changed body, desired state,
-watermark, cycle, process, or run_attempt never creates a new fence lineage.
-Crash/response loss, delayed visibility, zero results, deleted issues, removed
-markers, duplicate markers, and pre-existing no-fence health remain Pending for
-owner-directed recovery. They never authorize automatic retry, expiry/reset,
-delete-and-recreate, or foreign edit.
+Reviewed successor documents → finite transport/security corrections and F2 real-transaction fence matrix → source-only/workflow/head-preservation implementation → focused regressions, one coherent solution build and exact-head required CI → bounded development/branch-production accepting, retention/rejection and replay evidence plus controlled refresh failure with ordinary continuation → all-eight activation → reviewed closeout/merge → existing-schedule monitoring.
 
-E2 and W2 proceed only as independent parser/descriptor and transport-only
-work. W2 no longer owns issue projection. F2 starts only after reviewed D0 plus
-E2 and W2 transport clearance; it owns the Core/Firebase fence seam and the
-transferred issue projector/tests. V2, source-only live validation, and A2 are
-blocked until an accepted F2 candidate passes the full ADR-0084 combined
-validation and exact-head CI. Normal source inputs remain false, and D0 has no
-runtime, source, Firestore, GitHub, artifact, issue, or live effect.
+D0 is accepted prior documentation; it is not runtime isolation. Prior dormant C3/E1 and merged PR #111 remain historical accepted implementation input. Current transport/security clearance, F2 acceptance, source-only isolation, focused/CI validation, live evidence, activation and closeout remain pending; no current candidate is credited as implemented or accepted here. Main's source flags remain false.
 
-The fixed target remains eight ordered receipts across four physical heads.
-P1-05/R1 remains source-off and MetadataUnavailable under ADR-0082: no roster
-sidecar/artifact probe, provider, observation, receipt, fence, health,
-publication, issue, or API action is allowed.
+The new boundary requires early authorized source-only validation with no Kicktipp/history/roster/model resolution. Optional Node setup is bounded to two minutes and refresh to five, both continue-on-error; enabled jobs allow 52 minutes and disabled jobs 45. Required ordinary collection follows with source flags false and no cycle arguments under normal success conditions. Ordinary failures and workflow cancellation remain failures. Required source-only validation dispatch cannot false-pass. A nonblocking summary reports actual optional outcomes and stale/absent health truthfully.
+
+Ordinary source-off collection validates and retains existing heads without republication or source-cycle access, preserving full provenance, dates, receipt and watermark; no-head seed publication remains, corrupt heads fail. Eight ordered receipts/four heads and sixteen jobs/eight context-match pairs remain fixed, including cron, secrets, model/prompt/cap routes, posting and copy. Rollback is reviewed all-eight flags-off with retained context and zero source-service interaction. P1-05/R1 remains deferred and source-disabled.
+
+Historical 54 reds (P4/H12/Z31/Docker7) remain failed evidence. Concrete product/security defects block release and require focused passing regressions. Local Docker capability, repeated full-suite P confirmation and historical timeout attribution are no longer independent activation gates; required exact-runner CI carries unavailable local checks. CT correction 1/1 and diagnostic execution 1/1 remain spent. Runtime/concurrency diagnosis is parked; no .NET concurrency side program or budget alias is authorized. Timeout cause remains uncertain; production monitoring follows deployment.
+
 ## Historical dormant design record
 
 The remainder of this file is retained as historical dormant C3/E1 and P1-05
@@ -158,15 +145,3 @@ rejection of seed `Unchanged`; typed wrong types at every envelope/nested level
 with correct hash/order reachability; Core and actual development/production
 load; preserved infrastructure exceptions; coordinator state matrix; and the
 earlier 18,432/all-eight-lane/CSV/v1-v2/path/round-trip proofs.
-
-
-## D0 durable issue-create fence amendment — 2026-09-16
-
-[ADR-0084](../decisions/0084-fence-context-source-issue-creation.md) replaces
-only the issue persistence/recovery boundary. The durable marker-wide fence
-arms CreateUncertain before POST, binds verified exact-marker identity, and
-keeps legacy or uncertain absence Pending for owner-directed manual recovery.
-F2 owns the Core/Firebase fence seam and transferred issue paths after E2/W2
-transport; V2 wiring follows its combined transaction/process-loss/genesis/
-legacy/listing/CAS validation, review, and exact-head CI. No runtime/source/live
-effect exists; P1-05/R1 stays deferred.

@@ -1,7 +1,7 @@
 # P1-04 issue-create fence - D0/F2 dependency
 
-- Status: D0 documented; F2 not implemented
-- Last reconciled: 2026-09-16
+- Status: In progress; D0 documented; F2 acceptance pending
+- Last reconciled: 2026-09-27
 - Depends on: [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md), E2 clearance, and W2 transport clearance
 
 ## Outcome
@@ -26,11 +26,6 @@ manual recovery, never reset/create/delete/foreign edit.
 
 ## Release and validation
 
-F2 starts only after D0 review plus E2 and W2-transport clearance, and releases
-only with the ADR-0084 transaction/process-loss/legacy/genesis/listing/CAS
-matrix, solution build, full Core/FirebaseAdapter emulator/Orchestrator suites,
-deterministic Node and lock validation, fresh combined review, and exact-head
-CI. V2 then wires the repository; live evidence and A2 remain later gates.
+[ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md) supplies the current finite release graph: reviewed successor documents, concrete transport/security clearance and F2 before runtime isolation. ADR-0084's real-transaction process-loss, crash/replay, legacy/genesis, listing and stale-CAS correctness matrix remains required. Focused regressions, one coherent solution build, required exact-head project CI and fresh review replace duplicate local full-suite and capability gates. Unavailable local emulator capability transfers execution to the exact runner; it is never a pass. Known product/security defects remain blockers.
 
-No runtime/source/live effect exists yet. P1-05/R1 remains deferred under
-ADR-0082.
+Source-only/workflow/preservation implementation, bounded live evidence including controlled refresh failure with ordinary continuation, all-eight activation and closeout remain later unimplemented gates. Historical diagnostic budgets stay spent. P1-05/R1 remains deferred; no runtime or live result is credited by documentation.

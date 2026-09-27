@@ -4,6 +4,8 @@
 - Date: 2026-09-16
 - Partial successor to: [ADR-0083](0083-activate-official-club-elo-context-refresh.md)
 
+> **Partial successor — ADR-0085.** [ADR-0085](0085-isolate-optional-club-elo-refresh.md) replaces only the optional-refresh/source-only/head-retention and release/validation boundaries it names. All remaining provisions of this Accepted ADR remain operative.
+
 ## Context
 
 The reviewed durable-fence reconciliation packet (SHA-256
