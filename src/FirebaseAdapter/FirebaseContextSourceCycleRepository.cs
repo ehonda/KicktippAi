@@ -59,6 +59,7 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
             var healthSnapshots = new Dictionary<BundesligaContextSource, DocumentSnapshot>();
             foreach (var source in Enum.GetValues<BundesligaContextSource>())
                 healthSnapshots[source] = await transaction.GetSnapshotAsync(HealthReference(requested.Identity, source));
+            var fenceGenesis = await FirebaseContextSourceIssueFenceRepository.ReadGenesisAsync(_db, transaction, requested, healthSnapshots);
             if (cycleSnapshot.Exists)
             {
                 var existing = ParseCycle(cycleSnapshot, requested.Identity);
@@ -147,6 +148,7 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
                 }
             }
             transaction.Create(cycleRef, ToFirestore(requested));
+            FirebaseContextSourceIssueFenceRepository.WriteGenesis(transaction, fenceGenesis, requested);
             foreach (var source in requested.EnabledSources)
             {
                 priorHealth.TryGetValue(source, out var previous);

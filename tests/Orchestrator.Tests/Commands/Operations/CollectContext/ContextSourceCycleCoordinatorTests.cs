@@ -746,6 +746,35 @@ public class ContextSourceCycleCoordinatorTests
     }
 
     [Test]
+    public async Task Durable_fence_failure_is_post_commit_and_receipt_replay_preserves_completed_health()
+    {
+        var health = CompletedProductionHealth(); var repository = new ProjectionRepository(health);
+        var projector = new ReceiptBoundaryIssueProjector(repository);
+        var coordinator = new ContextSourceCycleCoordinator(repository, [], projector);
+        var request = ProductionReceipt(health);
+        var first = await coordinator.RecordReceiptAsync(request);
+        var replay = await coordinator.RecordReceiptAsync(request);
+        await Assert.That(first).IsEqualTo(replay);
+        await Assert.That(projector.ObservedReceiptCommits).IsEquivalentTo([1, 2]);
+        await Assert.That(repository.Health.Watermark).IsEqualTo(health.Watermark);
+        await Assert.That(repository.Health.LastCompletedCycleId).IsEqualTo(health.LastCompletedCycleId);
+        await Assert.That(repository.Health.CommunitySelections).IsEquivalentTo(health.CommunitySelections);
+        await Assert.That(repository.Health.DesiredIssueProjection!.SynchronizationStatus).IsEqualTo(BundesligaContextSourceIssueSynchronization.Pending);
+    }
+
+    private sealed class ReceiptBoundaryIssueProjector(ProjectionRepository repository) : IBundesligaContextSourceIssueProjector
+    {
+        public List<int> ObservedReceiptCommits { get; } = [];
+        public Task<BundesligaContextSourceIssueProjectionAttempt> ProjectAsync(BundesligaContextSourceHealth health, CancellationToken cancellationToken = default)
+        {
+            ObservedReceiptCommits.Add(repository.ReceiptCommits);
+            if (repository.ReceiptCommits == 0 || health.LastCompletedCycleId != health.Watermark.CycleId)
+                throw new InvalidOperationException("Projection preceded committed health/receipt");
+            return Task.FromResult(BundesligaContextSourceIssueProjectionAttempt.Failed(BundesligaContextSourceIssueError.GithubIssueCreateFailed));
+        }
+    }
+
+    [Test]
     public async Task Abort_path_reconciles_its_durable_projection_even_when_the_API_throws()
     {
         var cycle = ProductionCycle(BundesligaContextSourceCycleStatus.HandoffReady);
