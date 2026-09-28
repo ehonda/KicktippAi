@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using FirebaseAdapter;
 using Microsoft.Extensions.Logging.Testing;
@@ -227,12 +228,13 @@ public sealed class CollectContextClubEloCommandFirestoreTests(FirestoreFixture 
             await Assert.That(first.Output).Contains("publication Published");
             await Assert.That(loadedInitial).IsNotNull();
             await Assert.That(second.ExitCode).IsEqualTo(0);
-            await Assert.That(second.Output).Contains("publication Unchanged");
+            await Assert.That(second.Output).Contains("retained verified head with original provenance");
             await Assert.That(changed.ExitCode).IsEqualTo(0);
-            await Assert.That(changed.Output).Contains("publication Published");
-            await Assert.That(loadedChanged.Snapshot.PreviousSnapshotId).IsEqualTo(loadedInitial!.Snapshot.SnapshotId);
+            await Assert.That(changed.Output).Contains("retained verified head with original provenance");
+            await Assert.That(JsonSerializer.Serialize(loadedChanged)).IsEqualTo(JsonSerializer.Serialize(loadedInitial));
             await Assert.That(dryRun.ExitCode).IsEqualTo(0);
-            await Assert.That(dryRun.Output).Contains("Dry run completed");
+            await Assert.That(dryRun.Output).Contains("Dry run mode enabled");
+            await Assert.That(dryRun.Output).Contains("retained verified head with original provenance");
             await Assert.That(headAfterDryRun).IsEqualTo(headBeforeDryRun);
 
             var otherCommunity = $"{community}-isolated";
