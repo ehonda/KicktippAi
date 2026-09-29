@@ -1,6 +1,6 @@
 # P1-04 / P1-05 context-refresh design
 
-- Status: In progress; flags-off runtime merged, production source-only and ordinary-continuation gates accepted, activation pending
+- Status: In progress; all-eight activation merged and postmerge source-only retention verified, first scheduled observation pending
 - Last reconciled: 2026-09-29
 - Current contract: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md) and [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retaining ADR-0083/0084 outside their partial successor boundaries
 
@@ -8,7 +8,7 @@
 
 Completed flags-off runtime, focused regressions and exact-head CI → accepted development/production source-only and distinct production retention/rejection evidence → controlled refresh failure with successful ordinary collection and verified retained Elo → reviewed all-eight activation → closeout and existing-schedule monitoring. ADR-0086 records the failed GitHub rerun and removes live replay success from the activation gate.
 
-PR #116 merged the v2-compatible reader with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted official Club Elo across the eight source-only lanes/four heads. A later source timeout in run `36481153403` retained them, while its attempt-2 replay failed closed after the original artifact disappeared. Manual run `36537325441` proved optional action failure followed by successful ordinary collection with unchanged verified Elo; independent review accepted the continuity gate. A2 review/CI and merge remain pending.
+PR #116 merged the v2-compatible reader with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted official Club Elo across the eight source-only lanes/four heads. A later source timeout in run `36481153403` retained them, while its attempt-2 replay failed closed after the original artifact disappeared. Manual run `36537325441` proved optional action failure followed by successful ordinary collection with unchanged verified Elo; independent review accepted the continuity gate. PR #124 enabled all eight normal flags with green candidate/main CI and Pages deployment. Postmerge source-only run `36577026768` passed all eight lanes but retained the 2026-09-24 head because the source was not newer; the first scheduled ordinary-chain observation remains pending.
 
 The new boundary requires early authorized source-only validation with no Kicktipp/history/roster/model resolution. Optional Node setup is bounded to two minutes and refresh to five, both continue-on-error; enabled jobs allow 52 minutes and disabled jobs 45. Required ordinary collection follows with source flags false and no cycle arguments under normal success conditions. Ordinary failures and workflow cancellation remain failures. Required source-only validation dispatch cannot false-pass. A nonblocking summary reports actual optional outcomes and stale/absent health truthfully.
 

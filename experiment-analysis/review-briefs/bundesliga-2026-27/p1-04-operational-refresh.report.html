@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="P1-04 operational review candidate: official Club Elo evidence, optional refresh continuity, failed replay limits, and all-eight activation gates for PR 124.">
-  <meta name="kicktippai-report-title" content="P1-04 · Operational Club Elo refresh review candidate">
+  <meta name="description" content="P1-04 Club Elo refresh activation: official source evidence, optional refresh continuity, failed replay limits, merged eight-lane deployment, and scheduled monitoring.">
+  <meta name="kicktippai-report-title" content="P1-04 · Operational Club Elo refresh activated">
   <title>P1-04 operational review · Club Elo refresh</title>
   <style>
     :root{color-scheme:light;--ink:#172b3b;--muted:#485d6b;--paper:#f3f6f7;--line:#c9d5dc;--blue:#145d82;--teal:#126553;--amber:#795011;--white:#fff}
@@ -20,20 +20,20 @@
   <div class="wrap">
     <div class="eyebrow">KicktippAi / Bundesliga 2026–27 / Operational review</div>
     <h1>Club Elo refresh, with ordinary collection protected.</h1>
-    <p class="intro">PR #124 proposes enabling official Club Elo refresh across all eight existing production context lanes. Live evidence demonstrates acceptance, retained context, and ordinary continuation after a controlled refresh failure.</p>
-    <div><span class="badge">Review candidate · activation pending</span><span class="badge">8 lanes / 4 community heads</span><span class="badge">P1-05 / R1 deferred</span></div>
-    <p class="meta"><a href="https://github.com/ehonda/KicktippAi/pull/124">Review PR #124</a> · Evidence snapshot: 29 September 2026<br>Committed evidence base <a href="https://github.com/ehonda/KicktippAi/commit/72ec288a07d8bc6044c311bbedfbd9d6a9e5524a"><code>72ec288a</code></a>; the eight-flag activation change is under review.</p>
+    <p class="intro">PR #124 enabled official Club Elo refresh across all eight existing production context lanes. Live evidence shows official-source acceptance, retained context, and ordinary continuation after a controlled optional failure.</p>
+    <div><span class="badge">Activated · scheduled monitoring pending</span><span class="badge">8 lanes / 4 community heads</span><span class="badge">P1-05 / R1 deferred</span></div>
+    <p class="meta"><a href="https://github.com/ehonda/KicktippAi/pull/124">PR #124 merged</a> · Operational snapshot: 29 September 2026<br>Main activation merge <a href="https://github.com/ehonda/KicktippAi/commit/1b2e84cdc3f4b54e86e9275942b661dc17235c3b"><code>1b2e84cd</code></a>; candidate and main CI passed.</p>
   </div>
 </header>
 <div class="wrap">
   <nav class="nav" aria-label="Brief sections"><a href="#status">Status</a><a href="#operation">Operation</a><a href="#evidence">Evidence</a><a href="#continuity">Continuity</a><a href="#release">Release and rollback</a><a href="#sources">Sources</a></nav>
   <main id="main">
     <section id="status" aria-labelledby="status-title">
-      <h2 id="status-title">Ready for candidate review; deployment remains pending</h2>
-      <div class="callout warning"><strong>This page does not record completed activation.</strong> The A2 candidate changes all eight normal <code>enable_club_elo_source</code> flags to <code>true</code>. Final acceptance, CI for the exact final candidate, merge, and inspection of the next existing scheduled run remain pending. Main's flags-off safety repair is already merged.</div>
+      <h2 id="status-title">Activation deployed; scheduled production observation pending</h2>
+      <div class="callout warning"><strong>All eight normal source flags are enabled on main.</strong> Reviewed PR #124, exact-candidate and main CI, and Pages deployment passed. Postmerge source-only validation passed eight lanes while retaining the verified 24 September head because the official page was not newer. The first scheduled ordinary context-to-match run after activation remains to be inspected.</div>
       <div class="grid">
-        <article class="card"><span class="label">P1-04 / Operational candidate</span><h3>Official evidence reaches every lane</h3><p>The accepted production cycle published an official parser/table v2 observation dated <strong>24 September 2026</strong>, covering all <strong>18 Bundesliga clubs</strong>. Eight receipts bind four community heads to 76 verified team and aggregate payloads.</p><p>The activation diff enables the existing callers together. It introduces no schedule, model, prompt, output-cap, credential, posting, or copy change.</p></article>
-        <article class="card deferred"><span class="label">P1-05 / Roster refresh</span><h3>R1 remains deferred and source-disabled</h3><p>The accepted dormant closeout remains in force. Missing authoritative sidecar metadata still means <code>MetadataUnavailable</code>; automatic roster freshness is unavailable.</p><p>No roster probe, provider acquisition, artifact request, observation, receipt, health/publication update, issue, or API action is authorized by this Club Elo candidate. <a href="pr-111-dormant-refresh.report.html">Read the historical dormant brief.</a></p></article>
+        <article class="card"><span class="label">P1-04 / Activated</span><h3>Official evidence reaches every lane</h3><p>The accepted production cycle published an official parser/table v2 observation dated <strong>24 September 2026</strong>, covering all <strong>18 Bundesliga clubs</strong>. Eight receipts bind four community heads to 76 verified team and aggregate payloads.</p><p>The activation merge enabled the existing callers together. It introduced no schedule, model, prompt, output-cap, credential, posting, or copy change.</p></article>
+        <article class="card deferred"><span class="label">P1-05 / Roster refresh</span><h3>R1 remains deferred and source-disabled</h3><p>The accepted dormant closeout remains in force. Missing authoritative sidecar metadata still means <code>MetadataUnavailable</code>; automatic roster freshness is unavailable.</p><p>No roster probe, provider acquisition, artifact request, observation, receipt, health/publication update, issue, or API action is authorized by this Club Elo activation. <a href="pr-111-dormant-refresh.report.html">Read the historical dormant brief.</a></p></article>
       </div>
     </section>
     <section class="panel" id="operation" aria-labelledby="operation-title">
@@ -69,6 +69,8 @@
         <tr><th scope="row">L6 · Distinct later cycle<br><a href="https://github.com/ehonda/KicktippAi/actions/runs/36481153403/attempts/1">36481153403 · attempt 1</a></th><td>The source timed out. All eight source-only jobs completed with rejected-source/retained-head receipts; four heads and 76 payload bindings stayed unchanged.</td><td>Rejected acquisition retains verified context with truthful provenance.</td></tr>
         <tr><th scope="row">L7 · Failed replay<br><a href="https://github.com/ehonda/KicktippAi/actions/runs/36481153403/attempts/2">36481153403 · attempt 2</a></th><td>The first job failed during preparation; later jobs were skipped. Artifact <code>10996642926</code> was visible before replay and returned 404 afterward. Inspected persisted state remained unchanged.</td><td><strong>Failed replay gate.</strong> Fail-closed evidence only; no replay-success or idempotence credit.</td></tr>
         <tr><th scope="row">Controlled normal-job continuation<br><a href="https://github.com/ehonda/KicktippAi/actions/runs/36537325441">36537325441</a></th><td>At <code>72ec288a</code>, optional refresh outcome was <code>failure</code> and required ordinary outcome was <code>success</code>. Verified <code>pes-squad</code> Elo was retained.</td><td>ADR-0086's pre-activation continuity requirement was independently accepted for A2 admission. The tested trigger was an action input error.</td></tr>
+        <tr><th scope="row">A2 activation<br><a href="https://github.com/ehonda/KicktippAi/pull/124">PR #124</a></th><td>All eight normal source flags enabled on main at <code>1b2e84cd</code>. <a href="https://github.com/ehonda/KicktippAi/actions/runs/36576000482">Candidate CI</a> and <a href="https://github.com/ehonda/KicktippAi/actions/runs/36576769563">main CI and Pages deploy</a> passed.</td><td>Reviewed deployment complete; first scheduled ordinary-chain observation remains open.</td></tr>
+        <tr><th scope="row">Postmerge source-only<br><a href="https://github.com/ehonda/KicktippAi/actions/runs/36577026768">36577026768</a></th><td>All eight source lanes succeeded without model jobs. Every lane retained verified Elo: the official source was still dated 24 September and no new publication was attempted. One bundle artifact was present.</td><td>Postmerge source routing and retained-head behavior passed; this is not a fresh Elo observation or an ordinary scheduled-run proof.</td></tr>
       </tbody></table></div>
       <div class="callout warning"><strong>ADR-0086 accepts a bounded recovery limit.</strong> The owner accepted uncertainty and monitoring; successful live GitHub rerun is no longer an activation prerequisite. Missing, expired, deleted, or conflicting artifacts still fail closed. Never reacquire, reupload, fabricate a receipt, or rewrite a verified head to make an old replay succeed. An incomplete old cycle with a lost artifact requires explicit owner recovery.</div>
       <p>Do not rerun the accepted L5 cycle. Its artifact <code>10994562013</code> was still available on 29 September and is referenced by current heads. The precise cause of L7 artifact loss remains unproved. The tracked evidence preserves that limit.</p>
@@ -85,17 +87,17 @@
       <p class="small">Historical timeout causation remains unproved. The accepted uncertainty preserves release integrity requirements and ordinary-continuation checks. A verified atomic head/receipt commit survives a later optional error; corrupt retained context still fails required ordinary collection.</p>
     </section>
     <section id="release" aria-labelledby="release-title">
-      <h2 id="release-title">Finish release, then inspect the existing schedule</h2>
+      <h2 id="release-title">Deployment complete; inspect the existing schedule</h2>
       <div class="grid">
-        <article class="card"><span class="label">Before merge / Pending</span><h3>Review the complete activation candidate</h3><ul><li>Confirm all eight normal flags change together, preserving the existing 16-job dependency chain and production routes.</li><li>Complete fresh final acceptance and required CI on the exact candidate being merged. The green <code>72ec288a</code> run proves the earlier base only.</li><li>Merge the reviewed PR; verify main and the published Pages brief before calling deployment complete.</li></ul><p><a href="https://github.com/ehonda/KicktippAi/pull/124/files">Inspect the candidate diff</a> · <a href="https://github.com/ehonda/KicktippAi/pull/124/checks">Inspect current checks</a></p></article>
-        <article class="card"><span class="label">After deployment / Pending</span><h3>Observe each lane's real outcome</h3><ul><li>Inspect optional setup/refresh outcomes and required ordinary continuation in the next existing scheduled run.</li><li>Verify the four selected heads, actual source dates/provenance, all eight receipts, health, and desired issue synchronization.</li><li>Check the ordinary context-to-match chain and existing posting/copy behavior. Report refresh degradation and unrelated ordinary failures separately.</li></ul><p>A green job can contain a failed optional step. Read step <strong>outcomes</strong> and persisted evidence before claiming fresh Elo.</p></article>
+        <article class="card"><span class="label">Deployment / Complete</span><h3>Eight normal lanes enabled together</h3><ul><li>Independent final acceptance confirmed the eight flag changes and preserved 16-job chain, models, credentials, posting, and copy routes.</li><li>Exact-candidate and main CI passed; Pages deployed and the public brief/index were reachable.</li><li>The postmerge source-only run passed all eight lanes and retained the verified 24 September head.</li></ul><p><a href="https://github.com/ehonda/KicktippAi/pull/124/files">Inspect the merged diff</a> · <a href="https://github.com/ehonda/KicktippAi/actions/runs/36577026768">Inspect the postmerge source run</a></p></article>
+        <article class="card"><span class="label">Scheduled monitoring / Pending</span><h3>Observe each lane's real outcome</h3><ul><li>Inspect optional setup/refresh outcomes and required ordinary continuation in the next existing scheduled run.</li><li>Verify the four selected heads, actual source dates/provenance, all eight receipts, health, and desired issue synchronization.</li><li>Check the ordinary context-to-match chain and existing posting/copy behavior. Report refresh degradation and unrelated ordinary failures separately.</li></ul><p>A green job can contain a failed optional step. Read step <strong>outcomes</strong> and persisted evidence before claiming fresh Elo.</p></article>
       </div>
       <div class="callout"><strong>Rollback: turn all eight normal source flags off in one reviewed change.</strong> Preserve verified heads, receipts, watermarks, and durable fences. Verify usable retained context and zero source/provider/coordinator/handoff/GitHub interaction from disabled source collection. Do not delete evidence or automatically repair ambiguous state. The ordinary required profile continues to validate retained data.</div>
-      <p class="small">The existing cron remains <code>7 2,9 * * *</code>. This candidate adds no schedule and changes no model, prompt, output cap, credentials, prediction posting, or copy route. P1-05/R1 stays deferred.</p>
+      <p class="small">The existing cron remains <code>7 2,9 * * *</code>. This activation added no schedule and changed no model, prompt, output cap, credentials, prediction posting, or copy route. P1-05/R1 stays deferred.</p>
     </section>
     <section id="sources" class="sources" aria-labelledby="sources-title">
       <h2 id="sources-title">Source map for review</h2>
-      <p>Accepted decisions and implementation links below are pinned to the committed evidence base <code>72ec288a</code>. The PR diff carries the later eight-flag activation candidate. The tracked evidence link follows <code>main</code> after publication; its status may advance beyond this dated review snapshot.</p>
+      <p>Accepted decisions and stable implementation links below are pinned to the committed evidence base <code>72ec288a</code>. The production workflow link points to deployed merge <code>1b2e84cd</code>. The tracked evidence link follows <code>main</code> and may advance beyond this dated operational snapshot.</p>
       <div class="source-grid">
         <div><h3>Evidence and accepted decisions</h3><ul>
           <li><a href="https://github.com/ehonda/KicktippAi/blob/main/plans/bundesliga-2026-27/evidence/p1-04-operational-activation.md">Tracked P1-04 operational activation evidence</a></li>
@@ -107,7 +109,7 @@
         </ul></div>
         <div><h3>Implementation entry points</h3><ul>
           <li><a href="https://github.com/ehonda/KicktippAi/blob/72ec288a07d8bc6044c311bbedfbd9d6a9e5524a/.github/workflows/base-context-collection.yml">Reusable context job: optional steps and required ordinary profile</a></li>
-          <li><a href="https://github.com/ehonda/KicktippAi/blob/72ec288a07d8bc6044c311bbedfbd9d6a9e5524a/.github/workflows/buli2627-production-live-matchday.yml">Production topology and manual validation routes at the flags-off base</a></li>
+          <li><a href="https://github.com/ehonda/KicktippAi/blob/1b2e84cdc3f4b54e86e9275942b661dc17235c3b/.github/workflows/buli2627-production-live-matchday.yml">Deployed production topology with eight enabled normal source lanes</a></li>
           <li><a href="https://github.com/ehonda/KicktippAi/blob/72ec288a07d8bc6044c311bbedfbd9d6a9e5524a/src/Orchestrator/Commands/Operations/CollectContext/BundesligaClubEloRefreshSource.cs">Official HTML acquisition and parser</a></li>
           <li><a href="https://github.com/ehonda/KicktippAi/blob/72ec288a07d8bc6044c311bbedfbd9d6a9e5524a/src/Orchestrator/Commands/Operations/CollectContext/CollectContextClubEloCommand.cs">Publication and verified retained-head handling</a></li>
           <li><a href="https://github.com/ehonda/KicktippAi/blob/72ec288a07d8bc6044c311bbedfbd9d6a9e5524a/src/Orchestrator/Commands/Operations/CollectContext/GitHubContextSourceArtifactStore.cs">Immutable artifact handoff and replay boundaries</a></li>
@@ -117,7 +119,7 @@
       <p class="small">Detailed Firestore hashes and before/after audit logs remain in ignored local orchestration evidence. They are summarized in the tracked evidence record, not exposed as broken public links. This brief adds no live-service verification beyond those recorded runs.</p>
     </section>
   </main>
-  <footer>Self-contained HTML · Inline CSS, no scripts or remote assets · Review snapshot: 29 September 2026 · <a href="https://github.com/ehonda/KicktippAi/pull/124">PR #124</a></footer>
+  <footer>Self-contained HTML · Inline CSS, no scripts or remote assets · Operational snapshot: 29 September 2026 · <a href="https://github.com/ehonda/KicktippAi/pull/124">PR #124</a></footer>
 </div>
 </body>
 </html>

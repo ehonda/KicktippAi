@@ -1,23 +1,23 @@
 # Bundesliga 2026/27 implementation plan
 
-- Program state: P0 complete; P1-04 flags-off runtime merged, live source-only and ordinary-continuation gates accepted, all-eight activation and closeout pending; P1-05/R1 dormant and deferred
+- Program state: P0 complete; P1-04 all-eight activation merged and postmerge source-only retention verified, next scheduled observation pending; P1-05/R1 dormant and deferred
 - Last reconciled: 2026-09-29
 - Current policy: [execution strategy](execution-strategy.md)
 
-Production continuity is unchanged while the activation gates run: the existing
-cron, non-cancelling serial/default-success topology, models, prompts,
-credentials, posting and copy behavior stay fixed. P1-10 and other P1 work are
-excluded.
+Outside the enabled Club Elo source flags, production routing remains unchanged:
+the existing cron, non-cancelling serial/default-success topology, models,
+prompts, credentials, posting and copy behavior stay fixed. P1-10 and other P1
+work are excluded.
 
 ## Current graph
 
 | Lane | State | Next gate |
 | --- | --- | --- |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; flags-off v2 runtime merged in PR #116 and controlled ordinary continuation accepted | A2 review and exact-head CI |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; all eight normal source flags enabled in merged PR #124 | Inspect next existing scheduled run |
 | Transport/security and [F2](tasks/p1-04-issue-create-fence.md) | Accepted in the flags-off runtime | Monitor actual operation |
 | Source-only/workflow/head preservation | Implemented; one manual normal-job continuation probe passed | Monitor later scheduled refresh outcomes |
-| Focused validation and exact-head CI | Passed for flags-off runtime and main merge | Fresh exact-head CI for later probe and activation commits |
-| Live validation, A2 and closeout | Production source-only acceptance, distinct retention/rejection and controlled ordinary continuation observed; L7 GitHub replay failed closed | ADR-0086 removes live rerun success as an A2 prerequisite; review/CI and enable all eight flags |
+| Focused validation and exact-head CI | Activation commit `88a94048` and main merge `1b2e84cd` passed CI; Pages deployed | Monitor production |
+| Live validation, A2 and closeout | Production acceptance, retention/rejection, controlled ordinary continuation, and postmerge eight-lane source-only retention observed; L7 GitHub replay failed closed | Inspect the first scheduled source and ordinary outcomes after activation |
 | [P1-05](tasks/p1-05-roster-refresh.md) | Deferred under ADR-0082 | Exact ADR-0079 sidecar and separate future owner gates |
 
 Merged PR #111 is prior dormant C3/E1 implementation evidence. It does not
@@ -45,8 +45,8 @@ work, new schedules, credential-route changes and unrelated P1 work.
 Eight receipt lanes target four physical community heads: `pes-squad`,
 `schadensfresse`, `relaxdays-tippt`, and the shared `ehonda-ai-arena` context
 for its five distinct arena receipts. The fixed lane order and evidence recipe
-are in [P1-04](tasks/p1-04-club-elo-refresh.md). Source flags are false until
-A2. Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. Run `36537325441` proved a failed optional source action can leave required ordinary collection successful with the verified head retained.
+are in [P1-04](tasks/p1-04-club-elo-refresh.md). PR #124 enabled all eight normal source flags on main.
+Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. Run `36537325441` proved a failed optional source action can leave required ordinary collection successful with the verified head retained. Postmerge source-only run `36577026768` passed all eight lanes and retained the verified 2026-09-24 head because the official source was not newer.
 
 P1-05 is `MetadataUnavailable` pending its exact sidecar. It performs no
 sidecar/artifact probe and has no provider resolution, observation, receipt,
