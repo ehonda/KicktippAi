@@ -1,12 +1,12 @@
 # P1-04 — Activate official Club Elo context refresh
 
-- Status: In progress; flags-off v2 runtime merged, production source-only acceptance/retention and controlled ordinary continuation observed, A2 candidate pending merge
+- Status: In progress; all-eight activation merged in PR #124, postmerge source-only retention verified, first scheduled observation pending
 - Last reconciled: 2026-09-29
 - Depends on: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md), [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
 
 ## Outcome and milestones
 
-Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. Controlled run `36537325441` then proved optional failure with successful ordinary context collection and unchanged verified Elo; final A2 review, CI, merge, and production observation remain.
+Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. Controlled run `36537325441` proved optional failure with successful ordinary context collection and unchanged verified Elo. PR #124 then enabled all eight normal flags; exact-head and main CI passed. Postmerge source-only run `36577026768` passed all eight lanes with the 2026-09-24 verified head retained. The first scheduled ordinary-chain observation remains.
 
 - [x] D0: prior accepted durable-fence documentation.
 - [x] Reviewed ADR-0085 successor-document milestone.
@@ -15,10 +15,11 @@ Optional refresh failure must permit required ordinary production context collec
 - [x] Focused regressions, one coherent solution build, fresh acceptance and exact-head required CI for the flags-off runtime.
 - [x] Branch Actions development/production accepting and later retention/rejection evidence; the failed replay is recorded under ADR-0086 without success credit.
 - [x] Controlled optional refresh failure in run `36537325441` with verified old Elo and successful required ordinary continuation; no prediction authority from this proof.
-- [ ] A2: reviewed atomic all-eight source activation.
-- [ ] Closeout/merge, Pages and next existing scheduled-run observation.
+- [x] A2: reviewed atomic all-eight source activation in PR #124 with exact-head CI.
+- [x] Merge, main CI, Pages publication, and postmerge eight-lane source-only validation.
+- [ ] Inspect the next existing scheduled run's optional refresh and ordinary context-to-match chain.
 
-This ordered graph replaces the serial local timeout/confirmation program. Known product/security defects remain blockers. Historical 54 reds (P4/H12/Z31/Docker7) stay failed evidence; no xfail/flake waiver or pass is implied. CT correction 1/1 and diagnostic execution 1/1 remain spent. Runtime/concurrency audit is parked and historical timeout cause remains uncertain. P1-05/R1 stays deferred.
+This ordered graph replaces the serial local timeout/confirmation program. Newly found product/security defects remain blockers. Historical 54 reds (P4/H12/Z31/Docker7) stay failed evidence; no xfail/flake waiver or pass is implied. CT correction 1/1 and diagnostic execution 1/1 remain spent. Runtime/concurrency audit is parked and historical timeout cause remains uncertain. P1-05/R1 stays deferred.
 
 ## Fixed receipt contract
 
