@@ -1,0 +1,9 @@
+{
+  "name": "kicktippai-context-source-artifact",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=24 <25" },
+  "dependencies": {
+    "@actions/artifact": "6.2.1"
+  }
+}

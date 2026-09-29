@@ -5,6 +5,15 @@ namespace Orchestrator.Commands.Operations.Dev;
 
 public sealed class CollectContextDevSettings : DevParticipationSettings
 {
+    [CommandOption("--context-source-only")]
+    [Description("Prepare and collect only the enabled Club Elo source")]
+    public bool ContextSourceOnly { get; set; }
+
+    [CommandOption("--enable-club-elo-source")]
+    public bool EnableClubEloSource { get; set; }
+
+    [CommandOption("--enable-roster-source")]
+    public bool EnableRosterSource { get; set; }
     [CommandOption("--matchdays")]
     [Description("Comma-separated Kicktipp matchday indexes to collect instead of only the current matchday")]
     public string? Matchdays { get; set; }

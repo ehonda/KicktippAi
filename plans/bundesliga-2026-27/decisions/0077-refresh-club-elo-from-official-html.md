@@ -9,6 +9,18 @@
 > detailed HTML acquisition and parser contract remains operative unless
 > ADR-0081 explicitly refines it.
 
+> **Successor-link metadata — ADR-0083.** This ADR remains Accepted.
+> [ADR-0083](0083-activate-official-club-elo-context-refresh.md) supersedes only
+> the fixed v1-only parser/table identity requirement, selected-script envelope
+> and first-cell fragment grammar for **new acquisition**, the historical E1
+> literal-path/release boundary for the new activation work, and the prior
+> no-live/no-activation boundary for the bounded owner-authorized Club Elo
+> effects. Existing v1 interpretation remains historical truth.
+> Acquisition/response/size/date/mapping/freshness/evaluation rules, canonical
+> descriptor and publication shapes, provenance, fallback, and every other
+> unchanged provision remain operative subject to ADR-0081 and ADR-0083's
+> explicit refinements.
+
 ## Context
 
 The CSV route accepted by ADR-0073 and described by the Club Elo portion of

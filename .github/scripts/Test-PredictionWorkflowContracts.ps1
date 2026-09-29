@@ -123,11 +123,16 @@ function Assert-ManualDispatchAndExactProductionSchedule {
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     $expectedLines = @(
         '  workflow_dispatch:',
+        '    inputs:',
+        '      club_elo_validation:',
+        "        description: 'Source-only validation without prediction jobs'",
+        '        type: choice',
+        "        default: 'off'",
+        '        options: [off, development, production]',
         '  schedule:',
         '    - cron: "7 2,9 * * *"'
     )
     Assert-True (($actualLines -join "`n") -ceq ($expectedLines -join "`n")) "$FileName must expose exactly workflow_dispatch and cron 7 2,9 * * * in that order."
-    Assert-True (-not [regex]::IsMatch($triggerBlock, '(?m)^    inputs:\s*$')) "$FileName dispatch must not expose runtime inputs."
 }
 
 function Assert-AdditionalManualTriggersRejected {
@@ -229,7 +234,7 @@ function Assert-LaunchRosterOverlayBaseContract {
     $inputPattern = '(?ms)^      publish_launch_roster_overlay:\r?\n        description:.*\r?\n        required: false\r?\n        default: false\r?\n        type: boolean\s*$'
     Assert-True ([regex]::IsMatch($content, $inputPattern)) "$fileName must expose an optional false-by-default boolean launch-overlay input."
     foreach ($expected in @(
-        'if: ${{ inputs.publish_launch_roster_overlay }}',
+        'if: ${{ !inputs.context_source_only && inputs.publish_launch_roster_overlay }}',
         'https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb',
         'collect-context rosters',
         '--duckdb-path "$RUNNER_TEMP/transfermarkt-datasets.duckdb"',
@@ -711,22 +716,27 @@ function Assert-ProductionLiveMatchdayWorkflow {
         @{ Id = 'arena-luna-none-matchday'; Needs = 'arena-luna-none-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'none'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE' }
     )
 
-    $expectedJobIds = @($jobs | ForEach-Object { $_.Id })
+    $expectedJobIds = @($jobs | ForEach-Object { $_.Id }) + @('club-elo-validation')
     Assert-True (($actualJobIds -join ',') -ceq ($expectedJobIds -join ',')) "$FileName job order differs. Expected $($expectedJobIds -join ', '); got $($actualJobIds -join ', ')."
     Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight context jobs."
     Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight matchday jobs."
 
     foreach ($job in $jobs) {
         $block = Get-WorkflowJobBlock $content $job.Id $FileName
-        Assert-True (-not [regex]::IsMatch($block, '(?m)^    if:')) "$FileName job $($job.Id) must use default-success dependency semantics without if."
+        if ($job.Id -eq 'pes-squad-context') {
+            Assert-True $block.Contains('if: ${{ github.event_name != ''workflow_dispatch'' || inputs.club_elo_validation == ''off'' }}') 'Normal first context must be excluded from validation dispatch.'
+        } else {
+            Assert-True (-not [regex]::IsMatch($block, '(?m)^    if:')) "$FileName job $($job.Id) must use default-success dependency semantics without if."
+        }
 
         $propertyKeys = @([regex]::Matches($block, '(?m)^    (?<key>[a-z][a-z_-]*):\s*') |
             ForEach-Object { $_.Groups['key'].Value })
         $expectedPropertyKeys = if ($null -eq $job.Needs) {
-            @('name', 'uses', 'with', 'secrets')
+            @('name', 'if', 'permissions', 'uses', 'with', 'secrets')
         }
         else {
-            @('name', 'needs', 'uses', 'with', 'secrets')
+            if ($job.Kind -eq 'context') { @('name', 'needs', 'permissions', 'uses', 'with', 'secrets') }
+            else { @('name', 'needs', 'uses', 'with', 'secrets') }
         }
         Assert-True (($propertyKeys -join ',') -ceq ($expectedPropertyKeys -join ',')) "$FileName job $($job.Id) has unexpected properties: $($propertyKeys -join ', ')."
 
@@ -743,7 +753,13 @@ function Assert-ProductionLiveMatchdayWorkflow {
                 "community_context=`"$($job.Context)`"",
                 'competition="bundesliga-2026-27"',
                 "trigger_type=$triggerType",
-                'publish_launch_roster_overlay=false'
+                'publish_launch_roster_overlay=false',
+                'enable_club_elo_source=false',
+                'context_source_scope="production-live"',
+                'context_source_cycle_id=${{ format(''gha:{0}:{1}'', github.repository_id, github.run_id) }}',
+                "context_source_current_lane=`"$($job.Id)`"",
+                'context_source_producer_lane="pes-squad-context"',
+                'context_source_consumers="pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"'
             ) "$FileName/$($job.Id)"
             Assert-ExactReusableMappingBlock $block 'secrets' @(
                 ('kicktipp_username=${{ secrets.' + $job.SecretStem + '_KICKTIPP_USERNAME }}'),

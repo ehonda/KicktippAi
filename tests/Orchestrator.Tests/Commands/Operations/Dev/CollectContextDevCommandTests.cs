@@ -18,8 +18,22 @@ using static TestUtilities.CoreTestFactories;
 
 namespace Orchestrator.Tests.Commands.Operations.Dev;
 
+[NotInParallel("Telemetry")]
 public class CollectContextDevCommandTests
 {
+    [Test]
+    public async Task Source_only_dev_rejects_matchday_and_wrong_community_before_service_resolution()
+    {
+        foreach (var community in new[] { "ehonda-dev-buli-2627", "ehonda-dev-wm26" })
+        {
+            var testContext = CreateCollectContextDevCommandApp();
+            var (exitCode, _) = await RunCommandAsync(testContext.App, testContext.Console, "collect-context-dev",
+                "--community", community, "--enable-club-elo-source", "--context-source-only", "--matchdays", "1");
+            await Assert.That(exitCode).IsEqualTo(1);
+            testContext.KicktippClientFactory.Verify(value => value.CreateClient(), Times.Never);
+            testContext.FirebaseServiceFactory.Verify(value => value.CreateDocumentPublicationRepository(It.IsAny<string>()), Times.Never);
+        }
+    }
     [Test]
     public async Task Running_collect_context_dev_rejects_non_dev_communities()
     {

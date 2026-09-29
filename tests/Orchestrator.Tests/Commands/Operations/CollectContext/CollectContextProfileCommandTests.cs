@@ -4,12 +4,59 @@ using Moq;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Dev;
 using Orchestrator.Infrastructure;
+using Orchestrator.Tests.Commands.Operations.Dev;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 
 namespace Orchestrator.Tests.Commands.Operations.CollectContext;
 
+[NotInParallel("ContextSourceActionsEnvironment")]
 public class CollectContextProfileCommandTests
 {
+    [Test]
+    [Arguments("--full-season", null)]
+    [Arguments("--matchdays", "1")]
+    [Arguments("--kicktipp-credential-profile", "participant")]
+    [Arguments("--enable-roster-source", null)]
+    public async Task Source_only_rejects_incompatible_options_before_credentials_or_preparation(string option, string? value)
+    {
+        var executor = CreateExecutor([]);
+        var credentials = new Mock<ICommunityKicktippCredentialLoader>(MockBehavior.Strict);
+        var (app, console) = CreateApp(executor, credentials);
+        var args = new List<string> { "collect-context-profile", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--context-source-only", "--enable-club-elo-source", option };
+        if (value is not null) args.Add(value);
+        await Assert.That((await RunCommandAsync(app, console, args.ToArray())).ExitCode).IsEqualTo(1);
+        credentials.VerifyNoOtherCalls();
+        executor.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Source_only_development_executes_exactly_Club_Elo_and_never_loads_Kicktipp_credentials()
+    {
+        var calls = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();
+        var executor = CreateExecutor(calls);
+        executor.Setup(value => value.PrepareContextSourcesAsync(It.IsAny<CompetitionCollectorExecutionContext>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CompetitionProfileCollectionRunnerTests.Preparation());
+        var credentials = new Mock<ICommunityKicktippCredentialLoader>(MockBehavior.Strict);
+        var (app, console) = CreateApp(executor, credentials);
+        await Assert.That((await RunCommandAsync(app, console, "collect-context-profile", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--context-source-only", "--enable-club-elo-source", "--dry-run")).ExitCode).IsEqualTo(0);
+        await Assert.That(calls.Select(value => value.Collector).ToArray()).IsEquivalentTo([CompetitionCollector.ClubElo]);
+        credentials.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task Source_only_production_rejects_unbound_Actions_identity_before_resolution()
+    {
+        using var environment = new ActionsEnvironment(null, null, null);
+        var executor = CreateExecutor([]); var credentials = new Mock<ICommunityKicktippCredentialLoader>(MockBehavior.Strict);
+        var (app, console) = CreateApp(executor, credentials);
+        await Assert.That((await RunCommandAsync(app, console, "collect-context-profile", "--community-context", "pes-squad",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--context-source-only", "--enable-club-elo-source",
+            "--context-source-scope", "production-live", "--context-source-cycle-id", "gha:123:456", "--context-source-current-lane", "pes-squad-context",
+            "--context-source-producer-lane", "pes-squad-context", "--context-source-consumers", string.Join(',', BundesligaContextSourceContract.ProductionConsumers))).ExitCode).IsEqualTo(1);
+        credentials.VerifyNoOtherCalls(); executor.VerifyNoOtherCalls();
+    }
     [Test]
     public async Task Arena_profile_loads_exact_context_credentials_once_before_first_collector()
     {
@@ -112,6 +159,7 @@ public class CollectContextProfileCommandTests
     [Test]
     public async Task Production_source_cycle_options_forward_the_exact_shared_GHA_lane_contract()
     {
+        using var environment = new ActionsEnvironment("ehonda/KicktippAi", "123", "456");
         CompetitionCollectorExecutionContext? prepared = null;
         var executor = CreateExecutor([]);
         executor.Setup(instance => instance.PrepareContextSourcesAsync(
@@ -435,6 +483,24 @@ public class CollectContextProfileCommandTests
     private static string CreateSummaryPath()
     {
         return Path.Combine(Path.GetTempPath(), $"kicktippai-context-profile-{Guid.NewGuid():N}.md");
+    }
+
+    private sealed class ActionsEnvironment : IDisposable
+    {
+        private readonly Dictionary<string, string?> _previous = new();
+        public ActionsEnvironment(string? repository, string? repositoryId, string? runId)
+        {
+            foreach (var pair in new Dictionary<string,string?> { ["GITHUB_REPOSITORY"] = repository,
+                ["GITHUB_REPOSITORY_ID"] = repositoryId, ["GITHUB_RUN_ID"] = runId })
+            {
+                _previous.Add(pair.Key, Environment.GetEnvironmentVariable(pair.Key));
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            }
+        }
+        public void Dispose()
+        {
+            foreach (var pair in _previous) Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+        }
     }
 
     private static string NormalizeWhitespace(string value)

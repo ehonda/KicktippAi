@@ -1,0 +1,207 @@
+name: Bundesliga Club Elo source-only validation
+on:
+  workflow_call:
+    inputs:
+      mode:
+        required: true
+        type: string
+    secrets:
+      firebase_project_id:
+        required: true
+      firebase_service_account_json:
+        required: true
+jobs:
+  development:
+    if: ${{ inputs.mode == 'development' }}
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "ehonda-dev-buli-2627"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "development"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  pes-squad-context:
+    if: ${{ inputs.mode == 'production' }}
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "pes-squad"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "pes-squad-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  schadensfresse-context:
+    needs: pes-squad-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "schadensfresse"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "schadensfresse-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  relaxdays-tippt-context:
+    needs: schadensfresse-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "relaxdays-tippt"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "relaxdays-tippt-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  arena-sol-xhigh-context:
+    needs: relaxdays-tippt-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-sol-xhigh-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  arena-sol-high-context:
+    needs: arena-sol-xhigh-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-sol-high-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  arena-luna-medium-context:
+    needs: arena-sol-high-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-luna-medium-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  arena-terra-xhigh-context:
+    needs: arena-luna-medium-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-terra-xhigh-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+
+  arena-luna-none-context:
+    needs: arena-terra-xhigh-context
+    uses: ./.github/workflows/base-context-collection.yml
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: "validation"
+      enable_club_elo_source: true
+      context_source_only: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "arena-luna-none-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      firebase_project_id: ${{ secrets.firebase_project_id }}
+      firebase_service_account_json: ${{ secrets.firebase_service_account_json }}
+

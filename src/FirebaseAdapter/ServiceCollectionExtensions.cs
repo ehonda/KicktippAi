@@ -115,6 +115,14 @@ public static class ServiceCollectionExtensions
             return new FirebaseDocumentPublicationRepository(firestoreDb, logger, competition);
         });
 
+        services.AddScoped<IBundesligaContextSourceCycleRepository>(serviceProvider =>
+            new FirebaseContextSourceCycleRepository(serviceProvider.GetRequiredService<FirestoreDb>(),
+                serviceProvider.GetRequiredService<ILogger<FirebaseContextSourceCycleRepository>>(),
+                serviceProvider.GetService<TimeProvider>()));
+        services.AddScoped<IBundesligaContextSourceIssueFenceRepository>(serviceProvider =>
+            new FirebaseContextSourceIssueFenceRepository(serviceProvider.GetRequiredService<FirestoreDb>(),
+                serviceProvider.GetService<TimeProvider>()));
+
         services.AddScoped<IMatchOutcomeRepository>(serviceProvider =>
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();

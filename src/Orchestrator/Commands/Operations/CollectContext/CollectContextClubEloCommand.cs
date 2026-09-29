@@ -86,12 +86,6 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
                 }
             }
 
-            var seedResult = await LoadSeedAsync(settings.Seed, cancellationToken);
-            if (!seedResult.IsComplete || seedResult.Snapshot is null)
-            {
-                throw new InvalidDataException($"Club Elo launch seed was rejected: {string.Join(", ", seedResult.Diagnostics)}.");
-            }
-
             var publicationRepository = _firebaseServiceFactory.CreateDocumentPublicationRepository(competition);
             var loaded = await publicationRepository.GetLastKnownGoodAsync(
                 BundesligaDocumentPublication.ClubElo, communityContext, cancellationToken);
@@ -102,7 +96,18 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
                 // damaged LKG instead of preserving it for investigation.
                 DocumentPublicationContract.ValidateLoaded(competition, communityContext, BundesligaDocumentPublication.ClubElo, loaded.Snapshot, loaded.Documents);
                 lastKnownGood = BundesligaClubEloPublication.ReconstructLastKnownGood(loaded);
+                if (observation is null)
+                {
+                    activity?.SetTag("club_elo.publication_disposition", "RetainedHead");
+                    activity?.SetTag("club_elo.snapshot_id", loaded.Snapshot.SnapshotId);
+                    _console.MarkupLine("[green]✓ Club Elo retained verified head with original provenance[/]");
+                    return 0;
+                }
             }
+
+            var seedResult = await LoadSeedAsync(settings.Seed, cancellationToken);
+            if (!seedResult.IsComplete || seedResult.Snapshot is null)
+                throw new InvalidDataException($"Club Elo launch seed was rejected: {string.Join(", ", seedResult.Diagnostics)}.");
 
             var selection = observation is null ? BundesligaClubEloPolicy.Select(
                 seedResult.Snapshot,

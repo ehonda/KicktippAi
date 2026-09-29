@@ -55,6 +55,68 @@ public class BundesligaContextSourceBundleContractTests
     }
 
     [Test]
+    public async Task Html_descriptor_accepts_only_historical_or_current_pairs_and_canonically_round_trips_v2()
+    {
+        var payload = Encoding.UTF8.GetBytes("abc");
+        var v1 = EligibleHtmlEloDescriptor(payload);
+        var v1Bytes = Encoding.UTF8.GetBytes(v1);
+        var v1Digest = BundesligaContextSourceHashing.Sha256(v1Bytes);
+        var v2 = v1.Replace("club-elo-official-html-parser/v1", "club-elo-official-html-parser/v2", StringComparison.Ordinal)
+            .Replace("club-elo-official-html-table/v1", "club-elo-official-html-table/v2", StringComparison.Ordinal);
+        BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.ClubElo, v1, BundesligaContextSourceDisposition.ArtifactCaptured);
+        BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.ClubElo, v2, BundesligaContextSourceDisposition.ArtifactCaptured);
+        await Assert.That(BundesligaContextSourceHashing.Sha256(Encoding.UTF8.GetBytes(v1))).IsEqualTo(v1Digest);
+        await Assert.That(Encoding.UTF8.GetBytes(v1).SequenceEqual(v1Bytes)).IsTrue();
+
+        var cycle = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 24);
+        var observation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo,
+            BundesligaContextSourceHashing.AttemptId(cycle, BundesligaContextSource.ClubElo), Utc(),
+            BundesligaContextSourceDisposition.ArtifactCaptured, v2,
+            new BundesligaContextSourcePayload("club-elo/source.html", payload.Length, BundesligaContextSourceHashing.Sha256(payload)), []);
+        var bundle = new BundesligaContextSourceBundle(cycle, Utc(), Utc(), "pes-squad-context",
+            BundesligaContextSourceContract.ProductionConsumers, [observation]);
+        var parsed = BundesligaContextSourceBundle.ParseManifest(bundle.CreateManifestUtf8());
+        await Assert.That(parsed.Observations.Single().DescriptorJson).IsEqualTo(v2);
+        await Assert.That(parsed.CreateManifestUtf8()).IsEquivalentTo(bundle.CreateManifestUtf8());
+
+        var rejectedV2 = MutateHtmlJson(v2, root =>
+        {
+            root["evaluation"] = "LexerRejected"; root["displayedDate"] = null;
+            root["providerDateEvidence"] = null; root["sourceRows"] = null;
+        });
+        BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.ClubElo, rejectedV2, BundesligaContextSourceDisposition.Rejected);
+        var rejectedObservation = new BundesligaContextSourceObservation(BundesligaContextSource.ClubElo,
+            BundesligaContextSourceHashing.AttemptId(cycle, BundesligaContextSource.ClubElo), Utc(),
+            BundesligaContextSourceDisposition.Rejected, rejectedV2, null, ["CLUB_ELO_LEXER_REJECTED"]);
+        var rejectedBundle = new BundesligaContextSourceBundle(cycle, Utc(), Utc(), "pes-squad-context",
+            BundesligaContextSourceContract.ProductionConsumers, [rejectedObservation]);
+        var parsedRejectedBundle = BundesligaContextSourceBundle.ParseManifest(rejectedBundle.CreateManifestUtf8());
+        await Assert.That(parsedRejectedBundle.Observations.Single().Disposition).IsEqualTo(BundesligaContextSourceDisposition.Rejected);
+        await Assert.That(parsedRejectedBundle.Observations.Single().DescriptorJson).IsEqualTo(rejectedV2);
+        await Assert.That(parsedRejectedBundle.Observations.Single().Payload).IsNull();
+
+        var invalid = new List<string>
+        {
+            v1.Replace("club-elo-official-html-parser/v1", "club-elo-official-html-parser/v2", StringComparison.Ordinal),
+            v1.Replace("club-elo-official-html-table/v1", "club-elo-official-html-table/v2", StringComparison.Ordinal),
+            v1.Replace("club-elo-official-html-table/v1", "club-elo-official-html-table/v3", StringComparison.Ordinal),
+            v1.Replace("club-elo-official-html-descriptor/v1", "club-elo-official-html-descriptor/v2", StringComparison.Ordinal)
+        };
+        foreach (var mutate in new Action<JsonObject>[]
+                 {
+                     root => root.Remove("parserContract"),
+                     root => root["parserContract"] = null,
+                     root => root["parserContract"] = 2,
+                     root => root.Remove("tableContract"),
+                     root => root["tableContract"] = null,
+                     root => root["tableContract"] = 2
+                 })
+            invalid.Add(MutateHtmlJson(v2, mutate));
+
+        foreach (var descriptor in invalid)
+            await Assert.That(() => BundesligaContextSourceDescriptorContract.Validate(BundesligaContextSource.ClubElo, descriptor, BundesligaContextSourceDisposition.ArtifactCaptured)).Throws<InvalidDataException>();
+    }
+    [Test]
     public async Task Payload_hash_and_length_are_recomputed_from_bytes()
     {
         var cycle = BundesligaContextSourceCycleIdentity.Production(BundesligaContextSourceContract.Competition, 1, 2); var now = Utc(); var payload = Encoding.UTF8.GetBytes("abc");

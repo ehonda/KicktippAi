@@ -389,8 +389,11 @@ public static class BundesligaContextSourceDescriptorContract
     {
         RequireString(root, "contract", "club-elo-official-html-descriptor/v1");
         RequireString(root, "sourceUrl", "https://clubelo.com/GER");
-        RequireString(root, "parserContract", "club-elo-official-html-parser/v1");
-        RequireString(root, "tableContract", "club-elo-official-html-table/v1");
+        var parserContract = RequireString(root, "parserContract");
+        var tableContract = RequireString(root, "tableContract");
+        if (!((parserContract == "club-elo-official-html-parser/v1" && tableContract == "club-elo-official-html-table/v1")
+            || (parserContract == "club-elo-official-html-parser/v2" && tableContract == "club-elo-official-html-table/v2")))
+            throw new InvalidDataException("Club Elo HTML parser and table contracts must be an approved matched pair.");
         RequireString(root, "nameMappingContract", "bundesliga-2026-27-club-elo-name-map/v1");
         RequireString(root, "nameMappingSha256", ClubEloHtmlNameMappingSha256);
         var header = root.GetProperty("tableHeader");

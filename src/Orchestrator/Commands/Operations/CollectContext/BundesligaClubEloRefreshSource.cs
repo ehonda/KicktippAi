@@ -205,7 +205,8 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
         string html;
         try { html = new UTF8Encoding(false, true).GetString(bytes); }
         catch (DecoderFallbackException) { return new("DomRejected"); }
-        // Parsing an isolated document has no browsing context, loaders, script engine or navigation.
+
+        // AngleSharp has no browsing context, script engine, loader, navigation or CSS evaluation.
         var parser = new HtmlParser(new HtmlParserOptions { IsScripting = false });
         using var document = parser.ParseDocument(html);
         var sheets = document.QuerySelectorAll("div.blatt");
@@ -224,22 +225,26 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
         var head = table.Children[0];
         var body = table.Children[1];
         if (head.Children.Length != 1 || head.Children[0].LocalName != "tr" || body.Children.Length != 0
-            || body.ChildNodes.Any(node => node is not IComment && (node is not IText text || !string.IsNullOrWhiteSpace(text.Data))))
+            || body.ChildNodes.Any(node => node is not IComment && (node is not IText text || !AsciiWhitespace(text.Data))))
             return new("DomRejected");
         var headers = head.Children[0].Children;
         if (headers.Length != 4 || headers.Any(element => element.LocalName != "th" || element.Children.Length != 0)
-            || !headers.Select(element => element.TextContent).SequenceEqual(new[] { "Club", "Elo", "+/-", "Golo" }))
+            || !ValidTableHeader(headers))
             return new("DomRejected");
         var script = wrapper.NextElementSibling;
         if (script?.LocalName != "script" || script.Attributes.Length != 0) return new("DomRejected");
-        IReadOnlyList<string[]> cells;
-        try { cells = new LiteralLexer(script.TextContent).Read(); }
+
+        LiteralData literal;
+        try { literal = new LiteralLexer(script.TextContent).Read(); }
         catch (InvalidDataException) { return new("LexerRejected"); }
+
         var rows = new List<BundesligaClubEloRefresh.Row>();
         var routes = new HashSet<string>(StringComparer.Ordinal);
         var previousRank = 0;
-        foreach (var row in cells)
+        foreach (var row in literal.Rows)
         {
+            // The raw grammar runs before the fresh inert fragment DOM. It prevents HTML repair
+            // from turning hostile text into a structurally valid cell.
             var parsed = ParseFragment(row[0], row[1]);
             if (parsed is null || parsed.GlobalRank <= previousRank || !routes.Add(parsed.ProviderRoute)) return new("FragmentRejected");
             previousRank = parsed.GlobalRank;
@@ -251,51 +256,147 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
         return new(null, date, rows);
     }
 
-    private static BundesligaClubEloRefresh.Row? ParseFragment(string fragment, string elo)
+    private static bool ValidTableHeader(IHtmlCollection<IElement> headers)
     {
-        // A lexical envelope rejects repairs (omitted close tags, duplicate/event attributes,
-        // unknown descendants, comments) before the fresh inert tr-context DOM is inspected.
+        if (!headers.Select(element => element.TextContent).SequenceEqual(new[] { "Club", "Elo", "+/-", "Golo" })) return false;
+        return headers.All(header => header.Attributes.Length == 0)
+            || ExactAttributes(headers[0], ("class", "l"))
+                && ExactAttributes(headers[1], ("class", "r"), ("onclick", "sortTable(1)"), ("title", "A metric for strength"))
+                && ExactAttributes(headers[2], ("class", "r"), ("onclick", "sortTable(2)"), ("title", "since yesterday"))
+                && ExactAttributes(headers[3], ("class", "r"), ("onclick", "sortTable(3)"), ("title", "A metric for offensiveness, how many goals a team would be expected to score/concede against itself."));
+    }
+    private static BundesligaClubEloRefresh.Row? ParseFragment(string fragment, string elo)
+        => fragment.Contains("<img", StringComparison.Ordinal) ? ParseCurrentFragment(fragment, elo) : ParseLegacyFragment(fragment, elo);
+
+    private static BundesligaClubEloRefresh.Row? ParseLegacyFragment(string fragment, string elo)
+    {
         const string pattern = "\\A[ \\t\\r\\n]*<td>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?:\"[^\"]*\"|'[^']*')>[^<]+</a>[ \\t\\r\\n]*<small>[^<]+</small>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?:\"[^\"]*\"|'[^']*')>[^<]+</a>[ \\t\\r\\n]*</td>[ \\t\\r\\n]*\\z";
         if (!Regex.IsMatch(fragment, pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))) return null;
+        return ParseLegacyDom(fragment, elo);
+    }
+
+    private static BundesligaClubEloRefresh.Row? ParseLegacyDom(string fragment, string elo)
+    {
         var parser = new HtmlParser(new HtmlParserOptions { IsScripting = false, IsStrictMode = true });
         try
         {
             using var document = parser.ParseDocument("<!doctype html><html><head></head><body></body></html>");
             var nodes = parser.ParseFragment(fragment, document.CreateElement("tr"));
-            var roots = nodes.Where(node => node is not IText text || !string.IsNullOrWhiteSpace(text.Data)).ToArray();
+            var roots = nodes.Where(node => node is not IText text || !AsciiWhitespace(text.Data)).ToArray();
             if (roots.Length != 1 || roots[0] is not IElement { LocalName: "td" } td || td.Attributes.Length != 0
                 || !td.Children.Select(child => child.LocalName).SequenceEqual(new[] { "a", "small", "a" })) return null;
             var children = td.Children;
-            if (td.ChildNodes.Any(node => node is not IElement && (node is not IText text || !string.IsNullOrWhiteSpace(text.Data)))
+            if (td.ChildNodes.Any(node => node is not IElement && (node is not IText text || !AsciiWhitespace(text.Data)))
                 || children.Any(child => child.ChildNodes.Length != 1 || child.ChildNodes[0] is not IText
                     || string.IsNullOrWhiteSpace(child.TextContent) || !ValidNfc(child.TextContent))
                 || children[0].Attributes.Length != 1 || children[0].GetAttribute("href") != "/GER"
                 || children[1].Attributes.Length != 0 || children[2].Attributes.Length != 1 || !children[2].HasAttribute("href")) return null;
             var route = children[2].GetAttribute("href")!;
-            if (route == "/GER" || !Regex.IsMatch(route, "\\A/[A-Za-z0-9][A-Za-z0-9-]{0,127}\\z", RegexOptions.CultureInvariant)
-                || !PositiveInt(children[0].TextContent, out var rank) || !PositiveInt(elo, out var rating)) return null;
+            if (route == "/GER" || !ValidRoute(route) || !PositiveInt(children[0].TextContent, out var rank) || !PositiveInt(elo, out var rating)) return null;
             return new(route, children[2].TextContent, rank, rating);
         }
         catch (HtmlParseException) { return null; }
     }
 
-    private static bool PositiveInt(string value, out int parsed) =>
-        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out parsed) && parsed > 0
-        && value.All(char.IsAsciiDigit);
+    private static BundesligaClubEloRefresh.Row? ParseCurrentFragment(string fragment, string elo)
+    {
+        const string pattern = "\\A[ \\t\\r\\n]*<td[ \\t\\r\\n]+class=(?<tdq>[\"'])l\\k<tdq>>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?<gerq>[\"'])/GER\\k<gerq>>[ \\t\\r\\n]*<img[ \\t\\r\\n]+src=(?<srcq>[\"'])/static/flags/deu\\.png\\k<srcq>[ \\t\\r\\n]+alt=(?<altq>[\"'])GER\\k<altq>[ \\t\\r\\n]+style=(?<styleq>[\"'])width:20px; opacity:0\\.8;\\k<styleq>[ \\t\\r\\n]*/?>[ \\t\\r\\n]*</a>[ \\t\\r\\n]*<small>(?<rank>[^<&]*)</small>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?<routeq>[\"'])/(?<route>[A-Za-z0-9][A-Za-z0-9-]{0,127})\\k<routeq>>(?<name>[^<&]+)<span[ \\t\\r\\n]+class=(?<spanq>[\"'])min481\\k<spanq>></span></a>[ \\t\\r\\n]*</td>[ \\t\\r\\n]*\\z";
+        if (fragment.Contains('&') || !Regex.IsMatch(fragment, pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))) return null;
+
+        var parser = new HtmlParser(new HtmlParserOptions { IsScripting = false, IsStrictMode = true });
+        try
+        {
+            using var document = parser.ParseDocument("<!doctype html><html><head></head><body></body></html>");
+            var nodes = parser.ParseFragment(fragment, document.CreateElement("tr"));
+            var roots = nodes.Where(node => node is not IText text || !AsciiWhitespace(text.Data)).ToArray();
+            if (roots.Length != 1 || roots[0] is not IElement { LocalName: "td" } td
+                || !ExactAttributes(td, ("class", "l")) || !td.Children.Select(child => child.LocalName).SequenceEqual(new[] { "a", "small", "a" })
+                || td.ChildNodes.Any(node => node is not IElement && (node is not IText text || !AsciiWhitespace(text.Data)))) return null;
+
+            var federation = td.Children[0];
+            var rankCell = td.Children[1];
+            var club = td.Children[2];
+            if (!ExactAttributes(federation, ("href", "/GER")) || federation.ChildNodes.Length != 1
+                || federation.Children.Length != 1 || federation.Children[0].LocalName != "img"
+                || !ExactAttributes(federation.Children[0], ("src", "/static/flags/deu.png"), ("alt", "GER"), ("style", "width:20px; opacity:0.8;"))
+                || !ExactAttributes(rankCell) || rankCell.ChildNodes.Length != 1 || rankCell.ChildNodes[0] is not IText rankText
+                || !ExactAttributes(club, ("href", club.GetAttribute("href") ?? "")) || club.ChildNodes.Length != 2
+                || club.ChildNodes[0] is not IText nameText || club.Children.Length != 1 || club.Children[0].LocalName != "span"
+                || !ExactAttributes(club.Children[0], ("class", "min481")) || club.Children[0].ChildNodes.Length != 0) return null;
+
+            var rankValue = TrimAscii(rankText.Data);
+            var name = nameText.Data;
+            var route = club.GetAttribute("href")!;
+            if (!PositiveInt(rankValue, out var rank) || !PositiveInt(elo, out var rating) || !ValidRoute(route)
+                || !ValidNfc(name) || name.Length == 0 || !ValidNfc(rankText.Data)) return null;
+            return new(route, name, rank, rating);
+        }
+        catch (HtmlParseException) { return null; }
+    }
+
+    private static bool ExactAttributes(IElement element, params (string Name, string Value)[] expected)
+        => element.Attributes.Length == expected.Length && element.Attributes.Select(attribute => (attribute.Name, attribute.Value)).SequenceEqual(expected);
+
+    private static bool ValidRoute(string route) => route != "/GER"
+        && Regex.IsMatch(route, "\\A/[A-Za-z0-9][A-Za-z0-9-]{0,127}\\z", RegexOptions.CultureInvariant);
+
+    private static bool PositiveInt(string value, out int parsed)
+    {
+        parsed = 0;
+        return value.Length > 0 && value[0] != '0' && int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out parsed)
+            && parsed > 0 && value.All(char.IsAsciiDigit);
+    }
+
+    private static bool AsciiWhitespace(string value) => value.All(character => character is ' ' or '\t' or '\r' or '\n');
+
+    private static string TrimAscii(string value) => value.Trim([ ' ', '\t', '\r', '\n' ]);
 
     private static bool ValidNfc(string value)
     {
         try { return value.IsNormalized(NormalizationForm.FormC) && !value.Contains('\0'); }
-        catch (ArgumentException) { return false; } // Unpaired UTF-16 surrogate from a literal escape.
+        catch (ArgumentException) { return false; }
     }
 
-    /// <summary>Only the two frozen statements and their literal data; never JavaScript execution.</summary>
+    private sealed record LiteralData(IReadOnlyList<string[]> Rows);
+
+    /// <summary>Only frozen literal data and opaque checked helper envelopes; no JavaScript execution.</summary>
     private sealed class LiteralLexer(string script)
     {
+        private const string PrefixSha256 = "045a3ee82a23ed59f88d18feb2047567e81d6945feac8e03c2cc3e2b2c0e5f7c";
+        private const string BeforeCallSha256 = "1fa3dee76343dc95f00b82adbd0695fb1d1c7980134b43a81c1da18bd5a126a5";
+        private string _script = script;
         private int _position;
-        public IReadOnlyList<string[]> Read()
+
+        public LiteralData Read()
         {
-            if (script.Length > 262144) throw Invalid();
+            if (_script.Length > 262144) throw Invalid();
+            var canonical = CanonicalEnvelope(_script);
+            if (canonical.StartsWith("const", StringComparison.Ordinal))
+            {
+                _script = script;
+                _position = 0;
+                var rows = ReadArrayDeclaration();
+                Token("JSSortableEloTable"); Token("("); Token("eloData"); Token(")"); Token(";");
+                Whitespace(); if (_position != _script.Length) throw Invalid();
+                return new(rows);
+            }
+
+            if (!canonical.StartsWith("function", StringComparison.Ordinal)) throw Invalid();
+            var declaration = canonical.IndexOf("const eloData =", StringComparison.Ordinal);
+            if (declaration <= 0 || !Matches(PrefixSha256, canonical.Substring(0, declaration), 1475)) throw Invalid();
+            _script = canonical;
+            _position = declaration;
+            var v2Rows = ReadArrayDeclaration();
+            var call = _script.IndexOf("JSSortableEloTable(eloData);", _position, StringComparison.Ordinal);
+            if (call < _position || !Matches(BeforeCallSha256, _script.Substring(_position, call - _position), 39)) throw Invalid();
+            _position = call;
+            Token("JSSortableEloTable"); Token("("); Token("eloData"); Token(")"); Token(";");
+            Whitespace(); if (_position != _script.Length) throw Invalid();
+            return new(v2Rows);
+        }
+
+        private IReadOnlyList<string[]> ReadArrayDeclaration()
+        {
             Token("const"); RequiredWhitespace(); Token("eloData"); Token("="); Token("[");
             var rows = new List<string[]>();
             if (!Peek(']'))
@@ -311,23 +412,32 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
                     Token(",");
                 } while (true);
             }
-            Token("]"); Token(";"); Token("JSSortableEloTable"); Token("("); Token("eloData"); Token(")"); Token(";");
-            Whitespace(); if (_position != script.Length) throw Invalid();
+            Token("]"); Token(";");
             return rows;
         }
+
+        private static string CanonicalEnvelope(string value) => value.Replace("\r\n", "\n", StringComparison.Ordinal).Trim([ ' ', '\t', '\r', '\n' ]);
+
+        private static bool Matches(string hash, string value, int byteLength)
+        {
+            var canonical = CanonicalEnvelope(value);
+            return Encoding.UTF8.GetByteCount(canonical) == byteLength
+                && BundesligaContextSourceHashing.Sha256(Encoding.UTF8.GetBytes(canonical)) == hash;
+        }
+
         private string String()
         {
             Token("'"); var value = new StringBuilder();
             var closed = false;
-            while (_position < script.Length)
+            while (_position < _script.Length)
             {
-                var character = script[_position++];
+                var character = _script[_position++];
                 if (character == '\'') { closed = true; break; }
                 if (character is '\r' or '\n' || character < ' ') throw Invalid();
                 if (character == '\\')
                 {
-                    if (_position == script.Length) throw Invalid();
-                    character = script[_position++] switch
+                    if (_position == _script.Length) throw Invalid();
+                    character = _script[_position++] switch
                     {
                         '\\' => '\\', '\'' => '\'', 'n' => '\n', 'r' => '\r', 't' => '\t',
                         'x' => Hex(2), 'u' => Hex(4), _ => throw Invalid()
@@ -339,30 +449,36 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
             if (!closed || !ValidNfc(value.ToString())) throw Invalid();
             return value.ToString();
         }
+
         private char Hex(int count)
         {
-            if (_position + count > script.Length) throw Invalid();
+            if (_position + count > _script.Length) throw Invalid();
             var value = 0;
             for (var i = 0; i < count; i++)
             {
-                var character = script[_position++];
+                var character = _script[_position++];
                 if (!char.IsAsciiHexDigit(character)) throw Invalid();
                 value = value * 16 + (character <= '9' ? character - '0' : char.ToUpperInvariant(character) - 'A' + 10);
             }
             return (char)value;
         }
-        private bool Peek(char character) { Whitespace(); return _position < script.Length && script[_position] == character; }
+
+        private bool Peek(char character) { Whitespace(); return _position < _script.Length && _script[_position] == character; }
+
         private void Token(string token)
         {
             Whitespace();
-            if (!script.AsSpan(_position).StartsWith(token, StringComparison.Ordinal)) throw Invalid();
+            if (!_script.AsSpan(_position).StartsWith(token, StringComparison.Ordinal)) throw Invalid();
             _position += token.Length;
         }
+
         private void RequiredWhitespace()
         {
             var before = _position; Whitespace(); if (before == _position) throw Invalid();
         }
-        private void Whitespace() { while (_position < script.Length && script[_position] is ' ' or '\t' or '\r' or '\n') _position++; }
+
+        private void Whitespace() { while (_position < _script.Length && _script[_position] is ' ' or '\t' or '\r' or '\n') _position++; }
+
         private static InvalidDataException Invalid() => new("Club Elo script is not the bounded literal grammar.");
     }
 }

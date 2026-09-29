@@ -1,5 +1,7 @@
 using System.Text;
 using Orchestrator.Commands.Operations.CollectContext;
+using EHonda.KicktippAi.Core;
+using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 
 namespace Orchestrator.Commands.Operations.Dev;
@@ -14,7 +16,8 @@ internal sealed record CompetitionProfileCollectionRequest(
     bool DryRun,
     bool Verbose,
     string? MarkdownSummaryOutput = null,
-    CompetitionContextSourceCycleInvocation? ContextSourceCycle = null);
+    CompetitionContextSourceCycleInvocation? ContextSourceCycle = null,
+    bool ContextSourceOnly = false);
 
 internal static class CompetitionProfileCollectionRunner
 {
@@ -22,6 +25,80 @@ internal static class CompetitionProfileCollectionRunner
         IAnsiConsole console,
         ICompetitionProfileCollectorExecutor collectorExecutor,
         CompetitionProfileCollectionRequest request,
+        CancellationToken cancellationToken,
+        IServiceProvider? services = null)
+    {
+        try
+        {
+            if (request.ContextSourceOnly)
+            {
+                ValidateSourceOnly(request.Profile, request.Matchdays, request.FullSeason);
+                if (request.ContextSourceCycle is null)
+                    BundesligaContextSourceContract.ValidateConsumerAuthority(
+                        BundesligaContextSourceScope.Development,
+                        BundesligaContextSourceContract.DevelopmentLane, request.CommunityContext);
+                request = request with { Profile = request.Profile with { Collectors = [new(CompetitionCollector.ClubElo)] } };
+            }
+            var result = await ExecutePreparedAsync(console, collectorExecutor, request, cancellationToken);
+            if (result == 0 && request.ContextSourceOnly && !request.DryRun
+                && request.ContextSourceCycle is { Identity.Scope: BundesligaContextSourceScope.ProductionLive } invocation)
+                await ValidateProductionCompletionAsync(request, invocation, services, cancellationToken);
+            return result;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
+        catch (Exception)
+        {
+            console.MarkupLine("[red]Context collection failed during preparation, reconciliation or cleanup.[/]");
+            return 1;
+        }
+    }
+
+    internal static async Task ValidateProductionCompletionAsync(CompetitionProfileCollectionRequest request,
+        CompetitionContextSourceCycleInvocation invocation, IServiceProvider? services, CancellationToken cancellationToken)
+    {
+        var repository = services?.GetRequiredService<IBundesligaContextSourceCycleRepository>()
+            ?? throw new InvalidOperationException("Production source-only reconciliation requires its durable repository.");
+        var receipt = await repository.GetReceiptAsync(invocation.Identity, BundesligaContextSource.ClubElo, invocation.CurrentLaneId, cancellationToken)
+            ?? throw new InvalidDataException("Source-only collection did not persist the exact lane receipt.");
+        receipt.Validate();
+        if (receipt.Request.Identity != invocation.Identity || receipt.Request.ConsumerLaneId != invocation.CurrentLaneId
+            || receipt.Request.CommunityContext != request.CommunityContext || receipt.Request.Source != BundesligaContextSource.ClubElo)
+            throw new InvalidDataException("Source-only receipt contradicts the requested identity.");
+        var cycle = await repository.GetCycleAsync(invocation.Identity, cancellationToken)
+            ?? throw new InvalidDataException("Source-only cycle is missing.");
+        cycle.Validate();
+        if (cycle.Identity != invocation.Identity || !cycle.ExpectedConsumers.SequenceEqual(invocation.ExpectedConsumers)
+            || cycle.ProducerLaneId != invocation.ProducerLaneId
+            || cycle.BundleSha256 != receipt.Request.BundleDigest
+            || !cycle.EnabledSources.SequenceEqual([BundesligaContextSource.ClubElo])
+            || cycle.Status is not (BundesligaContextSourceCycleStatus.HandoffReady or BundesligaContextSourceCycleStatus.Complete))
+            throw new InvalidDataException("Source-only cycle contradicts the requested handoff.");
+        if (cycle.Status != BundesligaContextSourceCycleStatus.Complete) return;
+        var health = await repository.GetHealthAsync(invocation.Identity.Competition, invocation.Identity.Scope,
+            BundesligaContextSource.ClubElo, cancellationToken)
+            ?? throw new InvalidDataException("Completed source-only cycle has no health.");
+        health.Validate();
+        if (health.Competition != invocation.Identity.Competition || health.Scope != invocation.Identity.Scope
+            || health.Source != BundesligaContextSource.ClubElo)
+            throw new InvalidDataException("Source-only health contradicts the requested identity.");
+        // Older exact receipt replays preserve newer durable health; never re-promote the old cycle.
+        if (health.Watermark.Sequence > invocation.Identity.Sequence) return;
+        if (health.Watermark.Sequence != invocation.Identity.Sequence || health.Watermark.CycleId != invocation.Identity.CycleId
+            || health.LastCompletedCycleId != invocation.Identity.CycleId
+            || health.DesiredIssueProjection?.SynchronizationStatus != BundesligaContextSourceIssueSynchronization.Synchronized)
+            throw new InvalidDataException("Completed source-only refresh has pending issue synchronization.");
+    }
+
+    internal static void ValidateSourceOnly(CompetitionCollectionProfile profile, string? matchdays, bool fullSeason, string? credentialProfile = null)
+    {
+        if (profile.Competition != EHonda.KicktippAi.Core.CompetitionIds.Bundesliga2026_27
+            || !profile.ContextSourceFeatures.ClubEloEnabled || profile.ContextSourceFeatures.RostersEnabled
+            || matchdays is not null || fullSeason || credentialProfile is not null)
+            throw new InvalidOperationException("Source-only collection requires Bundesliga 2026/27 and Club Elo only, without matchday, full-season or Kicktipp credential-profile options.");
+    }
+
+    private static async Task<int> ExecutePreparedAsync(IAnsiConsole console,
+        ICompetitionProfileCollectorExecutor collectorExecutor, CompetitionProfileCollectionRequest request,
         CancellationToken cancellationToken)
     {
         var executionContext = new CompetitionCollectorExecutionContext(
@@ -44,8 +121,13 @@ internal static class CompetitionProfileCollectionRunner
         {
             preparedSources = await collectorExecutor.PrepareContextSourcesAsync(executionContext, cancellationToken);
         }
+        if (request.ContextSourceOnly && preparedSources is null)
+            throw new InvalidDataException("Source-only collection requires a prepared source cycle.");
         await using var sourcePreparation = preparedSources;
         using var sourcePreparationActivation = preparedSources?.Activate();
+
+        if (preparedSources is not null)
+            console.MarkupLine($"[blue]Source cycle:[/] {Markup.Escape(preparedSources.Files.Bundle.Cycle.CycleId)}; [blue]lane:[/] {Markup.Escape(preparedSources.CurrentLaneId)}");
 
         PrintProfile(console, request.Profile, request.Community, request.CommunityContext);
         console.MarkupLine(
@@ -84,6 +166,7 @@ internal static class CompetitionProfileCollectionRunner
             {
                 exitCode = await collectorExecutor.ExecuteAsync(step.Collector, executionContext, cancellationToken);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested) { throw; }
             catch (Exception exception)
             {
                 console.MarkupLine(
