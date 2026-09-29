@@ -1,12 +1,12 @@
 # P1-04 — Activate official Club Elo context refresh
 
-- Status: In progress; flags-off v2 runtime merged, production source-only acceptance/retention observed, controlled ordinary continuation and A2 pending
+- Status: In progress; flags-off v2 runtime merged, production source-only acceptance/retention and controlled ordinary continuation observed, A2 candidate pending merge
 - Last reconciled: 2026-09-29
 - Depends on: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md), [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
 
 ## Outcome and milestones
 
-Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. A controlled normal-job failure/ordinary-success proof is still required before activation.
+Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. Controlled run `36537325441` then proved optional failure with successful ordinary context collection and unchanged verified Elo; final A2 review, CI, merge, and production observation remain.
 
 - [x] D0: prior accepted durable-fence documentation.
 - [x] Reviewed ADR-0085 successor-document milestone.
@@ -14,7 +14,7 @@ Optional refresh failure must permit required ordinary production context collec
 - [x] Source-only profile/development request and early authorization; optional workflow boundary and strict retained-head preservation.
 - [x] Focused regressions, one coherent solution build, fresh acceptance and exact-head required CI for the flags-off runtime.
 - [x] Branch Actions development/production accepting and later retention/rejection evidence; the failed replay is recorded under ADR-0086 without success credit.
-- [ ] Controlled refresh failure with verified old Elo and required ordinary continuation; no prediction authority from this proof.
+- [x] Controlled optional refresh failure in run `36537325441` with verified old Elo and successful required ordinary continuation; no prediction authority from this proof.
 - [ ] A2: reviewed atomic all-eight source activation.
 - [ ] Closeout/merge, Pages and next existing scheduled-run observation.
 

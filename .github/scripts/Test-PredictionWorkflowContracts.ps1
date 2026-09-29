@@ -754,7 +754,7 @@ function Assert-ProductionLiveMatchdayWorkflow {
                 'competition="bundesliga-2026-27"',
                 "trigger_type=$triggerType",
                 'publish_launch_roster_overlay=false',
-                'enable_club_elo_source=false',
+                'enable_club_elo_source=true',
                 'context_source_scope="production-live"',
                 'context_source_cycle_id=${{ format(''gha:{0}:{1}'', github.repository_id, github.run_id) }}',
                 "context_source_current_lane=`"$($job.Id)`"",

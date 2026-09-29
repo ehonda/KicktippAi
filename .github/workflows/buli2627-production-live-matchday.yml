@@ -29,7 +29,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "pes-squad-context"
@@ -80,7 +80,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "schadensfresse-context"
@@ -131,7 +131,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "relaxdays-tippt-context"
@@ -182,7 +182,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "arena-sol-xhigh-context"
@@ -233,7 +233,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "arena-sol-high-context"
@@ -284,7 +284,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "arena-luna-medium-context"
@@ -335,7 +335,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "arena-terra-xhigh-context"
@@ -386,7 +386,7 @@ jobs:
       competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       publish_launch_roster_overlay: false
-      enable_club_elo_source: false
+      enable_club_elo_source: true
       context_source_scope: "production-live"
       context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
       context_source_current_lane: "arena-luna-none-context"

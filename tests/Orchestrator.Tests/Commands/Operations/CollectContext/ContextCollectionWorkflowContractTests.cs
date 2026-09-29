@@ -29,7 +29,10 @@ public class ContextCollectionWorkflowContractTests
     {
         var outer = await ReadWorkflow("buli2627-production-live-matchday.yml");
         await Assert.That(Regex.Matches(outer, @"(?m)^    uses: \./\.github/workflows/base-context-collection.yml\r?$").Count).IsEqualTo(9);
-        await Assert.That(Regex.Matches(outer, @"(?m)^      enable_club_elo_source: false\r?$").Count).IsEqualTo(8);
+        var normalJobs = Regex.Match(outer, @"(?ms)^jobs:\r?\n(?<body>.*?)^  club-elo-validation:").Groups["body"].Value;
+        await Assert.That(Regex.Matches(normalJobs, @"(?m)^      enable_club_elo_source: true\r?$").Count).IsEqualTo(8);
+        await Assert.That(Regex.Matches(outer, @"(?m)^      enable_club_elo_source: true\r?$").Count).IsEqualTo(9);
+        await Assert.That(outer).DoesNotContain("enable_club_elo_source: false");
         await Assert.That(outer).Contains("github.event_name != 'workflow_dispatch' || inputs.club_elo_validation == 'off'")
             .And.Contains("github.event_name == 'workflow_dispatch' && (inputs.club_elo_validation == 'development' || inputs.club_elo_validation == 'production')")
             .And.Contains("github.event_name == 'workflow_dispatch' && inputs.club_elo_validation == 'continuation'")

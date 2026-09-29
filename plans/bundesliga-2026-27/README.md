@@ -1,6 +1,6 @@
 # Bundesliga 2026/27 implementation plan
 
-- Program state: P0 complete; P1-04 flags-off runtime merged and live source-only acceptance/retention observed, ordinary-continuation proof and activation pending; P1-05/R1 dormant and deferred
+- Program state: P0 complete; P1-04 flags-off runtime merged, live source-only and ordinary-continuation gates accepted, all-eight activation and closeout pending; P1-05/R1 dormant and deferred
 - Last reconciled: 2026-09-29
 - Current policy: [execution strategy](execution-strategy.md)
 
@@ -13,11 +13,11 @@ excluded.
 
 | Lane | State | Next gate |
 | --- | --- | --- |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; flags-off v2 runtime merged in PR #116 | Controlled refresh-failure/ordinary-continuation proof |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; flags-off v2 runtime merged in PR #116 and controlled ordinary continuation accepted | A2 review and exact-head CI |
 | Transport/security and [F2](tasks/p1-04-issue-create-fence.md) | Accepted in the flags-off runtime | Monitor actual operation |
-| Source-only/workflow/head preservation | Implemented with eight normal source flags false | Normal continuation probe |
+| Source-only/workflow/head preservation | Implemented; one manual normal-job continuation probe passed | Monitor later scheduled refresh outcomes |
 | Focused validation and exact-head CI | Passed for flags-off runtime and main merge | Fresh exact-head CI for later probe and activation commits |
-| Live validation, A2 and closeout | Production source-only acceptance and distinct retention/rejection observed; L7 GitHub replay failed closed | ADR-0086 removes live rerun success as an A2 prerequisite; prove ordinary continuation, then review/CI and enable all eight flags |
+| Live validation, A2 and closeout | Production source-only acceptance, distinct retention/rejection and controlled ordinary continuation observed; L7 GitHub replay failed closed | ADR-0086 removes live rerun success as an A2 prerequisite; review/CI and enable all eight flags |
 | [P1-05](tasks/p1-05-roster-refresh.md) | Deferred under ADR-0082 | Exact ADR-0079 sidecar and separate future owner gates |
 
 Merged PR #111 is prior dormant C3/E1 implementation evidence. It does not
@@ -46,7 +46,7 @@ Eight receipt lanes target four physical community heads: `pes-squad`,
 `schadensfresse`, `relaxdays-tippt`, and the shared `ehonda-ai-arena` context
 for its five distinct arena receipts. The fixed lane order and evidence recipe
 are in [P1-04](tasks/p1-04-club-elo-refresh.md). Source flags are false until
-A2. Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. Runtime isolation is implemented, but the controlled live normal-job continuation proof remains pending.
+A2. Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. Run `36537325441` proved a failed optional source action can leave required ordinary collection successful with the verified head retained.
 
 P1-05 is `MetadataUnavailable` pending its exact sidecar. It performs no
 sidecar/artifact probe and has no provider resolution, observation, receipt,
