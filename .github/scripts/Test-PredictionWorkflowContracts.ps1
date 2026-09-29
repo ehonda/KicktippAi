@@ -125,10 +125,10 @@ function Assert-ManualDispatchAndExactProductionSchedule {
         '  workflow_dispatch:',
         '    inputs:',
         '      club_elo_validation:',
-        "        description: 'Source-only validation without prediction jobs'",
+        "        description: 'Club Elo validation or continuation probe without prediction jobs'",
         '        type: choice',
         "        default: 'off'",
-        '        options: [off, development, production]',
+        '        options: [off, development, production, continuation]',
         '  schedule:',
         '    - cron: "7 2,9 * * *"'
     )
@@ -716,9 +716,9 @@ function Assert-ProductionLiveMatchdayWorkflow {
         @{ Id = 'arena-luna-none-matchday'; Needs = 'arena-luna-none-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'none'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE' }
     )
 
-    $expectedJobIds = @($jobs | ForEach-Object { $_.Id }) + @('club-elo-validation')
+    $expectedJobIds = @($jobs | ForEach-Object { $_.Id }) + @('club-elo-validation', 'club-elo-continuation')
     Assert-True (($actualJobIds -join ',') -ceq ($expectedJobIds -join ',')) "$FileName job order differs. Expected $($expectedJobIds -join ', '); got $($actualJobIds -join ', ')."
-    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight context jobs."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 9) "$FileName must contain exactly eight normal context jobs and one continuation probe."
     Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight matchday jobs."
 
     foreach ($job in $jobs) {
@@ -754,7 +754,7 @@ function Assert-ProductionLiveMatchdayWorkflow {
                 'competition="bundesliga-2026-27"',
                 "trigger_type=$triggerType",
                 'publish_launch_roster_overlay=false',
-                'enable_club_elo_source=false',
+                'enable_club_elo_source=true',
                 'context_source_scope="production-live"',
                 'context_source_cycle_id=${{ format(''gha:{0}:{1}'', github.repository_id, github.run_id) }}',
                 "context_source_current_lane=`"$($job.Id)`"",
@@ -795,6 +795,34 @@ function Assert-ProductionLiveMatchdayWorkflow {
             ) "$FileName/$($job.Id)"
         }
     }
+
+    $validation = Get-WorkflowJobBlock $content 'club-elo-validation' $FileName
+    Assert-True $validation.Contains('if: ${{ github.event_name == ''workflow_dispatch'' && (inputs.club_elo_validation == ''development'' || inputs.club_elo_validation == ''production'') }}') "$FileName source-only validation must exclude the continuation probe."
+
+    $continuation = Get-WorkflowJobBlock $content 'club-elo-continuation' $FileName
+    Assert-True $continuation.Contains('if: ${{ github.event_name == ''workflow_dispatch'' && inputs.club_elo_validation == ''continuation'' }}') "$FileName continuation probe must be manual-only."
+    Assert-True (-not [regex]::IsMatch($continuation, '(?m)^    needs:')) "$FileName continuation probe must not depend on a normal or prediction job."
+    Assert-True ([regex]::IsMatch($continuation, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$')) "$FileName continuation probe must call only base context collection."
+    Assert-ExactReusableMappingBlock $continuation 'with' @(
+        'community_context="pes-squad"',
+        'competition="bundesliga-2026-27"',
+        'trigger_type="manual"',
+        'publish_launch_roster_overlay=false',
+        'enable_club_elo_source=true',
+        'context_source_only=false',
+        'context_source_continuation_probe=true',
+        'context_source_scope="production-live"',
+        'context_source_cycle_id=${{ format(''gha:{0}:{1}'', github.repository_id, github.run_id) }}',
+        'context_source_current_lane="pes-squad-context"',
+        'context_source_producer_lane="pes-squad-context"',
+        'context_source_consumers="pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"'
+    ) "$FileName/club-elo-continuation"
+    Assert-ExactReusableMappingBlock $continuation 'secrets' @(
+        'kicktipp_username=${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}',
+        'kicktipp_password=${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}',
+        'firebase_project_id=${{ secrets.FIREBASE_PROJECT_ID }}',
+        'firebase_service_account_json=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}'
+    ) "$FileName/club-elo-continuation"
 }
 
 function Assert-CommandIdentity {

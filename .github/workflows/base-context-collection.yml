@@ -31,6 +31,11 @@ on:
         required: false
         default: false
         type: boolean
+      context_source_continuation_probe:
+        description: 'Manual production probe: reject the optional refresh before external work, then run ordinary context'
+        required: false
+        default: false
+        type: boolean
       context_source_scope:
         required: false
         default: 'production-live'
@@ -89,6 +94,7 @@ jobs:
         env:
           SOURCE_ENABLED: ${{ inputs.enable_club_elo_source }}
           SOURCE_ONLY: ${{ inputs.context_source_only }}
+          CONTINUATION_PROBE: ${{ inputs.context_source_continuation_probe }}
           COMPETITION: ${{ inputs.competition }}
           SCOPE: ${{ inputs.context_source_scope }}
           COMMUNITY: ${{ inputs.community_context }}
@@ -108,6 +114,7 @@ jobs:
           if [[ "$SOURCE_ENABLED" == true && "$COMPETITION" != bundesliga-2026-27 ]]; then exit 1; fi
           if [[ "$SOURCE_ONLY" != true && ( -z "$KICKTIPP_USERNAME" || -z "$KICKTIPP_PASSWORD" ) ]]; then exit 1; fi
           if [[ "$SOURCE_ENABLED" == true && "$SCOPE" != development && "$SCOPE" != production-live ]]; then exit 1; fi
+          if [[ "$CONTINUATION_PROBE" == true && ( "$GITHUB_EVENT_NAME" != workflow_dispatch || "$SOURCE_ENABLED" != true || "$SOURCE_ONLY" == true || "$SCOPE" != production-live || "$COMMUNITY" != pes-squad || "$LANE" != pes-squad-context ) ]]; then exit 1; fi
           if [[ "$SOURCE_ENABLED" == true ]]; then
             if [[ "$SCOPE" == development ]]; then
               [[ "$COMMUNITY" == ehonda-dev-buli-2627 && -z "$CYCLE$LANE$PRODUCER$CONSUMERS" ]] || exit 1
@@ -138,7 +145,7 @@ jobs:
         uses: ./.github/scripts/context-source-artifact
         with:
           community-context: ${{ inputs.community_context }}
-          scope: ${{ inputs.context_source_scope }}
+          scope: ${{ inputs.context_source_continuation_probe && 'continuation-probe-invalid' || inputs.context_source_scope }}
           cycle-id: ${{ inputs.context_source_cycle_id }}
           current-lane: ${{ inputs.context_source_current_lane }}
           producer-lane: ${{ inputs.context_source_producer_lane }}

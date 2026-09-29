@@ -1,14 +1,14 @@
 # P1-04 / P1-05 context-refresh design
 
-- Status: In progress; optional-refresh continuity contract accepted; runtime isolation and activation pending
-- Last reconciled: 2026-09-27
-- Current contract: [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retaining [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md) and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md) outside its partial successor boundary
+- Status: In progress; flags-off runtime merged, production source-only and ordinary-continuation gates accepted, activation pending
+- Last reconciled: 2026-09-29
+- Current contract: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md) and [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retaining ADR-0083/0084 outside their partial successor boundaries
 
 ## Current route
 
-Reviewed successor documents → finite transport/security corrections and F2 real-transaction fence matrix → source-only/workflow/head-preservation implementation → focused regressions, one coherent solution build and exact-head required CI → bounded development/branch-production accepting, retention/rejection and replay evidence plus controlled refresh failure with ordinary continuation → all-eight activation → reviewed closeout/merge → existing-schedule monitoring.
+Completed flags-off runtime, focused regressions and exact-head CI → accepted development/production source-only and distinct production retention/rejection evidence → controlled refresh failure with successful ordinary collection and verified retained Elo → reviewed all-eight activation → closeout and existing-schedule monitoring. ADR-0086 records the failed GitHub rerun and removes live replay success from the activation gate.
 
-D0 is accepted prior documentation; it is not runtime isolation. Prior dormant C3/E1 and merged PR #111 remain historical accepted implementation input. Current transport/security clearance, F2 acceptance, source-only isolation, focused/CI validation, live evidence, activation and closeout remain pending; no current candidate is credited as implemented or accepted here. Main's source flags remain false.
+PR #116 merged the v2-compatible reader with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted official Club Elo across the eight source-only lanes/four heads. A later source timeout in run `36481153403` retained them, while its attempt-2 replay failed closed after the original artifact disappeared. Manual run `36537325441` proved optional action failure followed by successful ordinary collection with unchanged verified Elo; independent review accepted the continuity gate. A2 review/CI and merge remain pending.
 
 The new boundary requires early authorized source-only validation with no Kicktipp/history/roster/model resolution. Optional Node setup is bounded to two minutes and refresh to five, both continue-on-error; enabled jobs allow 52 minutes and disabled jobs 45. Required ordinary collection follows with source flags false and no cycle arguments under normal success conditions. Ordinary failures and workflow cancellation remain failures. Required source-only validation dispatch cannot false-pass. A nonblocking summary reports actual optional outcomes and stale/absent health truthfully.
 
