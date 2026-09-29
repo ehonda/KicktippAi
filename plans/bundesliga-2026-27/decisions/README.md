@@ -90,10 +90,11 @@ remain authoritative.
 | [0082](0082-close-dormant-roster-refresh-scope-with-r1-deferred.md) | Close the dormant roster-refresh scope with R1 deferred | Accepted; dormant closeout complete, R1 deferred |
 | [0083](0083-activate-official-club-elo-context-refresh.md) | Activate official Club Elo context refresh | Accepted; issue boundary and release graph partially succeeded by ADR-0084 |
 | [0084](0084-fence-context-source-issue-creation.md) | Fence context-source issue creation | Accepted; D0 documented, F2 pending |
-| [0085](0085-isolate-optional-club-elo-refresh.md) | Isolate optional Club Elo refresh; finite release gates | Accepted; partial successor to ADR-0083/0084 |
+| [0085](0085-isolate-optional-club-elo-refresh.md) | Isolate optional Club Elo refresh; finite release gates | Accepted; partially succeeded by ADR-0086 |
+| [0086](0086-bound-live-club-elo-replay-gate.md) | Bound live Club Elo replay evidence after GitHub artifact loss | Accepted; partial successor to ADR-0083/0085 |
 
-## P1-04/P1-05 activation status — 2026-09-27
+## P1-04/P1-05 activation status — 2026-09-29
 
-[P1-04](../tasks/p1-04-club-elo-refresh.md) is in progress under [ADR-0085](0085-isolate-optional-club-elo-refresh.md), the partial successor to retained ADR-0083/0084. D0 and prior dormant C3/E1 are accepted historical input; current transport/security clearance, F2 acceptance, optional source-only/workflow/head-preservation implementation, focused/CI validation, live evidence, all-eight activation and closeout remain pending. Documentation grants no implemented isolation or live result; main remains source-disabled.
+[P1-04](../tasks/p1-04-club-elo-refresh.md) is in progress under [ADR-0086](0086-bound-live-club-elo-replay-gate.md) and retained ADR-0085/0083/0084. PR #116 merged the flags-off v2-compatible runtime with green exact main CI. Production source-only runs proved an eligible eight-lane publication and a distinct failed-source retention cycle. The GitHub rerun gate failed closed when its original artifact disappeared; ADR-0086 removes live replay success from A2 admission under the owner's bounded-uncertainty instruction. Controlled optional-refresh failure with successful ordinary context collection, A2, and closeout remain pending. Main's eight normal source flags remain false.
 
 ADR-0084's marker-wide durable issue fence and real-transaction correctness matrix remain operative. Known product/security defects block release. Historical failed evidence remains failed; timeout attribution and runtime/concurrency diagnosis are parked. [P1-05](../tasks/p1-05-roster-refresh.md) remains deferred under ADR-0082 with no source activity or provider-adoption claim. Existing authority excludes model calls, prediction/posting changes, rosters, new schedules, credential-route changes and unrelated P1 work.

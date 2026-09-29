@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
     inputs:
       club_elo_validation:
-        description: 'Source-only validation without prediction jobs'
+        description: 'Club Elo validation or continuation probe without prediction jobs'
         type: choice
         default: 'off'
-        options: [off, development, production]
+        options: [off, development, production, continuation]
   schedule:
     - cron: "7 2,9 * * *"
 
@@ -425,7 +425,7 @@ jobs:
       langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
 
   club-elo-validation:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.club_elo_validation != 'off' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && (inputs.club_elo_validation == 'development' || inputs.club_elo_validation == 'production') }}
     permissions:
       contents: read
       actions: read
@@ -434,5 +434,31 @@ jobs:
     with:
       mode: ${{ inputs.club_elo_validation }}
     secrets:
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  club-elo-continuation:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.club_elo_validation == 'continuation' }}
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "pes-squad"
+      competition: "bundesliga-2026-27"
+      trigger_type: "manual"
+      publish_launch_roster_overlay: false
+      enable_club_elo_source: true
+      context_source_only: false
+      context_source_continuation_probe: true
+      context_source_scope: "production-live"
+      context_source_cycle_id: ${{ format('gha:{0}:{1}', github.repository_id, github.run_id) }}
+      context_source_current_lane: "pes-squad-context"
+      context_source_producer_lane: "pes-squad-context"
+      context_source_consumers: "pes-squad-context,schadensfresse-context,relaxdays-tippt-context,arena-sol-xhigh-context,arena-sol-high-context,arena-luna-medium-context,arena-terra-xhigh-context,arena-luna-none-context"
+    secrets:
+      kicktipp_username: ${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}
       firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
       firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}

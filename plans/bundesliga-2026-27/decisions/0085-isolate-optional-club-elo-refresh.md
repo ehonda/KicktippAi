@@ -138,3 +138,9 @@ disabled-head preservation and release gates, and
 [ADR-0084](0084-fence-context-source-issue-creation.md) for release/validation
 sequencing only. All other accepted provisions remain operative, including the
 durable fence and its transaction correctness matrix.
+
+## Subsequent decision
+
+[ADR-0086](0086-bound-live-club-elo-replay-gate.md) removes live replay success
+from the release gate while preserving this decision's controlled optional
+refresh failure and ordinary-continuation requirement.

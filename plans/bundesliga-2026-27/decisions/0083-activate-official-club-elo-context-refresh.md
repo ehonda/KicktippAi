@@ -433,3 +433,10 @@ guard/fence/order/recovery invariants and all non-Club-Elo exclusions remain
 operative. This does not change schema/journal, R1/roster deferral, production
 topology/models/prompts/credential/posting/copy contracts or future incident
 recovery authority.
+
+## Subsequent decision
+
+[ADR-0086](0086-bound-live-club-elo-replay-gate.md) removes live GitHub rerun
+success as an activation prerequisite after the failed L7 replay. Its narrower
+gate retains fail-closed replay behavior and the required ordinary-continuation
+proof; all other provisions here remain operative.

@@ -25,18 +25,32 @@ public class ContextCollectionWorkflowContractTests
     }
 
     [Test]
-    public async Task Validation_dispatch_is_mutually_exclusive_with_all_sixteen_normal_jobs_and_has_no_model_secrets()
+    public async Task Validation_and_continuation_dispatches_are_mutually_exclusive_with_normal_jobs_and_have_no_model_secrets()
     {
         var outer = await ReadWorkflow("buli2627-production-live-matchday.yml");
-        await Assert.That(Regex.Matches(outer, @"(?m)^    uses: \./\.github/workflows/base-context-collection.yml$").Count).IsEqualTo(8);
-        await Assert.That(Regex.Matches(outer, @"(?m)^      enable_club_elo_source: false$").Count).IsEqualTo(8);
+        await Assert.That(Regex.Matches(outer, @"(?m)^    uses: \./\.github/workflows/base-context-collection.yml\r?$").Count).IsEqualTo(9);
+        await Assert.That(Regex.Matches(outer, @"(?m)^      enable_club_elo_source: false\r?$").Count).IsEqualTo(8);
         await Assert.That(outer).Contains("github.event_name != 'workflow_dispatch' || inputs.club_elo_validation == 'off'")
-            .And.Contains("github.event_name == 'workflow_dispatch' && inputs.club_elo_validation != 'off'")
+            .And.Contains("github.event_name == 'workflow_dispatch' && (inputs.club_elo_validation == 'development' || inputs.club_elo_validation == 'production')")
+            .And.Contains("github.event_name == 'workflow_dispatch' && inputs.club_elo_validation == 'continuation'")
             .And.Contains("cron: \"7 2,9 * * *\"").And.Contains("cancel-in-progress: false").And.DoesNotContain("always(");
+        var continuation = Regex.Match(outer, @"(?ms)^  club-elo-continuation:\r?\n(?<body>.*)\z").Groups["body"].Value;
+        await Assert.That(continuation).Contains("uses: ./.github/workflows/base-context-collection.yml")
+            .And.Contains("enable_club_elo_source: true")
+            .And.Contains("context_source_only: false")
+            .And.Contains("context_source_continuation_probe: true")
+            .And.Contains("community_context: \"pes-squad\"")
+            .And.Contains("context_source_scope: \"production-live\"")
+            .And.DoesNotContain("base-matchday-predictions.yml")
+            .And.DoesNotContain("openai_api_key").And.DoesNotContain("langfuse_secret_key");
+        var baseWorkflow = await ReadWorkflow("base-context-collection.yml");
+        await Assert.That(baseWorkflow).Contains("if [[ \"$CONTINUATION_PROBE\" == true && ( \"$GITHUB_EVENT_NAME\" != workflow_dispatch")
+            .And.Contains("\"$SOURCE_ENABLED\" != true || \"$SOURCE_ONLY\" == true || \"$SCOPE\" != production-live || \"$COMMUNITY\" != pes-squad || \"$LANE\" != pes-squad-context")
+            .And.Contains("scope: ${{ inputs.context_source_continuation_probe && 'continuation-probe-invalid' || inputs.context_source_scope }}");
         var validation = await ReadWorkflow("buli2627-club-elo-validation.yml");
         await Assert.That(validation).DoesNotContain("openai").And.DoesNotContain("langfuse").And.DoesNotContain("kicktipp_")
             .And.DoesNotContain("schedule:").And.DoesNotContain("workflow_dispatch:").And.DoesNotContain("predictions.yml");
-        await Assert.That(Regex.Matches(validation, @"(?m)^      context_source_only: true$").Count).IsEqualTo(9);
+        await Assert.That(Regex.Matches(validation, @"(?m)^      context_source_only: true\r?$").Count).IsEqualTo(9);
         for (var index = 1; index < BundesligaContextSourceContract.ProductionConsumers.Count; index++)
             await Assert.That(validation).Contains($"needs: {BundesligaContextSourceContract.ProductionConsumers[index - 1]}");
     }

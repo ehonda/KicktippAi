@@ -1,19 +1,19 @@
 # P1-04 — Activate official Club Elo context refresh
 
-- Status: In progress; ADR-0085 continuity contract accepted; runtime/live/activation gates pending
-- Last reconciled: 2026-09-27
-- Depends on: [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
+- Status: In progress; flags-off v2 runtime merged, production source-only acceptance/retention observed, controlled ordinary continuation and A2 pending
+- Last reconciled: 2026-09-29
+- Depends on: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md), [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
 
 ## Outcome and milestones
 
-Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. Main remains source-disabled; accepted dormant C3/E1 and D0 documentation do not implement this isolation.
+Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. A controlled normal-job failure/ordinary-success proof is still required before activation.
 
 - [x] D0: prior accepted durable-fence documentation.
-- [ ] Reviewed ADR-0085 successor-document milestone.
-- [ ] Concrete finite transport/security corrections and F2 durable fence with ADR-0084 real-transaction correctness matrix.
-- [ ] Source-only profile/development request and early authorization; optional workflow boundary and strict retained-head preservation.
-- [ ] Focused regressions, one coherent solution build, fresh acceptance and exact-head required CI.
-- [ ] Existing bounded development/branch-production accepting, later retention/rejection and same-run replay evidence.
+- [x] Reviewed ADR-0085 successor-document milestone.
+- [x] Concrete finite transport/security corrections and F2 durable fence with ADR-0084 real-transaction correctness matrix.
+- [x] Source-only profile/development request and early authorization; optional workflow boundary and strict retained-head preservation.
+- [x] Focused regressions, one coherent solution build, fresh acceptance and exact-head required CI for the flags-off runtime.
+- [x] Branch Actions development/production accepting and later retention/rejection evidence; the failed replay is recorded under ADR-0086 without success credit.
 - [ ] Controlled refresh failure with verified old Elo and required ordinary continuation; no prediction authority from this proof.
 - [ ] A2: reviewed atomic all-eight source activation.
 - [ ] Closeout/merge, Pages and next existing scheduled-run observation.
@@ -52,9 +52,12 @@ physical heads, never eight. Each lane selection and receipt is independent.
 6. Dispatch branch Actions production source-only validation: one immutable
    artifact, an eligible advance for at least one lagging target, eight ordered
    receipts, four heads, health and desired issue reconciliation.
-7. Run a distinct later production cycle and same-run replay; no fabricated
-   `Unchanged`, reacquisition, reupload, head or health change is acceptable.
-8. Prove controlled refresh failure preserves verified old Elo and executable
+7. Run a distinct later production cycle; no fabricated `Unchanged`,
+   reacquisition, reupload, head or health change is acceptable. Record the
+   failed cross-attempt replay and its absent artifact under ADR-0086; live
+   rerun success is no longer an activation prerequisite.
+8. Prove controlled refresh failure preserves verified old Elo provenance,
+   payloads and receipts while permitting executable
    ordinary collection; then change all eight normal source flags atomically
    and obtain fresh final
    review, exact-head CI, merge and post-merge main/Pages/source-only/schedule

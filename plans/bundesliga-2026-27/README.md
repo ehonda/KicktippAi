@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 implementation plan
 
-- Program state: P0 complete; P1-04 in progress under accepted ADR-0085 continuity contract; runtime/live gates pending; P1-05/R1 dormant and deferred
-- Last reconciled: 2026-09-27
+- Program state: P0 complete; P1-04 flags-off runtime merged and live source-only acceptance/retention observed, ordinary-continuation proof and activation pending; P1-05/R1 dormant and deferred
+- Last reconciled: 2026-09-29
 - Current policy: [execution strategy](execution-strategy.md)
 
 Production continuity is unchanged while the activation gates run: the existing
@@ -13,11 +13,11 @@ excluded.
 
 | Lane | State | Next gate |
 | --- | --- | --- |
-| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; ADR-0085 accepted intent, isolation not implemented | Review successor documents |
-| Transport/security and [F2](tasks/p1-04-issue-create-fence.md) | Acceptance pending | Concrete defect regressions and real-transaction fence matrix |
-| Source-only/workflow/head preservation | Not implemented | Accepted transport/security/F2 candidate |
-| Focused validation and exact-head CI | Pending | One coherent build, focused seam matrices and required runner project checks |
-| Live validation, A2 and closeout | Not implemented | Bounded accepting/retention/rejection/replay plus controlled refresh failure and ordinary continuation, then all-eight enable and reviewed closeout/merge/monitoring |
+| [P1-04](tasks/p1-04-club-elo-refresh.md) | In progress; flags-off v2 runtime merged in PR #116 | Controlled refresh-failure/ordinary-continuation proof |
+| Transport/security and [F2](tasks/p1-04-issue-create-fence.md) | Accepted in the flags-off runtime | Monitor actual operation |
+| Source-only/workflow/head preservation | Implemented with eight normal source flags false | Normal continuation probe |
+| Focused validation and exact-head CI | Passed for flags-off runtime and main merge | Fresh exact-head CI for later probe and activation commits |
+| Live validation, A2 and closeout | Production source-only acceptance and distinct retention/rejection observed; L7 GitHub replay failed closed | ADR-0086 removes live rerun success as an A2 prerequisite; prove ordinary continuation, then review/CI and enable all eight flags |
 | [P1-05](tasks/p1-05-roster-refresh.md) | Deferred under ADR-0082 | Exact ADR-0079 sidecar and separate future owner gates |
 
 Merged PR #111 is prior dormant C3/E1 implementation evidence. It does not
@@ -32,7 +32,7 @@ The operative source decisions are [ADR-0074](decisions/0074-freeze-context-sour
 [ADR-0082](decisions/0082-close-dormant-roster-refresh-scope-with-r1-deferred.md),
 [ADR-0083](decisions/0083-activate-official-club-elo-context-refresh.md), and
 [ADR-0084](decisions/0084-fence-context-source-issue-creation.md).
-[ADR-0085](decisions/0085-isolate-optional-club-elo-refresh.md) is the current partial successor for source-only execution, optional production refresh, verified head retention and finite release gates. ADR-0083/0084 retain their other invariants, including F2's durable issue fence and real-transaction correctness matrix. Historical timeout causation is uncertain and the runtime audit is parked. Historical 54 reds remain failed evidence; concrete product/security defects still block release. CT correction 1/1 and diagnostic execution 1/1 remain spent.
+[ADR-0085](decisions/0085-isolate-optional-club-elo-refresh.md) governs source-only execution, optional production refresh and verified head retention. [ADR-0086](decisions/0086-bound-live-club-elo-replay-gate.md) narrows the live replay gate after the observed artifact loss while retaining fail-closed behavior and the required ordinary-continuation proof. ADR-0083/0084 retain their other invariants, including F2's durable issue fence. Historical timeout causation is uncertain and its runtime audit is parked.
 
 ## Authority, targets and gates
 
@@ -46,7 +46,7 @@ Eight receipt lanes target four physical community heads: `pes-squad`,
 `schadensfresse`, `relaxdays-tippt`, and the shared `ehonda-ai-arena` context
 for its five distinct arena receipts. The fixed lane order and evidence recipe
 are in [P1-04](tasks/p1-04-club-elo-refresh.md). Source flags are false until
-A2. Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. No current runtime isolation or live result is credited.
+A2. Optional Node setup (two minutes) and refresh (five minutes) must continue on error; enabled normal jobs allow 52 minutes, disabled jobs 45, then required ordinary source-off collection runs under normal success semantics. Source-only validation is required and cannot false-pass. Verified heads retain dates/provenance/receipt/watermark without republication; corrupt heads fail. Runtime isolation is implemented, but the controlled live normal-job continuation proof remains pending.
 
 P1-05 is `MetadataUnavailable` pending its exact sidecar. It performs no
 sidecar/artifact probe and has no provider resolution, observation, receipt,
