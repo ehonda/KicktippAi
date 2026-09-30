@@ -1,7 +1,7 @@
 # P1-04 operational activation evidence
 
-- Status: In progress; all eight normal production source flags enabled on main, first scheduled observation pending.
-- Recorded: 2026-09-29.
+- Status: Complete; all eight normal production source flags enabled and first scheduled observation verified.
+- Recorded: 2026-09-30.
 - Operative gate: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md) with ADR-0085's ordinary-continuation requirement.
 
 ## Verified live evidence
@@ -21,10 +21,18 @@
 
 The detailed Firestore hashes, receipts, logs, and before/after comparisons remain in ignored local run evidence under `.tmp/orchestration/01a0a211-c4bc-7941-86f9-37dfba1da3fa/evidence/`. The accepted production artifact `10994562013` was still available on 2026-09-29. GitHub's `actions/upload-artifact` project has an [open report](https://github.com/actions/upload-artifact/issues/585) matching the earlier-attempt artifact disappearance; exact causation here is unproved.
 
-## Remaining gates
+## First activated scheduled observation
+
+[Run 36660403067](https://github.com/ehonda/KicktippAi/actions/runs/36660403067) began at 2026-09-30 02:33 UTC on main `ebe88ebb`. All eight context jobs and all eight dependent match jobs succeeded. Each context job logged optional setup `success`, optional refresh `success`, and required ordinary collection `success`. The completed production cycle `gha:1014027212:36660403067` stored eight ordered `NetworkCandidateRejected`/`NotAttempted` receipts, all selecting retained snapshot `67acdd1b00a4a003c7ac2fd8f332917ff60e68e1a78186d293f686ed38b39f9c`. All four community heads still select it; 76/76 payload hashes validated. The source date remains 2026-09-24, with original official provenance from the accepted cycle. No new Elo publication is claimed.
+
+At 2026-09-30 09:01 UTC, health referenced this cycle with eight selections, last successful rated date 2026-09-24, acquisition failures `3`, and active conditions `ACQUISITION_FAILED` and `CLUB_ELO_SOURCE_REJECTED`. Desired issue was `Open/Synchronized`; its durable fence was `Bound`. The operational issue remains visible while ordinary production completed. The detailed read-only audit and masked job log are in the ignored local evidence directory above.
+
+For each head, the read-only audit retrieved the snapshot manifest and its 19 persisted context/KPI documents, recomputed SHA-256 from each document's UTF-8 content, compared it with the manifest hash, and checked document scope. It exited successfully for all four communities, yielding 76 validated payloads. The audit code and four resulting JSON proof files are retained in that ignored local evidence directory.
+
+## Closeout and monitoring
 
 The independent gate review accepted run `36537325441` for A2 admission. Its job summary records `SOURCE_REFRESH_OUTCOME=failure` and `ORDINARY_OUTCOME=success`. This proves containment for the tested action input error; a runtime network timeout remains an operational monitoring risk under the owner's accepted uncertainty.
 
-1. Inspect the next existing schedule after activation and report optional refresh degradation separately from ordinary failures. Verify required ordinary context and its dependent match jobs, selected head dates/provenance, receipts, health, and desired issue state. Roll back by a reviewed all-eight flags-off commit if needed.
+The first activated schedule satisfied the remaining observation gate. It had successful optional steps; source rejection was an application outcome because no newer rated date was accepted. The controlled optional-step failure remains the separate continuation proof. Continue to monitor future schedules for source degradation and ordinary failures separately. If a later refresh error interrupts ordinary production, recover with a reviewed all-eight flags-off commit while retaining verified heads.
 
 Live GitHub rerun success is no longer an A2 prerequisite under ADR-0086. The failed attempt remains a recorded recovery limit.
