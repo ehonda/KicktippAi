@@ -1,12 +1,14 @@
 # P1-04 — Activate official Club Elo context refresh
 
-- Status: In progress; all-eight activation merged in PR #124, postmerge source-only retention verified, first scheduled observation pending
-- Last reconciled: 2026-09-29
+- Status: Complete; all eight normal source lanes activated and first scheduled production run verified
+- Last reconciled: 2026-09-30
 - Depends on: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md), [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)
 
 ## Outcome and milestones
 
-Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. Controlled run `36537325441` proved optional failure with successful ordinary context collection and unchanged verified Elo. PR #124 then enabled all eight normal flags; exact-head and main CI passed. Postmerge source-only run `36577026768` passed all eight lanes with the 2026-09-24 verified head retained. The first scheduled ordinary-chain observation remains.
+First activated schedule [36660403067](https://github.com/ehonda/KicktippAi/actions/runs/36660403067) completed on main `ebe88ebb` on 2026-09-30. All eight optional setup/refresh steps, all eight required ordinary context jobs, and all eight dependent match jobs succeeded. The completed production cycle stored eight rejected-candidate/no-publication receipts; the official rated date had not advanced beyond 2026-09-24. Four community heads retained the accepted snapshot and all 76 payload hashes validated. Health and desired issue reconciliation are recorded in the [activation evidence](../evidence/p1-04-operational-activation.md). This schedule did not exercise an optional step failure; controlled run `36537325441` remains that proof.
+
+Optional refresh failure must permit required ordinary production context collection with verified retained Elo. Existing ordinary failures still stop dependents. PR #116 merged the v2-compatible reader on main with all eight normal source flags false; exact main CI passed. Run `36478629294` accepted one official production observation and produced eight receipts/four heads, and run `36481153403` safely retained them after source rejection. Its attempt-2 replay failed when the original artifact became unavailable. ADR-0086 records that failed gate and removes live rerun success as an A2 prerequisite under the owner's bounded-uncertainty instruction. Controlled run `36537325441` proved optional failure with successful ordinary context collection and unchanged verified Elo. PR #124 then enabled all eight normal flags; exact-head and main CI passed. Postmerge source-only run `36577026768` passed all eight lanes with the 2026-09-24 verified head retained. The first activated ordinary chain succeeded in run `36660403067`; see the closeout evidence above.
 
 - [x] D0: prior accepted durable-fence documentation.
 - [x] Reviewed ADR-0085 successor-document milestone.
@@ -17,7 +19,7 @@ Optional refresh failure must permit required ordinary production context collec
 - [x] Controlled optional refresh failure in run `36537325441` with verified old Elo and successful required ordinary continuation; no prediction authority from this proof.
 - [x] A2: reviewed atomic all-eight source activation in PR #124 with exact-head CI.
 - [x] Merge, main CI, Pages publication, and postmerge eight-lane source-only validation.
-- [ ] Inspect the next existing scheduled run's optional refresh and ordinary context-to-match chain.
+- [x] Inspect the first activated scheduled run's optional refresh and ordinary context-to-match chain (`36660403067`).
 
 This ordered graph replaces the serial local timeout/confirmation program. Newly found product/security defects remain blockers. Historical 54 reds (P4/H12/Z31/Docker7) stay failed evidence; no xfail/flake waiver or pass is implied. CT correction 1/1 and diagnostic execution 1/1 remain spent. Runtime/concurrency audit is parked and historical timeout cause remains uncertain. P1-05/R1 stays deferred.
 
