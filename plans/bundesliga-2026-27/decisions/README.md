@@ -89,7 +89,7 @@ remain authoritative.
 | [0081](0081-close-club-elo-html-publication-and-selection-seams.md) | Close Club Elo HTML publication and selection seams | Accepted; specified portions superseded/refined by ADR-0083 |
 | [0082](0082-close-dormant-roster-refresh-scope-with-r1-deferred.md) | Close the dormant roster-refresh scope with R1 deferred | Accepted; dormant closeout complete, R1 deferred |
 | [0083](0083-activate-official-club-elo-context-refresh.md) | Activate official Club Elo context refresh | Accepted; issue boundary and release graph partially succeeded by ADR-0084 |
-| [0084](0084-fence-context-source-issue-creation.md) | Fence context-source issue creation | Accepted; D0 documented, F2 pending |
+| [0084](0084-fence-context-source-issue-creation.md) | Fence context-source issue creation | Accepted; D0 documented, F2 accepted in flags-off runtime |
 | [0085](0085-isolate-optional-club-elo-refresh.md) | Isolate optional Club Elo refresh; finite release gates | Accepted; partially succeeded by ADR-0086 |
 | [0086](0086-bound-live-club-elo-replay-gate.md) | Bound live Club Elo replay evidence after GitHub artifact loss | Accepted; partial successor to ADR-0083/0085 |
 
