@@ -300,7 +300,7 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
 
     private static BundesligaClubEloRefresh.Row? ParseCurrentFragment(string fragment, string elo)
     {
-        const string pattern = "\\A[ \\t\\r\\n]*<td[ \\t\\r\\n]+class=(?<tdq>[\"'])l\\k<tdq>>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?<gerq>[\"'])/GER\\k<gerq>>[ \\t\\r\\n]*<img[ \\t\\r\\n]+src=(?<srcq>[\"'])/static/flags/deu\\.png\\k<srcq>[ \\t\\r\\n]+alt=(?<altq>[\"'])GER\\k<altq>[ \\t\\r\\n]+style=(?<styleq>[\"'])width:20px; opacity:0\\.8;\\k<styleq>[ \\t\\r\\n]*/?>[ \\t\\r\\n]*</a>[ \\t\\r\\n]*<small>(?<rank>[^<&]*)</small>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?<routeq>[\"'])/(?<route>[A-Za-z0-9][A-Za-z0-9-]{0,127})\\k<routeq>>(?<name>[^<&]+)<span[ \\t\\r\\n]+class=(?<spanq>[\"'])min481\\k<spanq>></span></a>[ \\t\\r\\n]*</td>[ \\t\\r\\n]*\\z";
+        const string pattern = "\\A[ \\t\\r\\n]*<td[ \\t\\r\\n]+class=(?<tdq>[\"'])l\\k<tdq>>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?<gerq>[\"'])/GER\\k<gerq>>[ \\t\\r\\n]*<img[ \\t\\r\\n]+(?:loading=(?<loadingq>[\"'])lazy\\k<loadingq>[ \\t\\r\\n]+decoding=(?<decodingq>[\"'])async\\k<decodingq>[ \\t\\r\\n]+)?src=(?<srcq>[\"'])(?:/static/flags/deu\\.png|https://flerobinaries\\.lon1\\.cdn\\.digitaloceanspaces\\.com/static/flags/deu\\.png)\\k<srcq>[ \\t\\r\\n]+alt=(?<altq>[\"'])GER\\k<altq>[ \\t\\r\\n]+style=(?<styleq>[\"'])width:20px; opacity:0\\.8;\\k<styleq>[ \\t\\r\\n]*/?>[ \\t\\r\\n]*</a>[ \\t\\r\\n]*<small>(?<rank>[^<&]*)</small>[ \\t\\r\\n]*<a[ \\t\\r\\n]+href=(?<routeq>[\"'])/(?<route>[A-Za-z0-9][A-Za-z0-9-]{0,127})\\k<routeq>>(?<name>[^<&]+)<span[ \\t\\r\\n]+class=(?<spanq>[\"'])min481\\k<spanq>></span></a>[ \\t\\r\\n]*</td>[ \\t\\r\\n]*\\z";
         if (fragment.Contains('&') || !Regex.IsMatch(fragment, pattern, RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1))) return null;
 
         var parser = new HtmlParser(new HtmlParserOptions { IsScripting = false, IsStrictMode = true });
@@ -318,7 +318,7 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
             var club = td.Children[2];
             if (!ExactAttributes(federation, ("href", "/GER")) || federation.ChildNodes.Length != 1
                 || federation.Children.Length != 1 || federation.Children[0].LocalName != "img"
-                || !ExactAttributes(federation.Children[0], ("src", "/static/flags/deu.png"), ("alt", "GER"), ("style", "width:20px; opacity:0.8;"))
+                || !AcceptedGermanFlagAttributes(federation.Children[0])
                 || !ExactAttributes(rankCell) || rankCell.ChildNodes.Length != 1 || rankCell.ChildNodes[0] is not IText rankText
                 || !ExactAttributes(club, ("href", club.GetAttribute("href") ?? "")) || club.ChildNodes.Length != 2
                 || club.ChildNodes[0] is not IText nameText || club.Children.Length != 1 || club.Children[0].LocalName != "span"
@@ -333,6 +333,13 @@ public sealed class BundesligaClubEloRefreshSource : IBundesligaContextSourceObs
         }
         catch (HtmlParseException) { return null; }
     }
+
+    // These are inert text checks: the parser never loads either image resource.
+    private static bool AcceptedGermanFlagAttributes(IElement image)
+        => ExactAttributes(image, ("src", "/static/flags/deu.png"), ("alt", "GER"), ("style", "width:20px; opacity:0.8;"))
+            || ExactAttributes(image, ("loading", "lazy"), ("decoding", "async"),
+                ("src", "https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png"),
+                ("alt", "GER"), ("style", "width:20px; opacity:0.8;"));
 
     private static bool ExactAttributes(IElement element, params (string Name, string Value)[] expected)
         => element.Attributes.Length == expected.Length && element.Attributes.Select(attribute => (attribute.Name, attribute.Value)).SequenceEqual(expected);

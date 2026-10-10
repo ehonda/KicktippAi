@@ -107,6 +107,63 @@ public class BundesligaClubEloRefreshSourceTests
     }
 
     [Test]
+    public async Task Official_cdn_flag_markup_accepts_the_same_complete_ratings_and_binds_the_raw_payload()
+    {
+        var html = CdnFlagFixture();
+        var result = await ObserveCurrent(html);
+        await Assert.That(Evaluation(result)).IsEqualTo("Eligible");
+        result.Validate();
+        await Assert.That(result.PayloadBytes).IsEquivalentTo(Encoding.UTF8.GetBytes(html));
+        using var descriptor = JsonDocument.Parse(result.Observation.DescriptorJson);
+        var rows = descriptor.RootElement.GetProperty("sourceRows").EnumerateArray().ToArray();
+        await Assert.That(rows.Length).IsEqualTo(18);
+        await Assert.That(descriptor.RootElement.GetProperty("displayedDate").GetString()).IsEqualTo("2026-09-15");
+        await Assert.That(descriptor.RootElement.GetProperty("rawSha256").GetString())
+            .IsEqualTo(BundesligaContextSourceHashing.Sha256(Encoding.UTF8.GetBytes(html)));
+        var bayern = rows.Single(row => row.GetProperty("teamSlug").GetString() == "fcb");
+        await Assert.That(bayern.GetProperty("globalRank").GetInt32()).IsEqualTo(1);
+        await Assert.That(bayern.GetProperty("elo").GetInt32()).IsEqualTo(2046);
+    }
+
+    [Test]
+    public async Task Official_cdn_flag_markup_accepts_single_quotes_whitespace_and_void_image_syntax()
+    {
+        var html = CdnFlagFixture().Replace(
+            "<img loading=\"lazy\" decoding=\"async\" src=\"https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png\" alt=\"GER\"  style=\"width:20px; opacity:0.8;\">",
+            "<img loading=\\'lazy\\'\\tdecoding=\\'async\\' src=\\'https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png\\' alt=\\'GER\\' style=\\'width:20px; opacity:0.8;\\' />",
+            StringComparison.Ordinal);
+        await Assert.That(html).Contains("loading=\\'lazy\\'");
+        await Assert.That(Evaluation(await ObserveCurrent(html))).IsEqualTo("Eligible");
+    }
+
+    [Test]
+    [Arguments("https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png", "https://evil.invalid/static/flags/deu.png")]
+    [Arguments("https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png", "https://flerobinaries.lon1.cdn.digitaloceanspaces.com.evil.invalid/static/flags/deu.png")]
+    [Arguments("https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png", "http://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png")]
+    [Arguments("/static/flags/deu.png", "/static/flags/deu.png?x=1")]
+    [Arguments("loading=\"lazy\"", "loading=\"eager\"")]
+    [Arguments("decoding=\"async\"", "decoding=\"sync\"")]
+    [Arguments("loading=\"lazy\" decoding=\"async\" ", "")]
+    [Arguments("https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png", "/static/flags/deu.png")]
+    [Arguments("loading=\"lazy\"", "loading=\"lazy\" onerror=\"alert(1)\"")]
+    [Arguments("loading=\"lazy\"", "loading=\"lazy\" loading=\"lazy\"")]
+    [Arguments("<img loading=", "<img srcset=\"/evil.png\" loading=")]
+    [Arguments("alt=\"GER\"", "alt=\"DEU\"")]
+    [Arguments("style=\"width:20px; opacity:0.8;\"", "style=\"width:21px; opacity:0.8;\"")]
+    public async Task Official_cdn_flag_markup_rejects_url_and_attribute_mutations(string find, string replacement)
+    {
+        var html = CdnFlagFixture();
+        await Assert.That(html).Contains(find);
+        await Assert.That(Evaluation(await ObserveCurrent(html.Replace(find, replacement, StringComparison.Ordinal))))
+            .IsEqualTo("FragmentRejected");
+    }
+
+    private static string CdnFlagFixture() => Fixture("current-official-2026-09-15.html").Replace(
+        "<img src=\"/static/flags/deu.png\"",
+        "<img loading=\"lazy\" decoding=\"async\" src=\"https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png\"",
+        StringComparison.Ordinal);
+
+    [Test]
     [Arguments("style=\"width:20px; opacity:0.8;\"", "style=\"width:21px; opacity:0.8;\"", "FragmentRejected")]
     [Arguments("alt=\"GER\"", "alt=\"DEU\"", "FragmentRejected")]
     [Arguments("<span class=\"min481\"></span>", "<span class=\"min481\">x</span>", "FragmentRejected")]
