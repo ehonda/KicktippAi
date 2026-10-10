@@ -410,7 +410,12 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
             {
                 var publicationScope = new DocumentPublicationScope(request.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
                 var publicationHead = await transaction.GetSnapshotAsync(PublicationHeadReference(publicationScope));
-                if (health.LastCompletedCycleId is null)
+                if (await HasCommittedClubEloPublicationAsync(transaction, request, publicationScope, health))
+                {
+                    // A prior arena lane, or a superseded incomplete cycle, already committed
+                    // this exact publication and receipt. It is now this lane's verified LKG.
+                }
+                else if (health.LastCompletedCycleId is null)
                 {
                     if (health.CommunitySelections.Count != 0 || health.LastSuccessfulSourceDates.RatedAt is not null)
                         throw new InvalidDataException("STATE_CONFLICT");
@@ -832,6 +837,76 @@ public sealed class FirebaseContextSourceCycleRepository : IBundesligaContextSou
         }
         if (head.SnapshotId != expectedSnapshotId) throw new InvalidDataException("STATE_CONFLICT");
     }
+    private async Task<bool> HasCommittedClubEloPublicationAsync(Transaction transaction,
+        BundesligaContextSourceReceiptRequest request, DocumentPublicationScope scope,
+        BundesligaContextSourceHealth health)
+    {
+        // Keep the established completed-cycle authority path, including its strict checks.
+        if (health.CommunitySelections.Any(selection => selection.ConsumerLaneId == request.ConsumerLaneId
+            && selection.SelectedSnapshotId == request.SelectedSnapshotId
+            && selection.RatedAt == request.SourceDates.RatedAt)) return false;
+        var publications = new FirebaseDocumentPublicationRepository(_db,
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<FirebaseDocumentPublicationRepository>.Instance,
+            request.Identity.Competition);
+        var loaded = await publications.LoadSnapshotAsync(transaction, scope,
+            BundesligaDocumentPublication.ClubElo, request.SelectedSnapshotId);
+        if (loaded is null) return false;
+        var retained = BundesligaClubEloPublication.ReconstructLastKnownGood(loaded);
+        using var metadata = JsonDocument.Parse(loaded.Snapshot.MetadataJson);
+        if (!metadata.RootElement.TryGetProperty("cycle_id", out var cycleId)) return false;
+        var publishedIdentity = BundesligaContextSourceCycleIdentity.FromCycleId(
+            request.Identity.Competition, request.Identity.Scope, cycleId.GetString()!);
+        var baseline = health.LastCompletedCycleId is null ? (long?)null
+            : BundesligaContextSourceCycleIdentity.FromCycleId(request.Identity.Competition,
+                request.Identity.Scope, health.LastCompletedCycleId).Sequence;
+        if (request.SelectedOrigin != BundesligaContextSourceSelectedOrigin.LastKnownGood
+            || retained.RatedAt != request.SourceDates.RatedAt
+            || publishedIdentity.Sequence > request.Identity.Sequence
+            || (baseline is { } completed && publishedIdentity.Sequence <= completed)) return false;
+        var publishedOuter = ParseCycle(await transaction.GetSnapshotAsync(CycleReference(publishedIdentity)), publishedIdentity);
+        if (!publishedOuter.EnabledSources.Contains(BundesligaContextSource.ClubElo)
+            || publishedOuter.BundleSha256 is null
+            || (publishedOuter.Status is not (BundesligaContextSourceCycleStatus.HandoffReady or BundesligaContextSourceCycleStatus.Complete)
+                && !(publishedOuter.Status == BundesligaContextSourceCycleStatus.Aborted
+                    && publishedOuter.AbortCode == BundesligaContextSourceError.SupersededIncompleteCycle))) return false;
+        var publishedSource = ParseSource(await transaction.GetSnapshotAsync(SourceReference(publishedIdentity,
+            BundesligaContextSource.ClubElo)), publishedIdentity, BundesligaContextSource.ClubElo, publishedOuter.ExpectedConsumers);
+        if (publishedOuter.Status == BundesligaContextSourceCycleStatus.Aborted
+            ? publishedSource.Status != BundesligaContextSourceSourceStatus.Complete
+                && !(publishedSource.Status == BundesligaContextSourceSourceStatus.Aborted
+                    && publishedSource.AbortCode == BundesligaContextSourceError.SupersededIncompleteCycle)
+            : publishedSource.Status is not (BundesligaContextSourceSourceStatus.Finalized or BundesligaContextSourceSourceStatus.Complete)) return false;
+        if (publishedSource.Observation is not { Disposition: BundesligaContextSourceDisposition.ArtifactCaptured } observation
+            || publishedSource.FinalizedAtUtc is null
+            || !IsHtmlClubEloObservation(observation)
+            || metadata.RootElement.GetProperty("attempt_id").GetString() != observation.AttemptId
+            || metadata.RootElement.GetProperty("source_observed_at").GetString()
+                != BundesligaContextSourceContract.FormatUtc(observation.ObservedAtUtc)
+            || metadata.RootElement.GetProperty("sourceDescriptorSha256").GetString() != observation.DescriptorSha256) return false;
+        if (publishedIdentity == request.Identity
+            && (publishedOuter.BundleSha256 != request.BundleDigest
+                || publishedSource.ObservationDigest != request.ObservationDigest)) return false;
+        foreach (var lane in publishedSource.ReceivedConsumers)
+        {
+            var committed = ParseReceipt(await transaction.GetSnapshotAsync(ReceiptReference(publishedIdentity,
+                BundesligaContextSource.ClubElo, lane)), publishedIdentity, BundesligaContextSource.ClubElo, lane).Request;
+            if (committed.CommunityContext != request.CommunityContext
+                || committed.SelectedSnapshotId != request.SelectedSnapshotId
+                || committed.SourceDates.RatedAt != request.SourceDates.RatedAt
+                || committed.SelectedOrigin != BundesligaContextSourceSelectedOrigin.NetworkCandidate
+                || committed.SelectionDisposition != BundesligaContextSourceSelectionDisposition.NetworkAccepted
+                || committed.PublicationDisposition is not (BundesligaContextSourcePublicationDisposition.Published
+                    or BundesligaContextSourcePublicationDisposition.Unchanged or BundesligaContextSourcePublicationDisposition.Reactivated)) continue;
+            if (committed.BundleDigest != publishedOuter.BundleSha256
+                || committed.ObservationDigest != publishedSource.ObservationDigest) throw new InvalidDataException("STATE_CONFLICT");
+            BundesligaContextSourceReceiptContract.ValidateAgainstObservation(committed, observation);
+            BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(committed,
+                DateOnly.FromDateTime(publishedOuter.StalenessReferenceAtUtc.UtcDateTime));
+            return true;
+        }
+        return false;
+    }
+
     private static bool IsHtmlClubEloObservation(BundesligaContextSourceObservation observation)
     {
         using var document = JsonDocument.Parse(observation.DescriptorJson);

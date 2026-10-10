@@ -1,6 +1,6 @@
 # ADR-0081: Close Club Elo HTML publication and selection seams
 
-- Status: Accepted
+- Status: Superseded for Club Elo `NotNewer` health by [ADR-0087](0087-validate-retained-club-elo-publications-and-no-change-health.md); other rules remain operative
 - Implementation: Pending; this decision does not enable a source
 - Date: 2026-09-09
 

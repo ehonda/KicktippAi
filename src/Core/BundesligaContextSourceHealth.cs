@@ -82,6 +82,16 @@ public sealed record BundesligaContextSourceReceiptRequest(
 
 public static class BundesligaContextSourceReceiptContract
 {
+    // NotNewer has passed acquisition, mapping, coverage and freshness. Only
+    // publication is declined; it is a successful refresh that retains current data.
+    public static bool IsClubEloAcquisitionFailure(BundesligaContextSourceObservation observation)
+    {
+        using var descriptor = JsonDocument.Parse(observation.DescriptorJson);
+        return observation.Disposition == BundesligaContextSourceDisposition.Rejected
+            && !(descriptor.RootElement.GetProperty("contract").GetString() == "club-elo-official-html-descriptor/v1"
+                && descriptor.RootElement.GetProperty("evaluation").GetString() == "NotNewer");
+    }
+
     public static void ValidateAgainstObservation(BundesligaContextSourceReceiptRequest receipt, BundesligaContextSourceObservation observation)
     {
         receipt.Validate(); observation.Validate();
@@ -92,7 +102,7 @@ public static class BundesligaContextSourceReceiptContract
         var descriptor = document.RootElement;
         var evaluation = descriptor.GetProperty("evaluation").GetString();
         var acquisitionFailed = receipt.Source == BundesligaContextSource.ClubElo
-            ? observation.Disposition == BundesligaContextSourceDisposition.Rejected
+            ? IsClubEloAcquisitionFailure(observation)
             : evaluation is "MetadataUnavailable" or "MetadataMalformed" or "MetadataRevisionRejected" or "RemoteIdentityUnavailable" or "ArtifactTransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected" or "SchemaRejected";
         if (receipt.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.HandoffIncomplete)
             || receipt.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.CycleAborted)
@@ -255,9 +265,24 @@ public static class BundesligaContextSourceReceiptContract
             || selection.MembershipEffectiveAt != priorReceipt.Request.SourceDates.MembershipEffectiveAt
             || selection.EnrichmentCapturedAt != priorReceipt.Request.SourceDates.EnrichmentCapturedAt)
             throw new InvalidDataException("Health selection does not match its authoritative prior receipt.");
-        ValidateAgainstObservation(priorReceipt.Request, priorObservation);
+        // Historical NotNewer receipts recorded both failure flags. Validate their
+        // exact immutable evidence without allowing those flags on new receipts.
+        using var priorDescriptor = JsonDocument.Parse(priorObservation.DescriptorJson);
+        var legacyNotNewer = priorReceipt.Request.Source == BundesligaContextSource.ClubElo
+            && priorDescriptor.RootElement.GetProperty("contract").GetString() == "club-elo-official-html-descriptor/v1"
+            && priorDescriptor.RootElement.GetProperty("evaluation").GetString() == "NotNewer"
+            && priorReceipt.Request.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.AcquisitionFailed)
+            && priorReceipt.Request.ActiveConditions.Contains(BundesligaContextSourceHealthCondition.ClubEloSourceRejected);
+        var validationRequest = legacyNotNewer ? priorReceipt.Request with
+        {
+            ActiveConditions = priorReceipt.Request.ActiveConditions.Where(condition => condition is not
+                (BundesligaContextSourceHealthCondition.AcquisitionFailed or BundesligaContextSourceHealthCondition.ClubEloSourceRejected)).ToArray()
+        } : priorReceipt.Request;
+        ValidateAgainstObservation(validationRequest, priorObservation);
         ValidateFreshnessConditions(priorReceipt.Request, priorStalenessReferenceDate);
-        var derived = DeriveHealthConditions(priorReceipt.Request, priorObservation, priorStalenessReferenceDate);
+        var derived = DeriveHealthConditions(validationRequest, priorObservation, priorStalenessReferenceDate);
+        if (legacyNotNewer) derived = BundesligaContextSourceHealth.OrderConditions(derived.Concat(
+            [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected]));
         if (!selection.Conditions.SequenceEqual(derived, EqualityComparer<BundesligaContextSourceHealthCondition>.Default))
             throw new InvalidDataException("Health selection conditions do not match the authoritative prior reduction.");
     }
@@ -272,13 +297,13 @@ public static class BundesligaContextSourceReceiptContract
         var evaluation = descriptor.GetProperty("evaluation").GetString()!;
         var conditions = new HashSet<BundesligaContextSourceHealthCondition>();
         var acquisitionFailed = receipt.Source == BundesligaContextSource.ClubElo
-            ? observation.Disposition == BundesligaContextSourceDisposition.Rejected
+            ? IsClubEloAcquisitionFailure(observation)
             : evaluation is "MetadataUnavailable" or "MetadataMalformed" or "MetadataRevisionRejected" or "RemoteIdentityUnavailable" or "ArtifactTransportRejected" or "SizeRejected" or "RemoteDriftRejected" or "HashRejected" or "RevisionRejected" or "SchemaRejected";
         if (acquisitionFailed) conditions.Add(BundesligaContextSourceHealthCondition.AcquisitionFailed);
 
         if (receipt.Source == BundesligaContextSource.ClubElo)
         {
-            if (observation.Disposition == BundesligaContextSourceDisposition.Rejected)
+            if (acquisitionFailed)
                 conditions.Add(BundesligaContextSourceHealthCondition.ClubEloSourceRejected);
             if (stalenessReferenceDate is { } eloReference && receipt.SourceDates.RatedAt is { } ratedAt && eloReference.DayNumber - ratedAt.DayNumber > 7)
                 conditions.Add(BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days);
@@ -565,7 +590,7 @@ public static class BundesligaContextSourceHealthReducer
         foreach (var receipt in receipts) { receipt.Validate(); BundesligaContextSourceReceiptContract.ValidateAgainstObservation(receipt.Request, sourceCycle.Observation!); if (receipt.Request.Identity != cycle.Identity || receipt.Request.Source != sourceCycle.Source || receipt.Request.ObservationDigest != sourceCycle.ObservationDigest || receipt.Request.RosterRevision != advertisedRevision) throw new InvalidDataException("Receipt identity/digest/revision mismatch."); }
         var prior = previous?.ConsecutiveFailures ?? new BundesligaContextSourceFailures(0, 0, 0, 0);
         var evaluation = Evaluation(sourceCycle.Observation!);
-        var acquisitionFailed = sourceCycle.Source == BundesligaContextSource.ClubElo ? sourceCycle.Observation!.Disposition == BundesligaContextSourceDisposition.Rejected : AcquisitionFailures.Contains(evaluation);
+        var acquisitionFailed = sourceCycle.Source == BundesligaContextSource.ClubElo ? BundesligaContextSourceReceiptContract.IsClubEloAcquisitionFailure(sourceCycle.Observation!) : AcquisitionFailures.Contains(evaluation);
         var referenceDate = DateOnly.FromDateTime(cycle.StalenessReferenceAtUtc.UtcDateTime);
         var derivedReceiptConditions = receipts.ToDictionary(
             receipt => receipt.Request.ConsumerLaneId,

@@ -840,7 +840,8 @@ public sealed class FirebaseContextSourceCycleRepositoryTests(FirestoreFixture f
 
         var request = HtmlReceipt(cycle.Identity, observation, bundle, selection,
             BundesligaContextSourceSelectedOrigin.LastKnownGood, BundesligaContextSourcePublicationDisposition.NotAttempted,
-            new DateOnly(2026, 9, 4), [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected]);
+            new DateOnly(2026, 9, 4), selection == BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer
+                ? [] : [BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected]);
         var scope = new DocumentPublicationScope(cycle.Identity.Competition, request.CommunityContext, BundesligaDocumentPublication.ClubEloPublicationSet);
         await fixture.Db.Collection(Heads).Document(DocumentPublicationContract.ComputeHeadId(scope)).SetAsync(new Dictionary<string, object>
         {

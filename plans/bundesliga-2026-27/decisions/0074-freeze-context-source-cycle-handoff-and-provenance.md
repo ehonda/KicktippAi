@@ -1,6 +1,6 @@
 # ADR-0074: Freeze context-source cycles, handoff, health, and successor provenance
 
-- Status: Accepted
+- Status: Superseded for Club Elo `NotNewer` health by [ADR-0087](0087-validate-retained-club-elo-publications-and-no-change-health.md); other rules remain operative
 - Implementation: Not started
 - Date: 2026-09-06
 

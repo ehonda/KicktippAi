@@ -14,6 +14,13 @@ Each first cell is lexically checked before parsing in a new inert tr context. H
 
 ## Evaluation and evidence
 
+[ADR-0087](../../plans/bundesliga-2026-27/decisions/0087-validate-retained-club-elo-publications-and-no-change-health.md)
+allows a retained head to use its exact committed publication receipt from an
+earlier shared lane or superseded incomplete cycle. The transaction reconstructs
+the full publication and binds it to its source evidence before recording a new
+receipt. Canonical `NotNewer` retains data without acquisition-failure health
+conditions; historical receipts remain immutable and valid prior evidence.
+
 The German flag image admits two exact inert attribute sequences: the original
 `src="/static/flags/deu.png"`, `alt="GER"`, fixed style sequence; and the CDN
 sequence observed on 2026-10-10 with `loading="lazy"`, `decoding="async"`,

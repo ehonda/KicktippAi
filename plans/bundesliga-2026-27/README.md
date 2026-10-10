@@ -2,6 +2,7 @@
 
 - Program state: P0 complete; P1-04 activation complete; first scheduled production chain verified; P1-05/R1 dormant and deferred
 - Last reconciled: 2026-09-30
+- Operational correction: [ADR-0087](decisions/0087-validate-retained-club-elo-publications-and-no-change-health.md) governs committed shared-head retention and successful `NotNewer` health.
 - Current policy: [execution strategy](execution-strategy.md)
 
 Outside the enabled Club Elo source flags, production routing remains unchanged:
