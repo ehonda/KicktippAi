@@ -1,5 +1,9 @@
 # P1-04 — Activate official Club Elo context refresh
 
+Operational correction: [ADR-0087](../decisions/0087-validate-retained-club-elo-publications-and-no-change-health.md)
+governs retention of committed shared-head publications and successful no-change
+health, with compatibility for historical immutable receipts.
+
 - Status: Complete; all eight normal source lanes activated and first scheduled production run verified
 - Last reconciled: 2026-09-30
 - Depends on: [ADR-0086](../decisions/0086-bound-live-club-elo-replay-gate.md), [ADR-0085](../decisions/0085-isolate-optional-club-elo-refresh.md), retained [ADR-0083](../decisions/0083-activate-official-club-elo-context-refresh.md), and [ADR-0084](../decisions/0084-fence-context-source-issue-creation.md)

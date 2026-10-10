@@ -209,7 +209,7 @@ public sealed class CollectContextClubEloCommand : AsyncCommand<CollectContextCl
     {
         var cycle = preparation.Files.Bundle.Cycle;
         var conditions = new List<BundesligaContextSourceHealthCondition>();
-        if (observation.Disposition == BundesligaContextSourceDisposition.Rejected)
+        if (BundesligaContextSourceReceiptContract.IsClubEloAcquisitionFailure(observation))
         {
             conditions.Add(BundesligaContextSourceHealthCondition.AcquisitionFailed);
             conditions.Add(BundesligaContextSourceHealthCondition.ClubEloSourceRejected);

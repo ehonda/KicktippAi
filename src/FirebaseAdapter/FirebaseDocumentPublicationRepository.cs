@@ -476,7 +476,7 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
         return head.SnapshotId;
     }
 
-    private async Task<LoadedDocumentPublication?> LoadSnapshotAsync(
+    internal async Task<LoadedDocumentPublication?> LoadSnapshotAsync(
         Transaction transaction,
         DocumentPublicationScope scope,
         DocumentPublicationDefinition definition,

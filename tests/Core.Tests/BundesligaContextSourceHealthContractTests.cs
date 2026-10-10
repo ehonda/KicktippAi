@@ -315,8 +315,10 @@ public class BundesligaContextSourceHealthContractTests
         await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateFreshnessConditions(staleReceipt, new DateOnly(2026, 9, 12))).Throws<InvalidDataException>();
 
         var notNewer = HtmlObservation("NotNewer", eligible.ObservedAtUtc);
-        var notNewerReceipt = staleReceipt with { ObservationDigest = notNewer.ObservationDigest, SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, SourceDates = staleReceipt.SourceDates with { RatedAt = candidateDate } };
+        var notNewerReceipt = staleReceipt with { ObservationDigest = notNewer.ObservationDigest, SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer, SourceDates = staleReceipt.SourceDates with { RatedAt = candidateDate }, ActiveConditions = [] };
         BundesligaContextSourceReceiptContract.ValidateAgainstObservation(notNewerReceipt, notNewer);
+        await Assert.That(() => BundesligaContextSourceReceiptContract.ValidateAgainstObservation(
+            notNewerReceipt with { ActiveConditions = staleReceipt.ActiveConditions }, notNewer)).Throws<InvalidDataException>();
 
         var rejected = HtmlObservation("TransportRejected", eligible.ObservedAtUtc);
         var rejectedReceipt = staleReceipt with { ObservationDigest = rejected.ObservationDigest, SelectionDisposition = BundesligaContextSourceSelectionDisposition.NetworkCandidateRejected };
@@ -793,7 +795,7 @@ public class BundesligaContextSourceHealthContractTests
                     && publication == BundesligaContextSourcePublicationDisposition.NotAttempted;
         var expectedDates = (!accepted || ratedAt == new DateOnly(2026, 9, 4))
             && (selection != BundesligaContextSourceSelectionDisposition.NetworkCandidateNotNewer || ratedAt >= new DateOnly(2026, 9, 4));
-        var expectedBaseConditions = evaluation == "Eligible"
+        var expectedBaseConditions = evaluation is "Eligible" or "NotNewer"
             ? Array.Empty<BundesligaContextSourceHealthCondition>()
             : new[] { BundesligaContextSourceHealthCondition.AcquisitionFailed, BundesligaContextSourceHealthCondition.ClubEloSourceRejected };
         var actualBaseConditions = conditions.Where(condition => condition != BundesligaContextSourceHealthCondition.ClubEloStaleGt7Days).ToArray();
