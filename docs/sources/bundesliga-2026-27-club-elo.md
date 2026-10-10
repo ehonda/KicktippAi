@@ -14,6 +14,20 @@ Each first cell is lexically checked before parsing in a new inert tr context. H
 
 ## Evaluation and evidence
 
+The German flag image admits two exact inert attribute sequences: the original
+`src="/static/flags/deu.png"`, `alt="GER"`, fixed style sequence; and the CDN
+sequence observed on 2026-10-10 with `loading="lazy"`, `decoding="async"`,
+`src="https://flerobinaries.lon1.cdn.digitaloceanspaces.com/static/flags/deu.png"`,
+`alt="GER"`, and the same fixed style. The raw grammar and inert DOM checks both
+validate these forms. Other URLs, query strings, duplicate or active attributes,
+and mixtures of the two sequences are rejected. Neither image is fetched.
+
+The CDN migration caused `CLUB_ELO_FRAGMENT_REJECTED` before heading-date
+extraction. Scheduled refreshes retained the September 24 ratings published on
+September 28 while reporting successful ordinary continuation. The regression
+tests reproduce the observed image change in the existing selected fixture and
+verify complete ratings, raw payload binding, and rejected attribute mutations.
+
 The handler makes an exact GET with redirects, automatic decompression and cookies disabled. It preserves the existing response, size, heading-date, mapping, 18-club coverage, seven-day freshness and retained-selection checks. An accepted response stores club-elo/source.html; rejected observations retain only evidence allowed by their first failed gate.
 
 The parked full capture is dated 2026-09-15 and is 564187 bytes, SHA-256 0e57d18ea92dfbece860b3fd67bc49963277e7ceeda95b29187d2f1563dda68d. current-official-2026-09-15.html is a faithful selected excerpt: it preserves the capture's exact Germany heading, eloTable markup (including header class, onclick and title attributes), tbody comment and whitespace, and complete selected script. The checked-in excerpt is 7890 UTF-8 bytes, SHA-256 ddb348d8bb5db64b10bc5b7f8e9c35afe0ab07f2f53855b9f61cb5621f41c0e1. official-helper-prefix.txt and official-before-call.txt are the exact normalized opaque envelope artifacts. These fixtures are parser-mechanics evidence only and do not authorize redistribution, live acquisition, production writes, schedule changes, model calls or activation.
