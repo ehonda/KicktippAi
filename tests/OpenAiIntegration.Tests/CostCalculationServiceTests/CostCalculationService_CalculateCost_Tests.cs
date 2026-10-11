@@ -10,6 +10,19 @@ namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 public class CostCalculationService_CalculateCost_Tests : CostCalculationServiceTests_Base
 {
     [Test]
+    [Arguments("default", 0.362)]
+    [Arguments("flex", 0.181)]
+    public async Task CalculateCost_with_gpt_6_1_sol_prices_cached_input_and_service_tier(string tier, double expected)
+    {
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
+            inputTokens: 100_000, outputTokens: 20_000, cachedInputTokens: 100_000 / 5);
+
+        var cost = Service.CalculateCost("gpt-6.1-sol", usage, tier);
+
+        await Assert.That(cost).IsEqualTo((decimal)expected);
+    }
+
+    [Test]
     public async Task CalculateCost_with_known_model_and_no_cached_tokens_returns_correct_cost()
     {
         // Arrange

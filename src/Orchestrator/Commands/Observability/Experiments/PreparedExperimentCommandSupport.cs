@@ -308,7 +308,7 @@ internal static class PreparedExperimentCommandSupport
             || !string.Equals(compatibility.BoundPromptSource, PreparedHistoricalExperimentCompatibility.PromptSource, StringComparison.Ordinal)
             || !string.Equals(compatibility.BoundPromptName, PreparedHistoricalExperimentCompatibility.PromptName, StringComparison.Ordinal)
             || !string.Equals(compatibility.BoundPromptLabel, PreparedHistoricalExperimentCompatibility.PromptLabel, StringComparison.Ordinal)
-            || compatibility.BoundPromptVersion != PreparedHistoricalExperimentCompatibility.PromptVersion
+            || compatibility.BoundPromptVersion is not 2 and not 3
             || !string.Equals(compatibility.BoundEvaluationPolicyKind, PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind, StringComparison.Ordinal)
             || !string.Equals(compatibility.BoundEvaluationPolicyReference, PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference, StringComparison.Ordinal)
             || !string.Equals(compatibility.BoundEvaluationPolicyOffset, PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset, StringComparison.Ordinal)
@@ -318,7 +318,7 @@ internal static class PreparedExperimentCommandSupport
             || !DocumentPublicationContract.IsLowercaseSha256(compatibility.EligibleFixtureIdsHash))
         {
             throw new InvalidOperationException(
-                "Bundesliga 2025/26 historical compatibility route must bind the canonical legacy-ID hash mode, seven-document context, complete context-eligible pool, hosted Bundesliga match prompt v2/production, and startsAt -12h evaluation policy.");
+                "Bundesliga 2025/26 historical compatibility route must bind the canonical legacy-ID hash mode, seven-document context, complete context-eligible pool, hosted Bundesliga match prompt v2 or v3/production, and startsAt -12h evaluation policy.");
         }
 
         if (!DateOnly.TryParseExact(

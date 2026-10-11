@@ -306,7 +306,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             BoundPromptSource = PreparedHistoricalExperimentCompatibility.PromptSource,
             BoundPromptName = PreparedHistoricalExperimentCompatibility.PromptName,
             BoundPromptLabel = PreparedHistoricalExperimentCompatibility.PromptLabel,
-            BoundPromptVersion = PreparedHistoricalExperimentCompatibility.PromptVersion,
+            BoundPromptVersion = settings.HistoricalPromptVersion ?? PreparedHistoricalExperimentCompatibility.PromptVersion,
             BoundEvaluationPolicyKind = PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind,
             BoundEvaluationPolicyReference = PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference,
             BoundEvaluationPolicyOffset = PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,

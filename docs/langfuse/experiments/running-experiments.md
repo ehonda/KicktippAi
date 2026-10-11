@@ -227,6 +227,17 @@ dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.6-luna -
 
 Before prompt retrieval, run replacement, model construction, or prediction, the runner exact-rereads and re-hashes all distinct historical fixture contexts. It then verifies that the returned hosted prompt still has the bound name, numbered version, and `production` label before run replacement or model construction. Drift fails closed. Label resulting evidence `Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context`. For token and cost interpretation, it remains a preseason proxy that may understate the live eleven-document 2026/27 input. That seven-versus-eleven-document warning does not invalidate a separately preregistered cutoff-safe quality comparison over the hash-bound completed outcomes, and no cost or token observation is itself a quality claim.
 
+### Explicit historical prompt successors
+
+New Bundesliga 2025/26 repeated-match-slice artifacts can explicitly pin
+`--historical-prompt-version 3` during preparation to compare models using the
+current production match prompt. Omission retains the original version 2.
+The chosen version is included in the historical artifact hash and must match
+the run's `--langfuse-prompt-version`; exact name, version, and `production`
+label membership are still verified before model construction. This option
+does not rewrite existing artifacts or move hosted prompt labels. Version 2
+currently lacks the production label, so it cannot pass that runtime gate.
+
 ### Reasoning effort experiments
 
 `run-slice`, `run-repeated-match`, and `run-repeated-match-slice` can optionally pass OpenAI reasoning effort through the Responses API request:

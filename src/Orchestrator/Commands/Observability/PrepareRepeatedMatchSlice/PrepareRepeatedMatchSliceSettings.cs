@@ -22,6 +22,10 @@ public sealed class PrepareRepeatedMatchSliceSettings : CommandSettings
     [Description("Official model knowledge cutoff date (yyyy-MM-dd), required for historical compatibility preparation.")]
     public string? OfficialKnowledgeCutoff { get; set; }
 
+    [CommandOption("--historical-prompt-version")]
+    [Description("Explicit hosted match prompt version for new historical artifacts: 2 (original experiment) or 3 (current production). Requires historical compatibility.")]
+    public int? HistoricalPromptVersion { get; set; }
+
     [CommandOption("--community-context")]
     [Description("Community context used to scope persisted historical match outcomes")]
     public string CommunityContext { get; set; } = string.Empty;
@@ -87,6 +91,10 @@ public sealed class PrepareRepeatedMatchSliceSettings : CommandSettings
 
         if (string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal))
         {
+            if (HistoricalPromptVersion is not null and not 2 and not 3)
+            {
+                return ValidationResult.Error("--historical-prompt-version must be 2 or 3");
+            }
             if (!string.Equals(
                     HistoricalContextCompatibility,
                     ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
@@ -124,7 +132,8 @@ public sealed class PrepareRepeatedMatchSliceSettings : CommandSettings
             }
         }
         else if (!string.IsNullOrWhiteSpace(HistoricalContextCompatibility)
-                 || !string.IsNullOrWhiteSpace(OfficialKnowledgeCutoff))
+                 || !string.IsNullOrWhiteSpace(OfficialKnowledgeCutoff)
+                 || HistoricalPromptVersion is not null)
         {
             return ValidationResult.Error(
                 "Historical compatibility options are only valid with --competition bundesliga-2025-26");

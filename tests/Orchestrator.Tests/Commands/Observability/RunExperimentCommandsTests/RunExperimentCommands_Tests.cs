@@ -346,6 +346,37 @@ public class RunExperimentCommands_Tests
     }
 
     [Test]
+    public async Task Historical_prompt_v3_requires_a_new_artifact_hash_and_rejects_unknown_versions()
+    {
+        var original = CreateHistoricalPreparedManifest();
+        var successor = original with
+        {
+            HistoricalCompatibility = original.HistoricalCompatibility! with { BoundPromptVersion = 3 }
+        };
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(successor))
+            .Throws<InvalidOperationException>().WithMessageContaining("artifact hash");
+
+        successor = successor with
+        {
+            HistoricalArtifactSha256 = PreparedExperimentCommandSupport.ComputeHistoricalArtifactSha256(successor)
+        };
+        var validated = PreparedExperimentCommandSupport.ValidateManifest(successor);
+        await Assert.That(validated.HistoricalCompatibility!.BoundPromptVersion).IsEqualTo(3);
+        await Assert.That(original.HistoricalCompatibility!.BoundPromptVersion).IsEqualTo(2);
+
+        var unknown = successor with
+        {
+            HistoricalCompatibility = successor.HistoricalCompatibility! with { BoundPromptVersion = 4 }
+        };
+        unknown = unknown with
+        {
+            HistoricalArtifactSha256 = PreparedExperimentCommandSupport.ComputeHistoricalArtifactSha256(unknown)
+        };
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(unknown))
+            .Throws<InvalidOperationException>().WithMessageContaining("v2 or v3/production");
+    }
+
+    [Test]
     public async Task Historical_artifact_hash_binds_completed_score_cutoff_route_and_context()
     {
         var manifest = CreateHistoricalPreparedManifest();

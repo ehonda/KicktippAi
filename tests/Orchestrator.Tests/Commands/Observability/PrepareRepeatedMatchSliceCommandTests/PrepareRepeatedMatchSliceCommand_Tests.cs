@@ -550,6 +550,16 @@ public class PrepareRepeatedMatchSliceCommand_Tests
 
         wrongHistoricalMargin.StartsAfter = "2026-02-18T00:00:00 Europe/Berlin (+01)";
         await Assert.That(wrongHistoricalMargin.Validate().Successful).IsTrue();
+        wrongHistoricalMargin.HistoricalPromptVersion = 3;
+        await Assert.That(wrongHistoricalMargin.Validate().Successful).IsTrue();
+        wrongHistoricalMargin.HistoricalPromptVersion = 4;
+        await Assert.That(wrongHistoricalMargin.Validate().Successful).IsFalse();
+        await Assert.That(wrongHistoricalMargin.Validate().Message).Contains("--historical-prompt-version");
+        wrongHistoricalMargin.HistoricalPromptVersion = 3;
+        wrongHistoricalMargin.Competition = CompetitionIds.Bundesliga2026_27;
+        wrongHistoricalMargin.HistoricalContextCompatibility = null;
+        wrongHistoricalMargin.OfficialKnowledgeCutoff = null;
+        await Assert.That(wrongHistoricalMargin.Validate().Successful).IsFalse();
     }
 
     private static PersistedMatchOutcome CreateCompletedOutcome(

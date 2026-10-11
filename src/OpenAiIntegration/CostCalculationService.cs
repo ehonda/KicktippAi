@@ -146,6 +146,7 @@ internal static class ModelPricingData
         ["gpt-5.6"] = new(4.00m, 20.00m, 0.40m),
         ["gpt-5.6-luna"] = new(0.20m, 1.20m, 0.02m),
         ["gpt-5.6-sol"] = new(4.00m, 20.00m, 0.40m),
+        ["gpt-6.1-sol"] = new(2.00m, 10.00m, 0.10m),
         ["gpt-5.6-terra"] = new(2.00m, 12.00m, 0.20m),
         ["gpt-5"] = new(1.25m, 10.00m, 0.125m),
         ["gpt-5-mini"] = new(0.25m, 2.00m, 0.025m),

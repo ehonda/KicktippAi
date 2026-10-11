@@ -149,6 +149,26 @@ Trace-level filter for traces that include repredictions at all:
 ]
 ```
 
+## Exact experiment usage with missing session IDs
+
+The 2026-10-11 GPT-6.1 Sol comparison had one `predict-match` generation whose
+session ID was empty, despite its parent experiment span having the correct
+session. Its usage existed and its item identity was stored inside serialized
+`metadata.attributes`, rather than a flattened metadata key. Session-only
+listing therefore returned 199 of 200 generations indefinitely.
+
+The cost collector now supports opt-in
+`--recover-missing-session-observations` for exact dataset-run mode. It first
+validates the complete immutable item-to-trace links against the prepared
+manifest, then fetches only missing linked trace IDs through Observations API
+v2. It expands `attributes` metadata before checking item identity, rejects
+truncated or invalid JSON, conflicting sessions, duplicate generations, and
+item mismatches, and records `sessionIdRecoveryUsed` on recovered usage rows.
+Run-name-only collection cannot enable recovery. The comparison export's one
+missing observation ID was joined from this verified usage by exact trace,
+dataset run, dataset item, model/effort, and run-name identities before report
+generation. Predictions and scores were unchanged.
+
 ## Notes For Future Investigation
 
 - Re-check this behavior after Langfuse upgrades. The docs currently describe metadata `numberObject` filters, but the live API rejected them during verification.

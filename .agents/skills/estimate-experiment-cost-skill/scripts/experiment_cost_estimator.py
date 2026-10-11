@@ -95,6 +95,11 @@ def main() -> int:
         ),
     )
     collect.add_argument(
+        "--recover-missing-session-observations",
+        action="store_true",
+        help="Recover missing generations by exact manifest-validated dataset-run trace links; requires exact dataset-run mode.",
+    )
+    collect.add_argument(
         "--langfuse-sleep-seconds",
         type=float,
         default=0.0,
@@ -421,6 +426,10 @@ def collect_records_once(
     )
     manifests = parse_unique_pairs(getattr(args, "manifest", []), "--manifest")
     expected_counts = parse_expectations(getattr(args, "expect", []))
+    if getattr(args, "recover_missing_session_observations", False):
+        groups = {parse_pair(entry)[0] for entry in args.group}
+        if not groups.issubset(dataset_run_ids):
+            raise ValueError("Session recovery requires exact dataset-run binding for every group.")
 
     for group_arg in args.group:
         group, run_name = parse_pair(group_arg)
@@ -443,6 +452,8 @@ def collect_records_once(
             if trace_id in seen_trace_ids:
                 continue
             record = extract_usage_record(group, run_name, observation)
+            if observation.get("_sessionIdRecoveryUsed"):
+                record["sessionIdRecoveryUsed"] = True
             record.update(provenance)
             records.append(record)
             seen_trace_ids.add(record.get("traceId", ""))
@@ -578,6 +589,13 @@ def select_dataset_run_observations(
         )
         provenance.update(manifest_provenance)
 
+    if (getattr(args, "recover_missing_session_observations", False)
+            and run_links_complete and manifest_path):
+        present = {str(observation.get("traceId") or "") for observation in observations}
+        observations = list(observations)
+        for trace_id in sorted(set(trace_to_dataset_item) - present):
+            observations.extend(list_linked_trace_observations(args, env_values, run_name, trace_id))
+
     observations_by_trace: dict[str, dict[str, Any]] = {}
     for observation in observations:
         trace_id = str(observation.get("traceId") or "").strip()
@@ -641,11 +659,18 @@ def validate_manifest_item_identity(
 
 def extract_dataset_item_id(observation: dict[str, Any]) -> str:
     metadata = observation.get("metadata") or {}
-    return str(
-        metadata.get("attributes.langfuse.experiment.item.id")
-        or metadata.get("langfuse.experiment.item.id")
-        or ""
-    ).strip()
+    direct = metadata.get("attributes.langfuse.experiment.item.id") or metadata.get("langfuse.experiment.item.id")
+    if direct:
+        return str(direct).strip()
+    attributes = metadata.get("attributes") or {}
+    if isinstance(attributes, str):
+        try:
+            attributes = json.loads(attributes)
+        except json.JSONDecodeError as exc:
+            raise RuntimeError("Experiment attributes metadata is truncated or invalid JSON.") from exc
+    if not isinstance(attributes, dict):
+        raise RuntimeError("Experiment attributes metadata must be an object.")
+    return str(attributes.get("langfuse.experiment.item.id") or "").strip()
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -701,6 +726,35 @@ def list_run_observations(
             break
 
     return observations
+
+
+def list_linked_trace_observations(
+    args: argparse.Namespace, env_values: dict[str, str], run_name: str, trace_id: str
+) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    cursor = None
+    while True:
+        query = {
+            "traceId": trace_id,
+            "expandMetadata": "attributes",
+            "name": "predict-match",
+            "type": "GENERATION",
+            "limit": "1000",
+            "fields": "basic,metadata,model,usage",
+        }
+        if cursor:
+            query["cursor"] = cursor
+        body = langfuse_get_json(args, env_values, "v2/observations", query)
+        for observation in body.get("data", []):
+            if (observation.get("traceId") != trace_id
+                    or observation.get("name") != "predict-match"
+                    or observation.get("type") != "GENERATION"
+                    or observation.get("sessionId") not in (None, "", run_name)):
+                raise RuntimeError("Recovered generation conflicts with the exact linked trace or run.")
+            result.append({**observation, "_sessionIdRecoveryUsed": True})
+        cursor = (body.get("meta") or {}).get("cursor")
+        if not cursor:
+            return result
 
 
 def list_dataset_run_items(
@@ -805,9 +859,7 @@ def extract_usage_record(measured_group: str, run_name: str, observation: dict[s
 
     metadata = observation.get("metadata") or {}
     model_parameters = observation.get("modelParameters") or {}
-    dataset_item_id = metadata.get(
-        "attributes.langfuse.experiment.item.id"
-    ) or metadata.get("langfuse.experiment.item.id")
+    dataset_item_id = extract_dataset_item_id(observation)
 
     input_tokens = int(usage.get("input", 0))
     cached_input_tokens = int(usage.get("cache_read_input_tokens", 0))

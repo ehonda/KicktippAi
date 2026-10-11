@@ -1,6 +1,6 @@
 # Preflight Evidence
 
-Updated: 2026-08-26
+Updated: 2026-10-11
 
 Use this file for one-item cap and cost probes, including mandatory
 high-reasoning preflights and explicitly authorized plumbing gates. These rows
@@ -25,3 +25,30 @@ estimate expected spend before running a 5-by-4 base estimate.
 | `gpt-5.6-sol` | `none` | Langfuse Bundesliga match v2; Bundesliga 2025/26 seven-document historical proxy | `repeated-match-slice__pes-squad__gpt-5.6-sol__match-v2__reasoning-none__random-1x1-seed-20260821__cost-estimate__startsat-12h__2026-08-26t09-33-54z` | FC St. Pauli vs 1. FC Köln, `startsAt -12h` | 10000 | 2463 | 17 | 0 | flex | 0.0050960 | succeeded; no cap pressure | Dataset run `8d099175-4382-4917-a569-fa3dea66d892`, trace `60138ec726a821ef4d6d71be247d1d12`; no fallback. |
 | `gpt-5.6-sol` | `xhigh` | Langfuse Bundesliga match v2; Bundesliga 2025/26 seven-document historical proxy | `repeated-match-slice__pes-squad__gpt-5.6-sol__match-v2__reasoning-xhigh__random-1x1-seed-20260821__cost-preflight__sol-xhigh-appended__startsat-12h__2026-08-26t12-03-30z` | FC St. Pauli vs 1. FC Köln, `startsAt -12h` | 10000 | 2463 | 213 | 194 | flex | 0.0070560 | succeeded; no cap pressure | Dataset run `d60a135b-9088-49b2-9d78-6f8c370e733f`; no fallback. The subsequent exact five-by-four row completed 20/20 on Flex with maximum output `584 / 10000`; the appended 200-item quality run also completed below cap. Cost/cap evidence only, no quality claim. |
 | `gpt-5.6-sol` | `max` | Langfuse Bundesliga match v2; Bundesliga 2025/26 seven-document historical proxy | `repeated-match-slice__pes-squad__gpt-5.6-sol__match-v2__reasoning-max__maxout-20000__random-1x1-seed-20260821__cost-preflight__startsat-12h__2026-08-26t20-29-20z` | FC St. Pauli vs 1. FC Köln, `startsAt -12h` | 20000 | 2463 | 9893 | 9874 | flex | 0.1038560 | succeeded; below cap | Dataset run `492c8cad-9cda-4dd9-ab1c-31b22a32cddf`; no fallback; `9893 / 20000` output tokens. The subsequent exact five-by-four row completed 20/20 at the same cap with maximum output `6751 / 20000`. Cost/cap evidence only; no Sol/`max` quality run or selection claim. |
+## GPT-6.1 Sol/xhigh, current production prompt v3 (2026-10-11)
+
+Owner-requested model-switch comparison and cost calibration. The first v2
+attempt failed at exact prompt promotion verification before model construction
+or spend; production now promotes v3. The owner approved v3 for both compared
+models. All newly prepared historical artifacts bind v3 explicitly; original
+v2 identities remain immutable.
+
+Successful one-item run:
+`repeated-match-slice__pes-squad__gpt-6.1-sol__match-v3__reasoning-xhigh__maxout-10000__random-1x1-seed-20261011__preflight__startsat-12h__2026-10-11t08-23-46z`.
+Fixture: FC Bayern München vs 1. FC Köln, historical kickoff minus 12h.
+Input 2389; output 1568; reasoning 1549; cap 10000. Flex was unavailable;
+Standard fallback succeeded with observed cost `$0.020458000000`.
+Trace `4302c1a318eb054c88fa1565b4cc70f3`; dataset run
+`a280a464-a532-453a-8789-8e7c72573003`. No output-cap pressure.
+
+The subsequent exact 5x4 calibration completed 20/20, maximum output 2600,
+with Flex 6 and Standard fallback 14. Dataset `cmv3kbpx701vdad0j12bh3b9n`,
+accepted run `c9a41dbb-b48c-48f3-99d6-136d470c16e7`, prepared manifest SHA-256
+`33901c316f613b0643e9be8e9b4b4cb3f39a76282ba109be1d502fe652694466`.
+It used the official model cutoff 2026-04-30 plus the two-day sampling margin,
+seed 20261011, and the complete 27-fixture eligible pool. The authoritative
+row stores the full exact dataset-run/manifest binding and mixed-tier evidence.
+Cap and cost evidence only; see the companion
+[comparison writeup](../../../../docs/experiments/gpt-6-1-sol-bundesliga-production-candidate.md)
+for quality evidence. Seven historical context documents may understate live
+eleven-document input cost.

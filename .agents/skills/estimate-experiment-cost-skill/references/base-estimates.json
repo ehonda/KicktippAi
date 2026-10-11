@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-08-26",
+  "updatedAt": "2026-10-11",
   "baseEstimates": [
     {
       "model": "o3",
@@ -734,6 +734,49 @@
       "datasetRunId": "0205df36-af15-47ab-9f7e-4caf844932a3",
       "datasetRunName": "repeated-match-slice__pes-squad__gpt-5.6-sol__match-v2__reasoning-max__maxout-20000__random-5x4-seed-20260821__cost-estimate__startsat-12h__2026-08-26t20-40-40z",
       "preparedManifestSha256": "fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7",
+      "preparedManifestSampleSize": 20
+    },
+    {
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "xhigh",
+      "promptRoute": "Langfuse Bundesliga match v3; Bundesliga 2025/26 7-document legacy-id-hash-v1 context",
+      "modelKnowledgeCutoffDate": "2026-04-30",
+      "samplingCutoffUsed": "2026-05-02T00:00:00 Europe/Berlin (+02)",
+      "maxOutputTokens": 10000,
+      "baseSampleObservations": 20,
+      "serviceTier": "flex",
+      "observedServiceTierCounts": {
+        "default": 14,
+        "flex": 6
+      },
+      "observedFlexRequestCount": 6,
+      "nonFlexRequestCount": 14,
+      "nonFlexRequestRate": "0.7000",
+      "nonFlexRequestPercent": "70.00%",
+      "nonFlexRetryCount": 14,
+      "nonFlexRetryRate": "0.7000",
+      "nonFlexRetryPercent": "70.00%",
+      "serviceTierFallbackUsedCount": 14,
+      "serviceTierFallbackUsedRate": "0.7000",
+      "serviceTierFallbackUsedPercent": "70.00%",
+      "standardInputPricePerMillionUsd": "2",
+      "standardOutputPricePerMillionUsd": "10",
+      "effectiveInputPricePerMillionUsd": "1",
+      "effectiveOutputPricePerMillionUsd": "5",
+      "totalInputTokens": 47576,
+      "totalCachedInputTokensObserved": 38023,
+      "totalOutputTokens": 18067,
+      "totalReasoningTokens": 17687,
+      "estimatedUncachedInputCostUsd": "0.047576000000",
+      "estimatedOutputCostUsd": "0.090335000000",
+      "estimatedTotalCostUsd": "0.137911000000",
+      "averageCostPerMatchPredictionUsd": "0.006895550000",
+      "observedLangfuseCostTotalUsd": "0.179244150000",
+      "source": "Owner-requested GPT-6.1 Sol/xhigh exact 5x4 calibration 2026-10-11t08-23-46z",
+      "datasetId": "cmv3kbpx701vdad0j12bh3b9n",
+      "datasetRunId": "c9a41dbb-b48c-48f3-99d6-136d470c16e7",
+      "datasetRunName": "repeated-match-slice__pes-squad__gpt-6.1-sol__match-v3__reasoning-xhigh__maxout-10000__random-5x4-seed-20261011__calibration__startsat-12h__2026-10-11t08-23-46z",
+      "preparedManifestSha256": "33901c316f613b0643e9be8e9b4b4cb3f39a76282ba109be1d502fe652694466",
       "preparedManifestSampleSize": 20
     }
   ]
