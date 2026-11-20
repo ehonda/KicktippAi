@@ -7,7 +7,7 @@ on:
         description: 'Club Elo validation or continuation probe without prediction jobs'
         type: choice
         default: 'off'
-        options: [off, development, production, continuation]
+        options: ['off', development, production, continuation]
   schedule:
     - cron: "7 2,9 * * *"
 
