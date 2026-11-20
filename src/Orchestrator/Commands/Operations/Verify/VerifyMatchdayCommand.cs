@@ -196,7 +196,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 var isOutdated = false;
                 if (settings.CheckOutdated && contextRepository != null && databasePrediction != null)
                 {
-                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, modelConfig, communityContext, competition, settings.Verbose);
+                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, modelConfig,
+                        communityContext, competition, databasePrediction, settings);
                 }
 
                 var predictionValidation = databasePrediction != null
@@ -325,8 +326,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                kicktippPrediction.AwayGoals == databasePrediction.AwayGoals;
     }
 
-    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, PredictionModelConfig modelConfig, string communityContext, string competition, bool verbose)
+    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository,
+        IContextRepository contextRepository, Match match, PredictionModelConfig modelConfig, string communityContext,
+        string competition, Prediction databasePrediction, VerifySettings settings)
     {
+        var verbose = settings.Verbose;
         try
         {
             // Get prediction metadata with context document names and timestamps
@@ -347,26 +351,39 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 return string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
             }
 
-            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
-                && predictionMetadata.ResolvedContextManifest is null)
+            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
             {
-                return true;
+                if (predictionMetadata.ResolvedContextManifest is null
+                    || !PredictionContentEquality.Equals(predictionMetadata.Prediction, databasePrediction))
+                {
+                    return true;
+                }
+
+                var publicationRepository = _firebaseServiceFactory.CreateDocumentPublicationRepository(competition);
+                var isOutdated = await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
+                    contextRepository, publicationRepository, match, communityContext, predictionMetadata);
+                if (!isOutdated || settings.MaxRepredictions is not int cap)
+                {
+                    return isOutdated;
+                }
+
+                var index = match.IsCancelled
+                    ? await predictionRepository.GetCancelledMatchRepredictionIndexAsync(match.HomeTeam, match.AwayTeam, modelConfig, communityContext)
+                    : await predictionRepository.GetMatchRepredictionIndexAsync(match, modelConfig, communityContext);
+                if (index < cap)
+                {
+                    return true;
+                }
+
+                await BundesligaPredictionOutdatedChecker.ValidateRecordedContextAsync(
+                    contextRepository, publicationRepository, match, communityContext, predictionMetadata);
+                _console.MarkupLine($"[yellow]  Reprediction cap reached ({index}/{cap}); verifying against recorded context.[/]");
+                return false;
             }
 
             if (!predictionMetadata.ContextDocumentNames.Any())
             {
-                // If no context documents were used, prediction can't be outdated based on context changes
                 return false;
-            }
-
-            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
-            {
-                return await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
-                    contextRepository,
-                    _firebaseServiceFactory.CreateDocumentPublicationRepository(competition),
-                    match,
-                    communityContext,
-                    predictionMetadata);
             }
 
             if (verbose)

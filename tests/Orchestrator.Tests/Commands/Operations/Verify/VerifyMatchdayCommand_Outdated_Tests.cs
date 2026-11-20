@@ -98,6 +98,60 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
     }
 
     [Test]
+    [Arguments(2, true, true, 0)]
+    [Arguments(1, true, true, 1)]
+    [Arguments(2, false, true, 1)]
+    [Arguments(2, true, false, 1)]
+    public async Task Bundesliga_verification_at_cap_requires_recorded_context_and_a_matching_Kicktipp_pick(
+        int repredictionIndex, bool hasRecordedContext, bool hasKicktippPick, int expectedExitCode)
+    {
+        const string community = "test-community";
+        var match = CreateTestMatch();
+        var recordedDocuments = CreateBundesligaOrdinaryDocuments(match);
+        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+        var metadata = CreateCanonicalBundesligaPredictionMetadata(prediction, match, recordedDocuments);
+        var contextRepository = CreateMockContextRepositoryWithDocuments(recordedDocuments);
+        var history = recordedDocuments.Values.First(document => document.DocumentName.StartsWith("recent-history-", StringComparison.Ordinal));
+        contextRepository.Setup(repository => repository.GetLatestContextDocumentAsync(
+                history.DocumentName, community, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextDocument(history.DocumentName, "updated history", history.Version + 1, history.CreatedAt));
+        if (!hasRecordedContext)
+        {
+            contextRepository.Setup(repository => repository.GetContextDocumentAsync(
+                    history.DocumentName, history.Version, community, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((ContextDocument?)null);
+        }
+
+        var publications = CreateMockBundesligaDocumentPublicationRepository();
+        foreach (var definition in new[] { BundesligaDocumentPublication.Rosters, BundesligaDocumentPublication.ClubElo })
+        {
+            var publication = await publications.Object.GetLastKnownGoodAsync(definition, community);
+            publications.Setup(repository => repository.GetSnapshotAsync(
+                    definition, community, publication!.Snapshot.SnapshotId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(publication);
+        }
+
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, hasKicktippPick ? CreateBetPrediction(homeGoals: 2, awayGoals: 1) : null),
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: CreateMockPredictionRepository(
+                    getPredictionResult: prediction,
+                    getPredictionMetadataResult: metadata,
+                    getRepredictionIndexResult: repredictionIndex),
+                contextRepository: contextRepository,
+                documentPublicationRepository: publications));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "verify-matchday", "gpt-4o", "-c", community, "--check-outdated", "--max-repredictions", "2");
+
+        await Assert.That(exitCode).IsEqualTo(expectedExitCode);
+        if (expectedExitCode == 0)
+        {
+            await Assert.That(output).Contains("Reprediction cap reached (2/2)").And.Contains("verification successful");
+        }
+    }
+
+    [Test]
     public async Task Bundesliga_prediction_with_same_version_standings_mutation_is_outdated()
     {
         var match = CreateTestMatch();

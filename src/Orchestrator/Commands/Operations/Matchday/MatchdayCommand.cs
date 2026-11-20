@@ -473,7 +473,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             else
                             {
                                 if (!await IsCachedPredictionSafeToSubmitAsync(
-                                        predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, prediction, settings.Verbose))
+                                        predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, prediction,
+                                        settings.Verbose, requireCurrentContext: false))
                                 {
                                     traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                                     BlockMatch(
@@ -1127,7 +1128,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         string communityContext,
         string competition,
         Prediction prediction,
-        bool verbose)
+        bool verbose,
+        bool requireCurrentContext = true)
     {
         if (!string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
         {
@@ -1151,12 +1153,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         try
         {
-            return !await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
-                contextRepository,
-                _firebaseServiceFactory.CreateDocumentPublicationRepository(competition),
-                match,
-                communityContext,
-                metadata);
+            var publicationRepository = _firebaseServiceFactory.CreateDocumentPublicationRepository(competition);
+            var isOutdated = await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
+                contextRepository, publicationRepository, match, communityContext, metadata);
+            if (isOutdated && !requireCurrentContext)
+            {
+                await BundesligaPredictionOutdatedChecker.ValidateRecordedContextAsync(
+                    contextRepository, publicationRepository, match, communityContext, metadata);
+                return true;
+            }
+
+            return !isOutdated;
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
         {

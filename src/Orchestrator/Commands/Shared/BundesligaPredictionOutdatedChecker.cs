@@ -5,6 +5,20 @@ namespace Orchestrator.Commands.Shared;
 /// <summary>Compares Bundesliga prompt provenance with the one current publication head for each reserved set.</summary>
 public static class BundesligaPredictionOutdatedChecker
 {
+    public static async Task ValidateRecordedContextAsync(
+        IContextRepository contextRepository,
+        IDocumentPublicationRepository publicationRepository,
+        Match match,
+        string communityContext,
+        PredictionMetadata metadata)
+    {
+        var manifest = metadata.ResolvedContextManifest
+            ?? throw new InvalidDataException("Bundesliga prediction is missing its immutable resolved-context manifest.");
+        ResolvedMatchContextManifest.ValidateForMatch(manifest, match, communityContext);
+        var resolver = new BundesligaMatchContextResolver(contextRepository, publicationRepository);
+        await resolver.ResolveRecordedAsync(match, manifest);
+    }
+
     public static async Task<bool> IsOutdatedAsync(
         IContextRepository contextRepository,
         IDocumentPublicationRepository publicationRepository,

@@ -77,6 +77,10 @@ public class VerifySettings : CommandSettings
     [DefaultValue(false)]
     public bool CheckOutdated { get; set; }
 
+    [CommandOption("--max-repredictions")]
+    [Description("Bundesliga reprediction cap. At the cap, verify against the prediction's original immutable context.")]
+    public int? MaxRepredictions { get; set; }
+
     public override ValidationResult Validate()
     {
         if (string.IsNullOrWhiteSpace(Model))
@@ -97,6 +101,11 @@ public class VerifySettings : CommandSettings
         if (LangfusePromptVersion is < 1)
         {
             return ValidationResult.Error("--langfuse-prompt-version must be at least 1 when provided");
+        }
+
+        if (MaxRepredictions is < 0)
+        {
+            return ValidationResult.Error("--max-repredictions must be 0 or greater");
         }
 
         return ValidationResult.Success();
