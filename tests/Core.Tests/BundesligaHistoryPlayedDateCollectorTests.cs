@@ -126,6 +126,36 @@ public class BundesligaHistoryPlayedDateCollectorTests
     }
 
     [Test]
+    [Arguments("2026-04-25", true)]
+    [Arguments("2026-11-07", false)]
+    public async Task Live_repeated_league_result_only_ignores_prior_season_evidence(string priorDate, bool succeeds)
+    {
+        const string row = "1.BL,1. FC Köln,Bayer 04 Leverkusen,1:2,";
+        var historical = Map(5, "1.BL", "1. FC Köln", "Bayer 04 Leverkusen", "1:2", "2026-04-25");
+        var outcome = new PersistedMatchOutcome("community", CompetitionIds.Bundesliga2026_27,
+            "1. FC Köln", "Bayer 04 Leverkusen", Instant.FromUtc(2026, 11, 8, 14, 30).InUtc(), 9,
+            1, 2, MatchOutcomeAvailability.Completed, "4711", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        var options = new BundesligaHistoryPlayedDateCollectionOptions(
+            new Dictionary<string, string?> { [DocumentName] = Dated($"1.BL,{priorDate},1. FC Köln,Bayer 04 Leverkusen,1:2,") },
+            Instant.FromUtc(2026, 11, 20, 9, 15));
+
+        var result = Collector.Collect(CompetitionIds.Bundesliga2026_27,
+            [new(DocumentName, Undated(row))], [historical], [outcome],
+            new HashSet<string>([DocumentName], StringComparer.Ordinal), options);
+
+        await Assert.That(result.Succeeded).IsEqualTo(succeeds);
+        if (succeeds)
+        {
+            await Assert.That(result.Documents[0].Content).Contains("1.BL,2026-11-08,1. FC Köln,Bayer 04 Leverkusen,1:2,");
+            await Assert.That(result.KicktippCount).IsEqualTo(1);
+        }
+        else
+        {
+            await Assert.That(result.Diagnostics.Single().Message).Contains("Conflicting exact Played_At evidence");
+        }
+    }
+
+    [Test]
     public async Task Rolled_out_ledger_entries_are_not_required_but_new_uncaptured_rows_still_fail()
     {
         var rolledOut = Map(1, "DFB", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09");

@@ -71,6 +71,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
 {
     private const string Competition = CompetitionIds.Bundesliga2026_27;
     private const string KicktippHistoryCompetition = "1.BL";
+    private static readonly LocalDate BundesligaSeasonStart = new(2026, 7, 1);
     private static readonly DateTimeZone Berlin = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
     private static readonly string[] UndatedHeaders = ["Competition", "Home_Team", "Away_Team", "Score", "Annotation"];
     private static readonly string[] LegacyHeaders = ["Competition", "Data_Collected_At", "Home_Team", "Away_Team", "Score", "Annotation"];
@@ -354,9 +355,8 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return null;
         }
 
-        var outcomeDate = outcomeMatches.Length == 1
-            ? outcomeMatches[0].StartsAt.WithZone(Berlin).Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
-            : null;
+        var outcomeLocalDate = outcomeMatches.SingleOrDefault()?.StartsAt.WithZone(Berlin).Date;
+        var outcomeDate = outcomeLocalDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var mapDate = mapMatches.SingleOrDefault()?.PlayedAt;
         var incomingPlayedAt = ParsePlayedAt(row.PlayedAt, documentName, row.Ordinal);
         var priorPlayedAt = priorMatches.Length == 1
@@ -370,10 +370,18 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return null;
         }
         var exactCandidates = new List<ExactPlayedAtCandidate>();
+        // Kicktipp's live history windows select the most recent matches. When both
+        // editions of a repeated result are present, the duplicate-row gate rejects it.
+        // An undated, unique row matching a current-season outcome belongs to that
+        // edition. An older season's map or prior row is evidence for a different match.
+        var useCurrentSeasonOutcome = options is not null && incomingPlayedAt == PlayedAtValue.Empty
+            && outcomeLocalDate >= BundesligaSeasonStart;
+        var usePriorExact = priorPlayedAt.IsExact && (!useCurrentSeasonOutcome || !IsBeforeSeason(priorPlayedAt.Value));
+        var useMapDate = mapDate is not null && (!useCurrentSeasonOutcome || !IsBeforeSeason(mapDate));
         if (incomingPlayedAt.IsExact) exactCandidates.Add(new(row.PlayedAt, "incoming"));
-        if (priorPlayedAt.IsExact) exactCandidates.Add(new(priorMatches[0].PlayedAt, "prior"));
+        if (usePriorExact) exactCandidates.Add(new(priorMatches[0].PlayedAt, "prior"));
         if (outcomeDate is not null) exactCandidates.Add(new(outcomeDate, "Kicktipp"));
-        if (mapDate is not null) exactCandidates.Add(new(mapDate, "fixed map"));
+        if (useMapDate) exactCandidates.Add(new(mapDate!, "fixed map"));
         if (exactCandidates.Select(candidate => CalendarDate(candidate.Value)).Distinct(StringComparer.Ordinal).Skip(1).Any())
         {
             diagnostics.Add(new(documentName, row.Ordinal,
@@ -384,7 +392,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         {
             return Resolution(row.PlayedAt, BundesligaHistoryPlayedDateSourceClass.ExistingPlayedAt, $"{documentName}#{row.Ordinal}");
         }
-        if (priorPlayedAt.IsExact)
+        if (usePriorExact)
         {
             return Resolution(priorMatches[0].PlayedAt, BundesligaHistoryPlayedDateSourceClass.ExistingPlayedAt,
                 $"prior:{documentName}#{priorMatches[0].Ordinal}");
@@ -440,6 +448,9 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             BundesligaHistoryPlayedDateSourceClass sourceClass,
             string sourceIdentity) => new(documentName, row.Ordinal, playedAt, sourceClass, sourceIdentity, TupleGroupIdentityFor(row));
     }
+
+    private static bool IsBeforeSeason(string playedAt) =>
+        string.CompareOrdinal(CalendarDate(playedAt), BundesligaSeasonStart.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)) < 0;
 
     private static IReadOnlyDictionary<FixedMapIdentity, HistoryRow[]> ParsePriorRows(
         BundesligaHistoryPlayedDateCollectionOptions options)
