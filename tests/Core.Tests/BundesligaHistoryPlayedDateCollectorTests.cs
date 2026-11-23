@@ -156,6 +156,59 @@ public class BundesligaHistoryPlayedDateCollectorTests
     }
 
     [Test]
+    [Arguments("2026-04-25", true)]
+    [Arguments("2026-04-24", false)]
+    public async Task Live_repeated_league_result_preserves_both_editions_and_replays(string priorDate, bool succeeds)
+    {
+        const string name = "home-history-fck.csv";
+        const string row = "1.BL,1. FC Köln,Bayer 04 Leverkusen,1:2,";
+        var map = Map(2, "1.BL", "1. FC Köln", "Bayer 04 Leverkusen", "1:2", "2026-04-25")
+            with { DocumentName = name };
+        var outcome = new PersistedMatchOutcome("community", CompetitionIds.Bundesliga2026_27,
+            "1. FC Köln", "Bayer 04 Leverkusen", Instant.FromUtc(2026, 11, 8, 14, 30).InUtc(), 9,
+            1, 2, MatchOutcomeAvailability.Completed, "4711", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+        var incoming = new BundesligaHistoryDocument(name, Undated(row + "\n" + row));
+        var expected = new HashSet<string>([name], StringComparer.Ordinal);
+        var options = new BundesligaHistoryPlayedDateCollectionOptions(
+            new Dictionary<string, string?> { [name] = Dated($"1.BL,{priorDate},1. FC Köln,Bayer 04 Leverkusen,1:2,") },
+            Instant.FromUtc(2026, 11, 23, 9, 15));
+
+        var first = Collector.Collect(CompetitionIds.Bundesliga2026_27, [incoming], [map], [outcome], expected, options);
+        await Assert.That(first.Succeeded).IsEqualTo(succeeds);
+        if (!succeeds)
+        {
+            await Assert.That(first.Diagnostics.Single().Message).Contains("Conflicting exact Played_At evidence");
+            await Assert.That(first.Documents.Single()).IsEqualTo(incoming);
+            return;
+        }
+
+        var published = first.Documents.Single();
+        await Assert.That(first.KicktippCount).IsEqualTo(1);
+        await Assert.That(published.Content).IsEqualTo(
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "1.BL,2026-11-08,1. FC Köln,Bayer 04 Leverkusen,1:2,\r\n" +
+            "1.BL,2026-04-25,1. FC Köln,Bayer 04 Leverkusen,1:2,\r\n");
+
+        var replayOptions = options with
+        {
+            PriorSelectedDocumentContents = new Dictionary<string, string?> { [name] = published.Content }
+        };
+        var replay = Collector.Collect(CompetitionIds.Bundesliga2026_27, [incoming], [map], [outcome], expected, replayOptions);
+        var audit = Collector.Collect(CompetitionIds.Bundesliga2026_27, [published], [map], [outcome], expected);
+        var rolled = Collector.Collect(CompetitionIds.Bundesliga2026_27, [incoming with { Content = Undated(row) }],
+            [map], [outcome], expected, replayOptions);
+        var missingHistorical = Collector.Collect(CompetitionIds.Bundesliga2026_27, [incoming], [], [outcome], expected,
+            options with { PriorSelectedDocumentContents = new Dictionary<string, string?>() });
+        await Assert.That(replay.Succeeded).IsTrue();
+        await Assert.That(replay.Documents.Single()).IsEqualTo(published);
+        await Assert.That(audit.Succeeded).IsTrue();
+        await Assert.That(audit.Documents.Single()).IsEqualTo(published);
+        await Assert.That(rolled.Succeeded).IsTrue();
+        await Assert.That(rolled.Resolutions.Single().PlayedAt).IsEqualTo("2026-11-08");
+        await Assert.That(missingHistorical.Succeeded).IsFalse();
+    }
+
+    [Test]
     public async Task Rolled_out_ledger_entries_are_not_required_but_new_uncaptured_rows_still_fail()
     {
         var rolledOut = Map(1, "DFB", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09");

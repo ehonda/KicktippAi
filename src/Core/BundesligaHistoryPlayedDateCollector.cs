@@ -221,27 +221,39 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                     rendered.Add(document);
                     continue;
                 }
-                var duplicateRows = rows.GroupBy(RowIdentity, StringComparer.Ordinal).Where(group => group.Count() > 1).ToArray();
-                foreach (var duplicate in duplicateRows)
+                var resolvedRows = (HistoryRow[])rows.Clone();
+                var documentResolutions = new List<BundesligaHistoryPlayedDateResolution>(rows.Length);
+                foreach (var group in rows.GroupBy(row => FixedMapIdentityFor(document.Name, row)))
                 {
-                    diagnostics.Add(new(document.Name, null, $"Ambiguous duplicate row identity '{duplicate.Key}'"));
-                }
-
-                var resolvedRows = new List<HistoryRow>(rows.Length);
-                foreach (var row in rows)
-                {
-                    var resolution = Resolve(document.Name, row, mapByIdentity, priorByIdentity, matchOutcomes, options, diagnostics);
-                    if (resolution is null)
+                    var occurrences = group.ToArray();
+                    var row = occurrences[0];
+                    var mapMatches = mapByIdentity.GetValueOrDefault(group.Key) ?? [];
+                    var priorMatches = priorByIdentity.GetValueOrDefault(group.Key) ?? [];
+                    var outcomeMatches = FindOutcomes(row, matchOutcomes);
+                    if (occurrences.Length > 1)
                     {
-                        resolvedRows.Add(row);
-                        continue;
+                        foreach (var repeated in ResolveRepeatedLeagueResult(document.Name, occurrences,
+                                     mapMatches, priorMatches, outcomeMatches, options, diagnostics))
+                        {
+                            AddResolution(repeated);
+                        }
                     }
-
-                    resolutions.Add(resolution);
-                    resolvedRows.Add(row with { PlayedAt = resolution.PlayedAt });
+                    else if (Resolve(document.Name, row, mapMatches, priorMatches,
+                                 outcomeMatches, options, diagnostics) is { } resolution)
+                    {
+                        AddResolution(resolution);
+                    }
                 }
 
                 rendered.Add(new(document.Name, Render(resolvedRows)));
+                resolutions.AddRange(documentResolutions.OrderBy(resolution => resolution.RowOrdinal));
+
+                void AddResolution(BundesligaHistoryPlayedDateResolution resolution)
+                {
+                    documentResolutions.Add(resolution);
+                    var index = resolution.RowOrdinal - 1;
+                    resolvedRows[index] = rows[index] with { PlayedAt = resolution.PlayedAt };
+                }
             }
             catch (Exception exception) when (exception is InvalidDataException or KeyNotFoundException)
             {
@@ -310,12 +322,66 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         return new(entries.AsReadOnly(), excludedIncompleteRowCount);
     }
 
+    private static PersistedMatchOutcome[] FindOutcomes(HistoryRow row, IReadOnlyList<PersistedMatchOutcome> outcomes) =>
+        row.HistoryCompetition == KicktippHistoryCompetition
+            ? outcomes.Where(outcome => outcome.HasOutcome
+                && string.Equals(outcome.HomeTeam, row.HomeTeam, StringComparison.Ordinal)
+                && string.Equals(outcome.AwayTeam, row.AwayTeam, StringComparison.Ordinal)
+                && string.Equals($"{outcome.HomeGoals}:{outcome.AwayGoals}", row.Score, StringComparison.Ordinal)).ToArray()
+            : [];
+
+    private static BundesligaHistoryPlayedDateResolution[] ResolveRepeatedLeagueResult(
+        string documentName,
+        HistoryRow[] rows,
+        BundesligaHistoryPlayedDateMapEntry[] mapMatches,
+        HistoryRow[] priorMatches,
+        PersistedMatchOutcome[] outcomeMatches,
+        BundesligaHistoryPlayedDateCollectionOptions? options,
+        List<BundesligaHistoryPlayedDateDiagnostic> diagnostics)
+    {
+        var row = rows[0];
+        if (row.HistoryCompetition != KicktippHistoryCompetition || rows.Length != 2
+            || outcomeMatches.Length != 1 || outcomeMatches[0].StartsAt.WithZone(Berlin).Date < BundesligaSeasonStart
+            || mapMatches.Length > 1)
+        {
+            return Ambiguous();
+        }
+
+        var playedAt = rows.Select(value => ParsePlayedAt(value.PlayedAt, documentName, value.Ordinal)).ToArray();
+        if (playedAt.Any(value => value.IsProxy)
+            || (playedAt[0].IsExact != playedAt[1].IsExact)
+            || (playedAt[0].IsExact && IsBeforeSeason(playedAt[0].Value) == IsBeforeSeason(playedAt[1].Value))
+            || (options is null && !playedAt[0].IsExact))
+        {
+            return Ambiguous();
+        }
+
+        // Both undated occurrences have identical fields. Their two dates come
+        // from independent match evidence. Render the newer one first.
+        var currentIndex = playedAt[0].IsExact && IsBeforeSeason(playedAt[0].Value) ? 1 : 0;
+        var current = Resolve(documentName, rows[currentIndex],
+            mapMatches.Where(entry => !IsBeforeSeason(entry.PlayedAt)).ToArray(),
+            priorMatches.Where(prior => !IsBeforeSeason(prior.PlayedAt)).ToArray(),
+            outcomeMatches, options, diagnostics);
+        var historical = Resolve(documentName, rows[1 - currentIndex],
+            mapMatches.Where(entry => IsBeforeSeason(entry.PlayedAt)).ToArray(),
+            priorMatches.Where(prior => IsBeforeSeason(prior.PlayedAt)).ToArray(),
+            [], options, diagnostics);
+        return current is not null && historical is not null ? [current, historical] : [];
+
+        BundesligaHistoryPlayedDateResolution[] Ambiguous()
+        {
+            diagnostics.Add(new(documentName, null, $"Ambiguous duplicate row identity '{RowIdentity(row)}'"));
+            return [];
+        }
+    }
+
     private static BundesligaHistoryPlayedDateResolution? Resolve(
         string documentName,
         HistoryRow row,
-        IReadOnlyDictionary<FixedMapIdentity, BundesligaHistoryPlayedDateMapEntry[]> map,
-        IReadOnlyDictionary<FixedMapIdentity, HistoryRow[]> prior,
-        IReadOnlyList<PersistedMatchOutcome> outcomes,
+        BundesligaHistoryPlayedDateMapEntry[] mapMatches,
+        HistoryRow[] priorMatches,
+        PersistedMatchOutcome[] outcomeMatches,
         BundesligaHistoryPlayedDateCollectionOptions? options,
         List<BundesligaHistoryPlayedDateDiagnostic> diagnostics)
     {
@@ -326,39 +392,36 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return null;
         }
 
-        var normalizedScore = NormalizeScore(row.Score);
-        var outcomeMatches = string.Equals(row.HistoryCompetition, KicktippHistoryCompetition, StringComparison.Ordinal)
-            ? outcomes.Where(outcome => outcome.HasOutcome
-                && string.Equals(outcome.HomeTeam, row.HomeTeam, StringComparison.Ordinal)
-                && string.Equals(outcome.AwayTeam, row.AwayTeam, StringComparison.Ordinal)
-                && string.Equals($"{outcome.HomeGoals}:{outcome.AwayGoals}", normalizedScore, StringComparison.Ordinal)).ToArray()
-            : [];
         if (outcomeMatches.Length > 1)
         {
             diagnostics.Add(new(documentName, row.Ordinal, "Multiple competition-scoped Kicktipp outcomes match this row"));
             return null;
         }
 
-        map.TryGetValue(FixedMapIdentityFor(documentName, row), out var mapMatches);
-        mapMatches ??= [];
         if (mapMatches.Length > 1)
         {
             diagnostics.Add(new(documentName, row.Ordinal, "Multiple fixed-map candidates match this exact row identity"));
             return null;
         }
 
-        prior.TryGetValue(FixedMapIdentityFor(documentName, row), out var priorMatches);
-        priorMatches ??= [];
+        var incomingPlayedAt = ParsePlayedAt(row.PlayedAt, documentName, row.Ordinal);
+        var outcomeLocalDate = outcomeMatches.SingleOrDefault()?.StartsAt.WithZone(Berlin).Date;
+        // An undated singleton in a live rolling window uses the current edition
+        // when a completed current-season match has the same score.
+        var useCurrentSeasonOutcome = options is not null && incomingPlayedAt == PlayedAtValue.Empty
+            && outcomeLocalDate >= BundesligaSeasonStart;
+        if (useCurrentSeasonOutcome)
+        {
+            priorMatches = priorMatches.Where(prior => !IsBeforeSeason(prior.PlayedAt)).ToArray();
+        }
         if (priorMatches.Length > 1)
         {
             diagnostics.Add(new(documentName, row.Ordinal, "Multiple prior selected-history rows match this exact row identity"));
             return null;
         }
 
-        var outcomeLocalDate = outcomeMatches.SingleOrDefault()?.StartsAt.WithZone(Berlin).Date;
         var outcomeDate = outcomeLocalDate?.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var mapDate = mapMatches.SingleOrDefault()?.PlayedAt;
-        var incomingPlayedAt = ParsePlayedAt(row.PlayedAt, documentName, row.Ordinal);
         var priorPlayedAt = priorMatches.Length == 1
             ? ParsePlayedAt(priorMatches[0].PlayedAt, documentName, priorMatches[0].Ordinal)
             : PlayedAtValue.Empty;
@@ -370,13 +433,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return null;
         }
         var exactCandidates = new List<ExactPlayedAtCandidate>();
-        // Kicktipp's live history windows select the most recent matches. When both
-        // editions of a repeated result are present, the duplicate-row gate rejects it.
-        // An undated, unique row matching a current-season outcome belongs to that
-        // edition. An older season's map or prior row is evidence for a different match.
-        var useCurrentSeasonOutcome = options is not null && incomingPlayedAt == PlayedAtValue.Empty
-            && outcomeLocalDate >= BundesligaSeasonStart;
-        var usePriorExact = priorPlayedAt.IsExact && (!useCurrentSeasonOutcome || !IsBeforeSeason(priorPlayedAt.Value));
+        var usePriorExact = priorPlayedAt.IsExact;
         var useMapDate = mapDate is not null && (!useCurrentSeasonOutcome || !IsBeforeSeason(mapDate));
         if (incomingPlayedAt.IsExact) exactCandidates.Add(new(row.PlayedAt, "incoming"));
         if (usePriorExact) exactCandidates.Add(new(priorMatches[0].PlayedAt, "prior"));
@@ -514,7 +571,9 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             }
         }
 
-        var duplicates = rowsByIdentity.FirstOrDefault(pair => pair.Value.Count > 1);
+        var duplicates = rowsByIdentity.FirstOrDefault(pair => pair.Value.Count > 1 &&
+            (pair.Key.HistoryCompetition != KicktippHistoryCompetition || pair.Value.Count != 2 ||
+             IsBeforeSeason(pair.Value[0].PlayedAt) == IsBeforeSeason(pair.Value[1].PlayedAt)));
         if (duplicates.Value is not null)
         {
             throw new InvalidDataException($"Ambiguous duplicate prior selected-history row identity '{duplicates.Key}'");
