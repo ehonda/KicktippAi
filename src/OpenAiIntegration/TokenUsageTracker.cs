@@ -27,6 +27,7 @@ public class TokenUsageTracker : ITokenUsageTracker
     private int _lastOutputTokens = 0;
     private decimal _lastCost = 0m;
     private ChatTokenUsage? _lastUsage = null;
+    private readonly List<ChatTokenUsage> _usages = [];
 
     public TokenUsageTracker(ILogger<TokenUsageTracker> logger, ICostCalculationService costCalculationService)
     {
@@ -45,6 +46,7 @@ public class TokenUsageTracker : ITokenUsageTracker
         {
             // Store last usage for individual reporting
             _lastUsage = usage;
+            _usages.Add(usage);
 
             // Get token counts
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
@@ -99,21 +101,7 @@ public class TokenUsageTracker : ITokenUsageTracker
 
     private decimal CalculateTotalEstimatedCost(string estimatedCostsModel)
     {
-        // Manually calculate estimated cost based on our tracked totals
-        if (!ModelPricingData.Pricing.TryGetValue(estimatedCostsModel, out var pricing))
-        {
-            return 0m; // Can't calculate if we don't have pricing info
-        }
-        
-        // Calculate costs for each component
-        var uncachedInputCost = (_totalUncachedInputTokens / 1_000_000m) * pricing.InputPrice;
-        var cachedInputCost = pricing.CachedInputPrice.HasValue 
-            ? (_totalCachedInputTokens / 1_000_000m) * pricing.CachedInputPrice.Value 
-            : 0m;
-        var totalOutputTokenCount = _totalOutputReasoningTokens + _totalOutputTokens;
-        var outputCost = (totalOutputTokenCount / 1_000_000m) * pricing.OutputPrice;
-        
-        return uncachedInputCost + cachedInputCost + outputCost;
+        return _usages.Sum(usage => _costCalculationService.CalculateCost(estimatedCostsModel, usage) ?? 0m);
     }
 
     public string GetLastUsageCompactSummary()
@@ -148,14 +136,17 @@ public class TokenUsageTracker : ITokenUsageTracker
             if (_lastUsage == null)
                 return null;
                 
+            var (write30m, write12h) = CacheWriteUsage.Get(_lastUsage);
             var usageData = new
             {
                 InputTokenCount = _lastUsage.InputTokenCount,
                 OutputTokenCount = _lastUsage.OutputTokenCount,
-                InputTokenDetails = _lastUsage.InputTokenDetails != null ? new
+                InputTokenDetails = _lastUsage.InputTokenDetails != null || write30m + write12h > 0 ? new
                 {
-                    CachedTokenCount = _lastUsage.InputTokenDetails.CachedTokenCount,
-                    AudioTokenCount = _lastUsage.InputTokenDetails.AudioTokenCount
+                    CachedTokenCount = _lastUsage.InputTokenDetails?.CachedTokenCount ?? 0,
+                    AudioTokenCount = _lastUsage.InputTokenDetails?.AudioTokenCount ?? 0,
+                    CacheWrite30mTokenCount = write30m,
+                    CacheWrite12hTokenCount = write12h
                 } : null,
                 OutputTokenDetails = _lastUsage.OutputTokenDetails != null ? new
                 {
@@ -200,6 +191,7 @@ public class TokenUsageTracker : ITokenUsageTracker
             _lastOutputTokens = 0;
             _lastCost = 0m;
             _lastUsage = null;
+            _usages.Clear();
             
             _logger.LogDebug("Token usage tracker reset");
         }

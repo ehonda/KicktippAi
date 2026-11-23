@@ -863,8 +863,12 @@ def extract_usage_record(measured_group: str, run_name: str, observation: dict[s
 
     input_tokens = int(usage.get("input", 0))
     cached_input_tokens = int(usage.get("cache_read_input_tokens", 0))
+    cache_write_tokens = int(usage.get("cache_write_input_tokens", 0))
     output_tokens = int(usage.get("output", 0))
     reasoning_tokens = int(usage.get("reasoning_tokens", 0))
+    if metadata.get("kicktippaiUsageSchema") == "disjoint-v1":
+        input_tokens += cached_input_tokens + cache_write_tokens
+        output_tokens += reasoning_tokens
     total_tokens = int(usage.get("total", input_tokens + output_tokens))
 
     final_service_tier = metadata.get("openaiFinalServiceTier") or model_parameters.get(
@@ -885,6 +889,7 @@ def extract_usage_record(measured_group: str, run_name: str, observation: dict[s
         "repetition": parse_repetition(dataset_item_id),
         "inputTokens": input_tokens,
         "cachedInputTokens": cached_input_tokens,
+        "cacheWriteInputTokens": cache_write_tokens,
         "uncachedInputTokens": input_tokens - cached_input_tokens,
         "outputTokens": output_tokens,
         "reasoningTokens": reasoning_tokens,

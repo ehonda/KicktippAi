@@ -106,7 +106,7 @@ public class CostCalculationService : ICostCalculationService
                 : 0m;
             var outputCost = (outputTokens / 1_000_000m) * pricing.OutputPrice;
 
-            var cacheWriteCost = model == "gpt-6.2-sol"
+            var cacheWriteCost = model is "gpt-5.6" or "gpt-5.6-sol" or "gpt-5.6-terra" or "gpt-5.6-luna" or "gpt-6.1-sol" or "gpt-6.2-sol"
                 ? (write30m * 1.25m + write12h * 2.5m) / 1_000_000m * pricing.InputPrice
                 : (write30m + write12h) / 1_000_000m * pricing.InputPrice;
             return new CostBreakdown(uncachedInputCost, cachedInputCost, outputCost, uncachedInputCost + cachedInputCost + cacheWriteCost + outputCost)
