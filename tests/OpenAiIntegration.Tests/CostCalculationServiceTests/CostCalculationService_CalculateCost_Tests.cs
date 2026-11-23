@@ -202,6 +202,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     [Test]
     [Arguments("gpt-5.6", 4.00, 0.40, 20.00, 24.40)]
     [Arguments("gpt-5.6-sol", 4.00, 0.40, 20.00, 24.40)]
+    [Arguments("gpt-6.2-sol", 2.00, 0.10, 10.00, 12.10)]
     [Arguments("gpt-5.6-terra", 2.00, 0.20, 12.00, 14.20)]
     public async Task CalculateCostBreakdown_with_gpt_5_6_models_uses_official_standard_prices(
         string model,

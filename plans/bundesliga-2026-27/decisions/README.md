@@ -93,6 +93,7 @@ remain authoritative.
 | [0085](0085-isolate-optional-club-elo-refresh.md) | Isolate optional Club Elo refresh; finite release gates | Accepted; partially succeeded by ADR-0086 |
 | [0086](0086-bound-live-club-elo-replay-gate.md) | Bound live Club Elo replay evidence after GitHub artifact loss | Accepted; partial successor to ADR-0083/0085 |
 | [0087](0087-validate-retained-club-elo-publications-and-no-change-health.md) | Retained Club Elo authority and no-change health | Accepted; partial successor to ADR-0074/0081 |
+| [0088](0088-move-production-predictions-to-gpt-6-2-sol.md) | Move production predictions to GPT-6.2 Sol | Proposed; partial successor to ADR-0052 |
 
 ## P1-04/P1-05 activation status — 2026-09-30
 

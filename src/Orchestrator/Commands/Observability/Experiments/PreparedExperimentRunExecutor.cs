@@ -130,7 +130,9 @@ internal sealed class PreparedExperimentRunExecutor
             request.RunName,
             new Dictionary<string, string?>
             {
-                ["openaiServiceTierStrategy"] = "flex-first-standard-fallback",
+                ["openaiServiceTierStrategy"] = PredictionServiceOptions.RequiresStandardProcessing(request.Options.Model)
+                    ? "standard"
+                    : "flex-first-standard-fallback",
                 ["openaiReasoningEffort"] = runMetadata.ReasoningEffort
             });
         var batches = BuildBatches(manifest.Items, runMetadata, expectedTaskType);

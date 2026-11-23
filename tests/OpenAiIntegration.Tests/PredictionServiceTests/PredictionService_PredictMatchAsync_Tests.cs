@@ -337,7 +337,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public async Task Predicting_match_sends_responses_request_with_strict_structured_output()
+    [Arguments("gpt-5.6-sol", "flex")]
+    [Arguments("gpt-6.2-sol", "default")]
+    public async Task Predicting_match_sends_responses_request_with_strict_structured_output(
+        string model,
+        string expectedServiceTier)
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
@@ -345,8 +349,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var chatClient = CreateProtocolChatClient(
             requestedServiceTiers,
             requestPayloads: requestPayloads,
-            responseServiceTier: "flex");
-        var service = CreateService(chatClient);
+            responseServiceTier: expectedServiceTier);
+        var service = CreateService(
+            chatClient,
+            model: NullableOption.Some(model),
+            options: NullableOption.Some(new PredictionServiceOptions(ReasoningEffort: "xhigh")));
 
         // Act
         var prediction = await PredictMatchAsync(service, includeJustification: true);
@@ -357,9 +364,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         using var document = JsonDocument.Parse(requestPayloads.Single());
         var root = document.RootElement;
-        await Assert.That(root.GetProperty("model").GetString()).IsEqualTo("gpt-5");
+        await Assert.That(root.GetProperty("model").GetString()).IsEqualTo(model);
         await Assert.That(root.GetProperty("max_output_tokens").GetInt32()).IsEqualTo(10_000);
-        await Assert.That(root.GetProperty("service_tier").GetString()).IsEqualTo("flex");
+        await Assert.That(root.GetProperty("service_tier").GetString()).IsEqualTo(expectedServiceTier);
+        await Assert.That(root.GetProperty("reasoning").GetProperty("effort").GetString()).IsEqualTo("xhigh");
 
         var input = root.GetProperty("input").EnumerateArray().ToArray();
         await Assert.That(input.Length).IsEqualTo(2);

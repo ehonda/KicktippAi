@@ -190,6 +190,19 @@ public class PredictionService : IPredictionService
         Func<string?, CancellationToken, Task<OpenAiResponseResult>> completeResponseAsync,
         CancellationToken cancellationToken)
     {
+        if (PredictionServiceOptions.RequiresStandardProcessing(_model))
+        {
+            var completion = await completeResponseAsync(DefaultServiceTier, cancellationToken);
+            return completion with
+            {
+                ExecutionTelemetry = new PredictionExecutionTelemetry(
+                    "standard",
+                    DefaultServiceTier,
+                    completion.FinalServiceTier ?? DefaultServiceTier,
+                    false)
+            };
+        }
+
         if (_options.DisableFlexProcessing)
         {
             return await completeResponseAsync(null, cancellationToken);

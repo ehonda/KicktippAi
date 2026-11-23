@@ -67,7 +67,7 @@ This identity remains the plumbing identity and is now also an explicitly admitt
 
 ## Fixed configuration topology
 
-`production-primary` is Sol/`xhigh` with cap `10000`, match v3, bonus v1, and the existing Flex-first/Standard-fallback policy. `pes-production-reference`, `schadensfresse-production-copy`, `relaxdays-production-copy`, and `arena-production-copy` use that exact stored identity. The four admitted arena challengers are the exact self-contained rows above; no unresolved challenger template is deployed.
+[ADR-0088](../../plans/bundesliga-2026-27/decisions/0088-move-production-predictions-to-gpt-6-2-sol.md) sets `production-primary` to `gpt-6.2-sol`/`xhigh` with cap `10000`, match v3, bonus v1, and Standard processing. The matchday workflow uses this exact model and effort for `pes-production-reference`, `schadensfresse-production-copy`, `relaxdays-production-copy`, and `arena-production-copy`. The manual Schadensfresse Champions League bonus keeps its separately pinned GPT-5.6 Sol profile. The four arena challengers use the self-contained rows above.
 
 ## Credential resolution
 
