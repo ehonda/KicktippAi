@@ -7,7 +7,7 @@ description: Estimate and gate KicktippAi Langfuse experiment costs before runni
 
 Use this skill to estimate KicktippAi `slice`, `repeated-match`, and `repeated-match-slice` experiment costs. Do not use it for `community-to-date`; that mode replays prediction history and does not currently generate model predictions during experiment runs.
 
-Treat every input token as uncached for estimates, even when the observed Langfuse calls had cache hits.
+Treat every input token as uncached for estimates, even when the observed Langfuse calls had cache hits. For `gpt-6.2-sol`, base rows and planned preflights instead conservatively price every input token at the 30-minute cache-write rate (1.25 times Standard input). This assumes the current default cache lifetime; do not use these estimates for requests configured with 12-hour cache writes. This model defaults to Standard and explicit Flex is rejected. Base rows above 272,000 input tokens are rejected.
 
 ## Hard Rules
 

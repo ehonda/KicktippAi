@@ -118,6 +118,38 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         return mockClient.Object;
     }
 
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Standard_model_carries_cache_write_usage_into_cost_and_langfuse()
+    {
+        var client = new Mock<ResponsesClient>("test-api-key");
+        client.Setup(c => c.CreateResponseAsync(It.IsAny<CreateResponseOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateResponseClientResult("""{"home":2,"away":1}""",
+                OpenAITestHelpers.CreateChatTokenUsage(1000, 50, cachedInputTokens: 250), "default",
+                """, "cache_write_tokens": 300, "cache_write_tokens_details": {"ttl_30m_tokens": 200, "ttl_12h_tokens": 100}"""));
+        var costService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        var tracker = CreateMockTokenUsageTracker();
+        ChatTokenUsage? tracked = null;
+        tracker.Setup(t => t.AddUsage("gpt-6.2-sol", It.IsAny<ChatTokenUsage>(), "default"))
+            .Callback<string, ChatTokenUsage, string?>((_, usage, _) => tracked = usage);
+        var service = CreateService(client.Object, costCalculationService: NullableOption.Some<ICostCalculationService>(costService),
+            tokenUsageTracker: NullableOption.Some(tracker.Object), model: NullableOption.Some("gpt-6.2-sol"));
+        var activities = new ConcurrentQueue<Activity>();
+        using var listener = CreateActivityListener(activities);
+
+        var prediction = await PredictMatchAsync(service);
+
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(tracked).IsNotNull();
+        var breakdown = costService.CalculateCostBreakdown("gpt-6.2-sol", tracked!, "default")!;
+        await Assert.That(breakdown.Input).IsEqualTo(0.0009m);
+        await Assert.That(breakdown.CacheWrite).IsEqualTo(0.001m);
+        await Assert.That(breakdown.Total).IsEqualTo(0.002425m);
+        var activity = activities.Single(a => a.OperationName == "predict-match" && a.GetTagItem("langfuse.observation.cost_details") is not null);
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"cache_write_input_tokens\":300");
+        await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")!.ToString()).Contains("\"cache_write_input_tokens\":0.001");
+    }
+
     private static string? ExtractReasoningEffort(string json)
     {
         using var document = JsonDocument.Parse(json);

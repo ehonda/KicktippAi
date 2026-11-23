@@ -500,6 +500,21 @@ class BudgetGateTests(unittest.TestCase):
         self.assertEqual("10", entry["effectiveOutputPricePerMillionUsd"])
         self.assertEqual("0.022000000000", entry["estimatedTotalCostUsd"])
 
+    def test_gpt_6_2_sol_preflight_rejects_flex_and_bounds_cache_writes(self) -> None:
+        for tier in ("flex", "standard"):
+            spec = planned_preflight_spec(model="gpt-6.2-sol", serviceTier=tier)
+            with PatchedStore([]) as store, PatchedPlannedPreflightFiles(
+                [spec], pricing_source=b'        ["gpt-6.2-sol"] = new(2.00m, 10.00m, 0.10m),\n'
+            ) as files:
+                args = budget_args(store, candidates=[], planned_preflights=[str(files.spec_paths[0])],
+                                   reservations=[], retries=[], ceiling="1", pricing_source=files.pricing_path)
+                if tier == "flex":
+                    with self.assertRaisesRegex(SystemExit, "does not support Flex"):
+                        estimator.calculate_budget_gate(args)
+                else:
+                    report = estimator.calculate_budget_gate(args)
+                    self.assertEqual("2.5", report["candidates"][0]["effectiveInputPricePerMillionUsd"])
+
     def test_planned_preflight_invalid_specs_fail_closed(self) -> None:
         invalid_specs = (
             (planned_preflight_spec(name=""), "name"),

@@ -1257,6 +1257,7 @@ public class PredictionService : IPredictionService
             input = usage.InputTokenCount,
             output = usage.OutputTokenCount,
             cache_read_input_tokens = usage.InputTokenDetails?.CachedTokenCount ?? 0,
+            cache_write_input_tokens = CacheWriteUsage.Get(usage).Ttl30m + CacheWriteUsage.Get(usage).Ttl12h,
             reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0,
             total = usage.InputTokenCount + usage.OutputTokenCount
         };
@@ -1269,6 +1270,7 @@ public class PredictionService : IPredictionService
             {
                 input = costBreakdown.Input,
                 cache_read_input_tokens = costBreakdown.CachedInput,
+                cache_write_input_tokens = costBreakdown.CacheWrite,
                 output = costBreakdown.Output,
                 total = costBreakdown.Total
             };
@@ -1301,10 +1303,12 @@ public class PredictionService : IPredictionService
             ? OpenAIChatModelFactory.ChatOutputTokenUsageDetails(reasoningTokenCount: reasoningTokenCount)
             : null;
 
-        return OpenAIChatModelFactory.ChatTokenUsage(
+        var chatUsage = OpenAIChatModelFactory.ChatTokenUsage(
             inputTokenCount: usage.InputTokenCount,
             outputTokenCount: usage.OutputTokenCount,
             inputTokenDetails: inputDetails,
             outputTokenDetails: outputDetails);
+        CacheWriteUsage.Attach(chatUsage, usage);
+        return chatUsage;
     }
 }

@@ -26,11 +26,12 @@ public class CostCalculationService : ICostCalculationService
     {
         if (ModelPricingData.Pricing.TryGetValue(model, out var pricing))
         {
-            pricing = ApplyServiceTier(pricing, serviceTier);
+            pricing = ApplyPricingAdjustments(model, usage.InputTokenCount, pricing, serviceTier);
 
             // Get exact token counts from usage details
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
-            var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
+            var (write30m, write12h) = CacheWriteUsage.Get(usage);
+            var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens - write30m - write12h;
             var reasoningOutputTokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0;
             var textOutputTokens = usage.OutputTokenCount - reasoningOutputTokens;
             
@@ -40,7 +41,9 @@ public class CostCalculationService : ICostCalculationService
                 ? (cachedInputTokens / 1_000_000m) * pricing.CachedInputPrice.Value 
                 : 0m;
             var outputCost = (usage.OutputTokenCount / 1_000_000m) * pricing.OutputPrice;
-            var totalCost = uncachedInputCost + cachedInputCost + outputCost;
+            var cacheWriteCost = CalculateCostBreakdown(model, usage, serviceTier)!.CacheWrite;
+            var totalCost = uncachedInputCost + cachedInputCost + cacheWriteCost + outputCost;
+            _logger.LogInformation("Cache Write Tokens: {CacheWriteTokens:N0} = ${CacheWriteCost:F6}", write30m + write12h, cacheWriteCost);
             
             // Log the cost breakdown
             _logger.LogInformation("Uncached Input Tokens: {UncachedInputTokens:N0} × ${InputPrice:F2}/1M = ${UncachedInputCost:F6}",
@@ -88,11 +91,12 @@ public class CostCalculationService : ICostCalculationService
     {
         if (ModelPricingData.Pricing.TryGetValue(model, out var pricing))
         {
-            pricing = ApplyServiceTier(pricing, serviceTier);
+            pricing = ApplyPricingAdjustments(model, usage.InputTokenCount, pricing, serviceTier);
 
             // Get exact token counts from usage details
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
-            var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
+            var (write30m, write12h) = CacheWriteUsage.Get(usage);
+            var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens - write30m - write12h;
             var outputTokens = usage.OutputTokenCount;
 
             // Calculate costs for each component
@@ -102,10 +106,26 @@ public class CostCalculationService : ICostCalculationService
                 : 0m;
             var outputCost = (outputTokens / 1_000_000m) * pricing.OutputPrice;
 
-            return new CostBreakdown(uncachedInputCost, cachedInputCost, outputCost, uncachedInputCost + cachedInputCost + outputCost);
+            var cacheWriteCost = model == "gpt-6.2-sol"
+                ? (write30m * 1.25m + write12h * 2.5m) / 1_000_000m * pricing.InputPrice
+                : (write30m + write12h) / 1_000_000m * pricing.InputPrice;
+            return new CostBreakdown(uncachedInputCost, cachedInputCost, outputCost, uncachedInputCost + cachedInputCost + cacheWriteCost + outputCost)
+            {
+                CacheWrite = cacheWriteCost
+            };
         }
 
         return null;
+    }
+
+    private static ModelPricing ApplyPricingAdjustments(string model, int inputTokens, ModelPricing pricing, string? serviceTier)
+    {
+        pricing = ApplyServiceTier(pricing, serviceTier);
+        if (model == "gpt-6.2-sol" && inputTokens > 272_000)
+        {
+            pricing = new ModelPricing(pricing.InputPrice * 2m, pricing.OutputPrice * 1.5m, pricing.CachedInputPrice * 2m);
+        }
+        return pricing;
     }
 
     private static ModelPricing ApplyServiceTier(ModelPricing pricing, string? serviceTier)

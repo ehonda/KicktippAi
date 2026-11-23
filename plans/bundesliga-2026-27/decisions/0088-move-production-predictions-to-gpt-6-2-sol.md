@@ -7,7 +7,11 @@
 
 The project owner selected GPT-6.2 Sol as the production successor to GPT-5.6 Sol. OpenAI's GPT-5.6 Sol promotion runs through November 30, 2026. The production predictor currently requests Flex and retries with Standard when Flex capacity is unavailable. GPT-6.2 Sol supports synchronous Standard processing. [OpenAI pricing](https://developers.openai.com/api/docs/pricing) · [OpenAI Flex guide](https://developers.openai.com/api/docs/guides/flex-processing)
 
-## Decision
+## Approval and merge gate
+
+The owner selected GPT-6.2 Sol and retained `xhigh` reasoning for this draft. The owner has not approved the live cutover or set a new cost ceiling. Before merging this workflow change, the owner must explicitly accept the complete production configuration and cost ceiling; record that acceptance here, change this ADR to Accepted, and mark the model and service-tier portions of ADR-0052 as superseded in the decision index. Until then ADR-0052 remains operative and this PR remains draft.
+
+## Proposed decision
 
 Run `gpt-6.2-sol` with reasoning effort `xhigh`, a 10,000-token output cap, and explicit Standard processing (`service_tier: default`). Retain the pinned Langfuse match v3 and Bundesliga bonus v1 routes and the existing fallback prompts. Move the `pes-squad` source and its three scheduled matchday copy targets together. The corresponding manual matchday workflows and the Bundesliga bonus workflows for `pes-squad`, `relaxdays-tippt`, and the arena production participant use the new model as well.
 
@@ -31,6 +35,6 @@ The review branch can be pushed while a production run is active. That run uses 
 - [Production and arena community matrix](../../../docs/onboarding-bundesliga-2026-27/community-onboarding.md)
 - [Production-live matchday schedule](0053-schedule-the-production-live-matchday-lane.md)
 
-## Supersedes
+## Proposed supersession
 
-The production model and service tier portions of [ADR-0052](0052-select-production-model-community-matrix-and-match-prompt-v3.md).
+Upon acceptance, this decision supersedes the production model and service tier portions of [ADR-0052](0052-select-production-model-community-matrix-and-match-prompt-v3.md).

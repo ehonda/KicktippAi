@@ -1,8 +1,8 @@
 """Collect usage records and calculate KicktippAi experiment cost estimates.
 
-The estimate intentionally treats every input token as uncached. This makes the
-base rows suitable for slice experiments and conservative for repeated-match
-experiments where prompt caching may occur during data collection.
+The estimate treats every input token as uncached. For GPT-6.2 Sol it instead
+uses the default 30-minute cache-write rate as a conservative bound; it does
+not cover requests configured for 12-hour writes.
 """
 
 from __future__ import annotations
@@ -346,7 +346,7 @@ def add_base_row_arguments(command: argparse.ArgumentParser) -> None:
     command.add_argument(
         "--service-tier",
         choices=("flex", "standard", "observed"),
-        default="flex",
+        default=None,
         help=(
             "Pricing tier to use for the estimate. Use observed when flex-first "
             "runs may include non-flex retry fallbacks."
@@ -984,12 +984,21 @@ def expectation_status_text(
 
 
 def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
+    if args.service_tier is None:
+        args.service_tier = "standard" if args.model == "gpt-6.2-sol" else "flex"
+    if args.model == "gpt-6.2-sol" and args.service_tier == "flex":
+        raise SystemExit("gpt-6.2-sol does not support Flex processing.")
     records = filter_group(load_json(Path(args.input)), args.group)
     if len(records) != args.expect_count:
         raise SystemExit(
             f"Expected {args.expect_count} records for group '{args.group}', found {len(records)}."
         )
 
+    if args.model == "gpt-6.2-sol":
+        if any(int(record.get("inputTokens", 0)) > SHORT_CONTEXT_INPUT_TOKEN_LIMIT for record in records):
+            raise SystemExit("gpt-6.2-sol base rows above the short-context limit are not supported.")
+        if args.service_tier == "observed" and any(normalized_service_tier(record.get("serviceTier")) == "flex" for record in records):
+            raise SystemExit("gpt-6.2-sol does not support Flex processing.")
     service_tier_counts = count_service_tiers(records)
     non_flex = [
         record
@@ -1022,6 +1031,8 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
     )
 
     input_cost = sum_input_cost(records, pricing, args.service_tier)
+    if args.model == "gpt-6.2-sol":
+        input_cost *= Decimal("1.25")  # Conservative default 30-minute cache writes.
     output_cost = sum_output_cost(records, pricing, args.service_tier)
     total_cost = input_cost + output_cost
     average_cost = total_cost / Decimal(len(records))
@@ -1063,7 +1074,8 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         "standardInputPricePerMillionUsd": decimal_text(pricing.input_price),
         "standardOutputPricePerMillionUsd": decimal_text(pricing.output_price),
         "effectiveInputPricePerMillionUsd": decimal_or_text(
-            effective_input_price_for_summary(pricing, args.service_tier)
+            (pricing.input_price * Decimal("1.25")) if args.model == "gpt-6.2-sol"
+            else effective_input_price_for_summary(pricing, args.service_tier)
         ),
         "effectiveOutputPricePerMillionUsd": decimal_or_text(
             effective_output_price_for_summary(pricing, args.service_tier)
@@ -1538,6 +1550,8 @@ def calculate_planned_preflight_entries(
                 f"--planned-preflight spec {spec_path} has unsupported serviceTier "
                 f"{service_tier!r}; expected 'flex' or 'standard'."
             )
+        if model == "gpt-6.2-sol" and service_tier == "flex":
+            raise SystemExit("gpt-6.2-sol does not support Flex processing.")
         input_token_bound = require_positive_spec_integer(
             spec, "inputTokenBound", spec_path
         )
@@ -1562,6 +1576,8 @@ def calculate_planned_preflight_entries(
                 f"model {model!r}."
             )
         effective_input_price = input_price_for_tier(model_pricing, service_tier)
+        if model == "gpt-6.2-sol":
+            effective_input_price *= Decimal("1.25")  # Default 30-minute cache-write bound.
         effective_output_price = output_price_for_tier(model_pricing, service_tier)
         input_cost = cost_for_tokens(input_token_bound, effective_input_price)
         output_cost = cost_for_tokens(max_output_tokens, effective_output_price)
