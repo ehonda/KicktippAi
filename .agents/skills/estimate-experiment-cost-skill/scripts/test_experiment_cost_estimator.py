@@ -23,6 +23,7 @@ AUTHORITATIVE_STORE = (
 class UsageSchemaTests(unittest.TestCase):
     def test_disjoint_and_historical_traces_reconstruct_full_totals(self) -> None:
         for metadata, usage in [
+            ({"kicktippaiUsageSchema": "disjoint-v1"}, {"input": 450, "cache_read_input_tokens": 250, "cache_write_input_tokens": 300, "output": 43, "output_reasoning_tokens": 7}),
             ({"kicktippaiUsageSchema": "disjoint-v1"}, {"input": 450, "cache_read_input_tokens": 250, "cache_write_input_tokens": 300, "output": 43, "reasoning_tokens": 7}),
             ({}, {"input": 1000, "cache_read_input_tokens": 250, "cache_write_input_tokens": 300, "output": 50, "reasoning_tokens": 7}),
             ({}, {"input": 1000, "cache_read_input_tokens": 250, "output": 50, "reasoning_tokens": 7}),

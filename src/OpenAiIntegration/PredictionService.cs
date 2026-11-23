@@ -1262,7 +1262,7 @@ public class PredictionService : IPredictionService
             output = usage.OutputTokenCount - reasoningTokens,
             cache_read_input_tokens = cachedTokens,
             cache_write_input_tokens = write30m + write12h,
-            reasoning_tokens = reasoningTokens,
+            output_reasoning_tokens = reasoningTokens,
             total = usage.InputTokenCount + usage.OutputTokenCount
         };
         activity.SetTag("langfuse.observation.usage_details", JsonSerializer.Serialize(usageDetails));

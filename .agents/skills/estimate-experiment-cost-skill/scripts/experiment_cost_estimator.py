@@ -865,7 +865,7 @@ def extract_usage_record(measured_group: str, run_name: str, observation: dict[s
     cached_input_tokens = int(usage.get("cache_read_input_tokens", 0))
     cache_write_tokens = int(usage.get("cache_write_input_tokens", 0))
     output_tokens = int(usage.get("output", 0))
-    reasoning_tokens = int(usage.get("reasoning_tokens", 0))
+    reasoning_tokens = int(usage.get("output_reasoning_tokens", usage.get("reasoning_tokens", 0)))
     if metadata.get("kicktippaiUsageSchema") == "disjoint-v1":
         input_tokens += cached_input_tokens + cache_write_tokens
         output_tokens += reasoning_tokens

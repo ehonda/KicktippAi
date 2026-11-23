@@ -136,8 +136,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             tokenUsageTracker: NullableOption.Some(tracker.Object), model: NullableOption.Some("gpt-6.2-sol"));
         var activities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(activities);
+        var telemetryMetadata = new PredictionTelemetryMetadata("Cache Write Home", "Cache Write Away", 17);
 
-        var prediction = await PredictMatchAsync(service);
+        var prediction = await service.PredictMatchAsync(
+            CreateTestMatch(), CreateTestContextDocuments(), telemetryMetadata: telemetryMetadata);
 
         await Assert.That(prediction).IsNotNull();
         await Assert.That(tracked).IsNotNull();
@@ -152,11 +154,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         totalTracker.AddUsage("gpt-6.2-sol", tracked!);
         totalTracker.AddUsage("gpt-6.2-sol", OpenAITestHelpers.CreateChatTokenUsage(272_001, 10_000));
         await Assert.That(totalTracker.GetCompactSummaryWithEstimatedCosts("gpt-6.2-sol")).Contains("(est gpt-6.2-sol: $1.2404)");
-        var activity = activities.Single(a => a.OperationName == "predict-match" && a.GetTagItem("langfuse.observation.cost_details") is not null);
+        var activity = activities.Single(a => IsMatchingPredictMatchActivity(a, telemetryMetadata));
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.kicktippaiUsageSchema")).IsEqualTo("disjoint-v1");
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"input\":450");
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"output\":43");
-        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"reasoning_tokens\":7");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"output_reasoning_tokens\":7");
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"cache_write_input_tokens\":300");
         await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")!.ToString()).Contains("\"cache_write_input_tokens\":0.001");
     }

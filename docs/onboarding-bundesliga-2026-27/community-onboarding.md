@@ -67,7 +67,9 @@ This identity remains the plumbing identity and is now also an explicitly admitt
 
 ## Fixed configuration topology
 
-[ADR-0088](../../plans/bundesliga-2026-27/decisions/0088-move-production-predictions-to-gpt-6-2-sol.md) sets `production-primary` to `gpt-6.2-sol`/`xhigh` with cap `10000`, match v3, bonus v1, and Standard processing. The matchday workflow uses this exact model and effort for `pes-production-reference`, `schadensfresse-production-copy`, `relaxdays-production-copy`, and `arena-production-copy`. The manual Schadensfresse Champions League bonus keeps its separately pinned GPT-5.6 Sol profile. The four arena challengers use the self-contained rows above.
+The current accepted `production-primary` identity under [ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md) is `gpt-5.6-sol`/`xhigh`, cap `10000`, match v3, bonus v1, and Flex-first processing with Standard fallback. Use this identity when verifying live records for `pes-production-reference`, `schadensfresse-production-copy`, `relaxdays-production-copy`, and `arena-production-copy` until the cutover is accepted.
+
+The draft workflows propose `gpt-6.2-sol`/`xhigh` with the same cap and prompts and Standard processing for those rows. [ADR-0088](../../plans/bundesliga-2026-27/decisions/0088-move-production-predictions-to-gpt-6-2-sol.md) remains Proposed: owner acceptance of the complete configuration and cost ceiling, plus the recorded partial supersession of ADR-0052, is required before merge and live cutover. The manual Schadensfresse Champions League bonus keeps its separately pinned GPT-5.6 Sol profile. The four arena challengers use the self-contained rows above.
 
 ## Credential resolution
 
