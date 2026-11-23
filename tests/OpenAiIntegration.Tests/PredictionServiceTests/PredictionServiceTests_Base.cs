@@ -243,13 +243,14 @@ public abstract class PredictionServiceTests_Base
     protected static ClientResult<ResponseResult> CreateResponseClientResult(
         string responseJson,
         ChatTokenUsage usage,
-        string? serviceTier = "flex")
+        string? serviceTier = "flex",
+        string cacheWriteJson = "")
     {
         var response = new Mock<PipelineResponse>();
         response.SetupGet(candidate => candidate.Status).Returns(200);
 
         var mockResult = new Mock<ClientResult<ResponseResult>>(null!, response.Object);
-        var result = CreateResponseResult(responseJson, usage, serviceTier);
+        var result = CreateResponseResult(responseJson, usage, serviceTier, cacheWriteJson);
 
         mockResult.SetupGet(candidate => candidate.Value).Returns(result);
         return mockResult.Object;
@@ -258,7 +259,8 @@ public abstract class PredictionServiceTests_Base
     private static ResponseResult CreateResponseResult(
         string responseJson,
         ChatTokenUsage usage,
-        string? serviceTier)
+        string? serviceTier,
+        string cacheWriteJson)
     {
         var responseText = JsonSerializer.Serialize(responseJson);
         var serviceTierJson = string.IsNullOrWhiteSpace(serviceTier)
@@ -289,7 +291,7 @@ public abstract class PredictionServiceTests_Base
               "usage": {
                 "input_tokens": {{usage.InputTokenCount}},
                 "input_tokens_details": {
-                  "cached_tokens": {{usage.InputTokenDetails?.CachedTokenCount ?? 0}}
+                  "cached_tokens": {{usage.InputTokenDetails?.CachedTokenCount ?? 0}}{{cacheWriteJson}}
                 },
                 "output_tokens": {{usage.OutputTokenCount}},
                 "output_tokens_details": {

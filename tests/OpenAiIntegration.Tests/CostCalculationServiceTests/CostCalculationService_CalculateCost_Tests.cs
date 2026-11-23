@@ -228,6 +228,20 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     }
 
     [Test]
+    [Arguments(272000, 0.504, 0.002, 0.1)]
+    [Arguments(272001, 1.008004, 0.004, 0.15)]
+    public async Task CalculateCostBreakdown_gpt_6_2_sol_applies_long_context_rates_above_threshold(
+        int inputTokens, decimal input, decimal cached, decimal output)
+    {
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens, 10_000, cachedInputTokens: 20_000);
+        var breakdown = Service.CalculateCostBreakdown("gpt-6.2-sol", usage);
+        await Assert.That(breakdown).IsNotNull();
+        await Assert.That(breakdown!.Input).IsEqualTo(input);
+        await Assert.That(breakdown.CachedInput).IsEqualTo(cached);
+        await Assert.That(breakdown.Output).IsEqualTo(output);
+    }
+
+    [Test]
     [Arguments("gpt-5.6", 2.00, 0.20, 10.00, 12.20)]
     [Arguments("gpt-5.6-sol", 2.00, 0.20, 10.00, 12.20)]
     [Arguments("gpt-5.6-terra", 1.00, 0.10, 6.00, 7.10)]

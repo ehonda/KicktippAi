@@ -190,6 +190,19 @@ public class PredictionService : IPredictionService
         Func<string?, CancellationToken, Task<OpenAiResponseResult>> completeResponseAsync,
         CancellationToken cancellationToken)
     {
+        if (PredictionServiceOptions.RequiresStandardProcessing(_model))
+        {
+            var completion = await completeResponseAsync(DefaultServiceTier, cancellationToken);
+            return completion with
+            {
+                ExecutionTelemetry = new PredictionExecutionTelemetry(
+                    "standard",
+                    DefaultServiceTier,
+                    completion.FinalServiceTier ?? DefaultServiceTier,
+                    false)
+            };
+        }
+
         if (_options.DisableFlexProcessing)
         {
             return await completeResponseAsync(null, cancellationToken);
@@ -1238,13 +1251,18 @@ public class PredictionService : IPredictionService
         activity.SetTag("langfuse.observation.output", responseJson);
         telemetryMetadata?.ApplyToObservation(activity);
 
-        // Token usage details
+        // Distinguish disjoint buckets from historical overlapping usage totals.
+        activity.SetTag("langfuse.observation.metadata.kicktippaiUsageSchema", "disjoint-v1");
+        var cachedTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
+        var (write30m, write12h) = CacheWriteUsage.Get(usage);
+        var reasoningTokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0;
         var usageDetails = new
         {
-            input = usage.InputTokenCount,
-            output = usage.OutputTokenCount,
-            cache_read_input_tokens = usage.InputTokenDetails?.CachedTokenCount ?? 0,
-            reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0,
+            input = usage.InputTokenCount - cachedTokens - write30m - write12h,
+            output = usage.OutputTokenCount - reasoningTokens,
+            cache_read_input_tokens = cachedTokens,
+            cache_write_input_tokens = write30m + write12h,
+            output_reasoning_tokens = reasoningTokens,
             total = usage.InputTokenCount + usage.OutputTokenCount
         };
         activity.SetTag("langfuse.observation.usage_details", JsonSerializer.Serialize(usageDetails));
@@ -1256,6 +1274,7 @@ public class PredictionService : IPredictionService
             {
                 input = costBreakdown.Input,
                 cache_read_input_tokens = costBreakdown.CachedInput,
+                cache_write_input_tokens = costBreakdown.CacheWrite,
                 output = costBreakdown.Output,
                 total = costBreakdown.Total
             };
@@ -1288,10 +1307,12 @@ public class PredictionService : IPredictionService
             ? OpenAIChatModelFactory.ChatOutputTokenUsageDetails(reasoningTokenCount: reasoningTokenCount)
             : null;
 
-        return OpenAIChatModelFactory.ChatTokenUsage(
+        var chatUsage = OpenAIChatModelFactory.ChatTokenUsage(
             inputTokenCount: usage.InputTokenCount,
             outputTokenCount: usage.OutputTokenCount,
             inputTokenDetails: inputDetails,
             outputTokenDetails: outputDetails);
+        CacheWriteUsage.Attach(chatUsage, usage);
+        return chatUsage;
     }
 }

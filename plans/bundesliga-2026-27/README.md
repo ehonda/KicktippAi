@@ -3,12 +3,13 @@
 - Program state: P0 complete; P1-04 activation complete; first scheduled production chain verified; P1-05/R1 dormant and deferred
 - Last reconciled: 2026-09-30
 - Operational correction: [ADR-0087](decisions/0087-validate-retained-club-elo-publications-and-no-change-health.md) governs committed shared-head retention and successful `NotNewer` health.
+- Production model proposal: [ADR-0088](decisions/0088-move-production-predictions-to-gpt-6-2-sol.md) moves the production prediction route to GPT-6.2 Sol.
 - Current policy: [execution strategy](execution-strategy.md)
 
-Outside the enabled Club Elo source flags, production routing remains unchanged:
-the existing cron, non-cancelling serial/default-success topology, models,
-prompts, credentials, posting and copy behavior stay fixed. P1-10 and other P1
-work are excluded.
+The production schedule retains the existing cron, non-cancelling serial
+topology, prompts, credentials, posting, and copy rules. The four production
+matchday routes share the model proposed by ADR-0088. P1-10 and other P1 work
+remain outside the Club Elo lane.
 
 ## Current graph
 

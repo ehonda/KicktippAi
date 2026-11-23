@@ -11,6 +11,9 @@ public sealed record PredictionServiceOptions(
     public static PredictionServiceOptions StandardProcessing { get; } = new(DisableFlexProcessing: true);
 
     public static PredictionServiceOptions FlexProcessingWithStandardFallback { get; } = Default;
+
+    public static bool RequiresStandardProcessing(string model) =>
+        string.Equals(model, "gpt-6.2-sol", StringComparison.OrdinalIgnoreCase);
 }
 
 public sealed record LangfusePromptTraceMetadata(string Name, int Version, bool IsFallback = false);

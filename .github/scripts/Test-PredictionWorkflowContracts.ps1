@@ -128,7 +128,7 @@ function Assert-ManualDispatchAndExactProductionSchedule {
         "        description: 'Club Elo validation or continuation probe without prediction jobs'",
         '        type: choice',
         "        default: 'off'",
-        '        options: [off, development, production, continuation]',
+        "        options: ['off', development, production, continuation]",
         '  schedule:',
         '    - cron: "7 2,9 * * *"'
     )
@@ -699,13 +699,13 @@ function Assert-ProductionLiveMatchdayWorkflow {
     $triggerType = '${{ github.event_name == ''schedule'' && ''scheduled'' || ''manual'' }}'
     $jobs = @(
         @{ Id = 'pes-squad-context'; Needs = $null; Kind = 'context'; Context = 'pes-squad'; SecretStem = 'PES_SQUAD' },
-        @{ Id = 'pes-squad-matchday'; Needs = 'pes-squad-context'; Kind = 'match'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
+        @{ Id = 'pes-squad-matchday'; Needs = 'pes-squad-context'; Kind = 'match'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
         @{ Id = 'schadensfresse-context'; Needs = 'pes-squad-matchday'; Kind = 'context'; Context = 'schadensfresse'; SecretStem = 'SCHADENSFRESSE' },
-        @{ Id = 'schadensfresse-matchday'; Needs = 'schadensfresse-context'; Kind = 'match'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+        @{ Id = 'schadensfresse-matchday'; Needs = 'schadensfresse-context'; Kind = 'match'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
         @{ Id = 'relaxdays-tippt-context'; Needs = 'schadensfresse-matchday'; Kind = 'context'; Context = 'relaxdays-tippt'; SecretStem = 'RELAXDAYS_TIPPT' },
-        @{ Id = 'relaxdays-tippt-matchday'; Needs = 'relaxdays-tippt-context'; Kind = 'match'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
+        @{ Id = 'relaxdays-tippt-matchday'; Needs = 'relaxdays-tippt-context'; Kind = 'match'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
         @{ Id = 'arena-sol-xhigh-context'; Needs = 'relaxdays-tippt-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
-        @{ Id = 'arena-sol-xhigh-matchday'; Needs = 'arena-sol-xhigh-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
+        @{ Id = 'arena-sol-xhigh-matchday'; Needs = 'arena-sol-xhigh-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
         @{ Id = 'arena-sol-high-context'; Needs = 'arena-sol-xhigh-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
         @{ Id = 'arena-sol-high-matchday'; Needs = 'arena-sol-high-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
         @{ Id = 'arena-luna-medium-context'; Needs = 'arena-sol-high-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM' },
@@ -1059,10 +1059,10 @@ Assert-True $bonusBase.Contains('$CL_PROFILE|schadensfresse|schadensfresse|bunde
 
 $currentBundesligaCallers = @{}
 foreach ($row in @(
-    @{ BaseName = 'buli2627-pes-squad-gpt-5-6-sol-xhigh'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
-    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
-    @{ BaseName = 'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
-    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
+    @{ BaseName = 'buli2627-pes-squad-gpt-5-6-sol-xhigh'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
+    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+    @{ BaseName = 'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
+    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-6.2-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-high'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-medium'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'medium'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-terra-xhigh'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-terra'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH' },
@@ -1074,7 +1074,7 @@ foreach ($row in @(
         $currentBundesligaCallers[$fileName] = [pscustomobject]@{
             Community = $row.Community
             Context = if ($isClBonus) { 'schadensfresse' } else { $row.Context }
-            Model = $row.Model
+            Model = if ($isClBonus) { 'gpt-5.6-sol' } else { $row.Model }
             Effort = $row.Effort
             SecretStem = $row.SecretStem
             IsBonus = $kind -eq 'bonus'

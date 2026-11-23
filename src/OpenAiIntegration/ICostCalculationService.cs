@@ -64,4 +64,7 @@ public interface ICostCalculationService
 /// <param name="CachedInput">Cost for cached input tokens</param>
 /// <param name="Output">Cost for output tokens</param>
 /// <param name="Total">Total cost (input + cached input + output)</param>
-public record CostBreakdown(decimal Input, decimal CachedInput, decimal Output, decimal Total);
+public record CostBreakdown(decimal Input, decimal CachedInput, decimal Output, decimal Total)
+{
+    public decimal CacheWrite { get; init; }
+}

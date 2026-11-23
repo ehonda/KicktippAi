@@ -28,6 +28,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var costServiceMock = CreateMockCostCalculationService(5.0m);
+        var realCostService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        costServiceMock.Setup(x => x.CalculateCost(It.Is<string>(model => model != "gpt-5-nano" && model != "gpt-4o"), It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage usage) => realCostService.CalculateCost(model, usage));
         var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
@@ -51,6 +54,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var costServiceMock = CreateMockCostCalculationService(3.0m);
+        var realCostService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        costServiceMock.Setup(x => x.CalculateCost(It.Is<string>(model => model != "gpt-5-nano" && model != "gpt-4o"), It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage usage) => realCostService.CalculateCost(model, usage));
         var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
@@ -59,6 +65,8 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
 
         // Act
         tracker.AddUsage("gpt-5-nano", usage);
+        costServiceMock.Setup(x => x.CalculateCost("gpt-4o", It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage value) => realCostService.CalculateCost(model, value));
         var summary = tracker.GetCompactSummaryWithEstimatedCosts("gpt-4o");
 
         // Assert
@@ -73,6 +81,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var costServiceMock = CreateMockCostCalculationService(1.0m);
+        var realCostService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        costServiceMock.Setup(x => x.CalculateCost(It.Is<string>(model => model != "gpt-5-nano" && model != "gpt-4o"), It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage usage) => realCostService.CalculateCost(model, usage));
         var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
@@ -95,6 +106,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var costServiceMock = CreateMockCostCalculationService(2.0m);
+        var realCostService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        costServiceMock.Setup(x => x.CalculateCost(It.Is<string>(model => model != "gpt-5-nano" && model != "gpt-4o"), It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage usage) => realCostService.CalculateCost(model, usage));
         var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
@@ -117,6 +131,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var costServiceMock = CreateMockCostCalculationService(5.0m);
+        var realCostService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        costServiceMock.Setup(x => x.CalculateCost(It.Is<string>(model => model != "gpt-5-nano" && model != "gpt-4o"), It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage usage) => realCostService.CalculateCost(model, usage));
         var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
@@ -138,6 +155,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.0m)
             .Returns(2.0m);
+        var realCostService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        costServiceMock.Setup(x => x.CalculateCost(It.Is<string>(model => model != "gpt-5-nano" && model != "gpt-4o"), It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage usage) => realCostService.CalculateCost(model, usage));
         var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(
@@ -150,6 +170,8 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
         // Act
         tracker.AddUsage("gpt-5-nano", usage1);
         tracker.AddUsage("gpt-5-nano", usage2);
+        costServiceMock.Setup(x => x.CalculateCost("gpt-4o", It.IsAny<ChatTokenUsage>()))
+            .Returns((string model, ChatTokenUsage value) => realCostService.CalculateCost(model, value));
         var summary = tracker.GetCompactSummaryWithEstimatedCosts("gpt-4o");
 
         // Assert

@@ -118,6 +118,73 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         return mockClient.Object;
     }
 
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Standard_model_carries_cache_write_usage_into_cost_and_langfuse()
+    {
+        var client = new Mock<ResponsesClient>("test-api-key");
+        client.Setup(c => c.CreateResponseAsync(It.IsAny<CreateResponseOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateResponseClientResult("""{"home":2,"away":1}""",
+                OpenAITestHelpers.CreateChatTokenUsage(1000, 50, cachedInputTokens: 250, outputReasoningTokens: 7), "default",
+                """, "cache_write_tokens": 300, "cache_write_tokens_details": {"ttl_30m_tokens": 200, "ttl_12h_tokens": 100}"""));
+        var costService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        var tracker = CreateMockTokenUsageTracker();
+        ChatTokenUsage? tracked = null;
+        tracker.Setup(t => t.AddUsage("gpt-6.2-sol", It.IsAny<ChatTokenUsage>(), "default"))
+            .Callback<string, ChatTokenUsage, string?>((_, usage, _) => tracked = usage);
+        var service = CreateService(client.Object, costCalculationService: NullableOption.Some<ICostCalculationService>(costService),
+            tokenUsageTracker: NullableOption.Some(tracker.Object), model: NullableOption.Some("gpt-6.2-sol"));
+        var activities = new ConcurrentQueue<Activity>();
+        using var listener = CreateActivityListener(activities);
+        var telemetryMetadata = new PredictionTelemetryMetadata("Cache Write Home", "Cache Write Away", 17);
+
+        var prediction = await service.PredictMatchAsync(
+            CreateTestMatch(), CreateTestContextDocuments(), telemetryMetadata: telemetryMetadata);
+
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(tracked).IsNotNull();
+        var breakdown = costService.CalculateCostBreakdown("gpt-6.2-sol", tracked!, "default")!;
+        await Assert.That(breakdown.Input).IsEqualTo(0.0009m);
+        await Assert.That(breakdown.CacheWrite).IsEqualTo(0.001m);
+        await Assert.That(breakdown.Total).IsEqualTo(0.002425m);
+        var flexBreakdown = costService.CalculateCostBreakdown("gpt-5.6-sol", tracked!, "flex")!;
+        await Assert.That(flexBreakdown.CacheWrite).IsEqualTo(0.001m);
+        await Assert.That(flexBreakdown.Total).IsEqualTo(0.00245m);
+        var totalTracker = new TokenUsageTracker(Microsoft.Extensions.Logging.Abstractions.NullLogger<TokenUsageTracker>.Instance, costService);
+        totalTracker.AddUsage("gpt-6.2-sol", tracked!);
+        totalTracker.AddUsage("gpt-6.2-sol", OpenAITestHelpers.CreateChatTokenUsage(272_001, 10_000));
+        await Assert.That(totalTracker.GetCompactSummaryWithEstimatedCosts("gpt-6.2-sol")).Contains("(est gpt-6.2-sol: $1.2404)");
+        var activity = activities.Single(a => IsMatchingPredictMatchActivity(a, telemetryMetadata));
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.kicktippaiUsageSchema")).IsEqualTo("disjoint-v1");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"input\":450");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"output\":43");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"output_reasoning_tokens\":7");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")!.ToString()).Contains("\"cache_write_input_tokens\":300");
+        await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")!.ToString()).Contains("\"cache_write_input_tokens\":0.001");
+    }
+
+    [Test]
+    public async Task Cold_cache_write_usage_is_saved_with_both_lifetimes()
+    {
+        var client = new Mock<ResponsesClient>("test-api-key");
+        client.Setup(c => c.CreateResponseAsync(It.IsAny<CreateResponseOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateResponseClientResult("""{"home":2,"away":1}""",
+                OpenAITestHelpers.CreateChatTokenUsage(1000, 50), "default",
+                """, "cache_write_tokens": 300, "cache_write_tokens_details": {"ttl_30m_tokens": 200, "ttl_12h_tokens": 100}"""));
+        var costService = new CostCalculationService(Microsoft.Extensions.Logging.Abstractions.NullLogger<CostCalculationService>.Instance);
+        var tracker = new TokenUsageTracker(Microsoft.Extensions.Logging.Abstractions.NullLogger<TokenUsageTracker>.Instance, costService);
+        var service = CreateService(client.Object, costCalculationService: NullableOption.Some<ICostCalculationService>(costService),
+            tokenUsageTracker: NullableOption.Some<ITokenUsageTracker>(tracker), model: NullableOption.Some("gpt-6.2-sol"));
+        await PredictMatchAsync(service);
+        using var json = JsonDocument.Parse(tracker.GetLastUsageJson()!);
+        var details = json.RootElement.GetProperty("InputTokenDetails");
+        await Assert.That(details.GetProperty("CachedTokenCount").GetInt32()).IsEqualTo(0);
+        await Assert.That(details.GetProperty("CacheWrite30mTokenCount").GetInt32()).IsEqualTo(200);
+        await Assert.That(details.GetProperty("CacheWrite12hTokenCount").GetInt32()).IsEqualTo(100);
+        tracker.Reset();
+        await Assert.That(tracker.GetCompactSummaryWithEstimatedCosts("gpt-6.2-sol")).Contains("$0.0000)");
+    }
+
     private static string? ExtractReasoningEffort(string json)
     {
         using var document = JsonDocument.Parse(json);
@@ -337,7 +404,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public async Task Predicting_match_sends_responses_request_with_strict_structured_output()
+    [Arguments("gpt-5.6-sol", "flex")]
+    [Arguments("gpt-6.2-sol", "default")]
+    public async Task Predicting_match_sends_responses_request_with_strict_structured_output(
+        string model,
+        string expectedServiceTier)
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
@@ -345,8 +416,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var chatClient = CreateProtocolChatClient(
             requestedServiceTiers,
             requestPayloads: requestPayloads,
-            responseServiceTier: "flex");
-        var service = CreateService(chatClient);
+            responseServiceTier: expectedServiceTier);
+        var service = CreateService(
+            chatClient,
+            model: NullableOption.Some(model),
+            options: NullableOption.Some(new PredictionServiceOptions(ReasoningEffort: "xhigh")));
 
         // Act
         var prediction = await PredictMatchAsync(service, includeJustification: true);
@@ -357,9 +431,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         using var document = JsonDocument.Parse(requestPayloads.Single());
         var root = document.RootElement;
-        await Assert.That(root.GetProperty("model").GetString()).IsEqualTo("gpt-5");
+        await Assert.That(root.GetProperty("model").GetString()).IsEqualTo(model);
         await Assert.That(root.GetProperty("max_output_tokens").GetInt32()).IsEqualTo(10_000);
-        await Assert.That(root.GetProperty("service_tier").GetString()).IsEqualTo("flex");
+        await Assert.That(root.GetProperty("service_tier").GetString()).IsEqualTo(expectedServiceTier);
+        await Assert.That(root.GetProperty("reasoning").GetProperty("effort").GetString()).IsEqualTo("xhigh");
 
         var input = root.GetProperty("input").EnumerateArray().ToArray();
         await Assert.That(input.Length).IsEqualTo(2);

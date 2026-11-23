@@ -20,6 +20,18 @@ AUTHORITATIVE_STORE = (
 )
 
 
+class UsageSchemaTests(unittest.TestCase):
+    def test_disjoint_and_historical_traces_reconstruct_full_totals(self) -> None:
+        for metadata, usage in [
+            ({"kicktippaiUsageSchema": "disjoint-v1"}, {"input": 450, "cache_read_input_tokens": 250, "cache_write_input_tokens": 300, "output": 43, "output_reasoning_tokens": 7}),
+            ({"kicktippaiUsageSchema": "disjoint-v1"}, {"input": 450, "cache_read_input_tokens": 250, "cache_write_input_tokens": 300, "output": 43, "reasoning_tokens": 7}),
+            ({}, {"input": 1000, "cache_read_input_tokens": 250, "cache_write_input_tokens": 300, "output": 50, "reasoning_tokens": 7}),
+            ({}, {"input": 1000, "cache_read_input_tokens": 250, "output": 50, "reasoning_tokens": 7}),
+        ]:
+            result = estimator.extract_usage_record("repeated-measured", "test", {"usageDetails": usage, "metadata": metadata})
+            self.assertEqual((1000, 50, 1050, 250, 7), tuple(result[k] for k in ("inputTokens", "outputTokens", "totalTokens", "cachedInputTokens", "reasoningTokens")))
+
+
 class BudgetGateTests(unittest.TestCase):
     def test_reuses_luna_none_row_and_accepts_repeated_candidates(self) -> None:
         report = estimator.calculate_budget_gate(
@@ -499,6 +511,21 @@ class BudgetGateTests(unittest.TestCase):
         self.assertEqual("2", entry["effectiveInputPricePerMillionUsd"])
         self.assertEqual("10", entry["effectiveOutputPricePerMillionUsd"])
         self.assertEqual("0.022000000000", entry["estimatedTotalCostUsd"])
+
+    def test_gpt_6_2_sol_preflight_rejects_flex_and_bounds_cache_writes(self) -> None:
+        for tier in ("flex", "standard"):
+            spec = planned_preflight_spec(model="gpt-6.2-sol", serviceTier=tier)
+            with PatchedStore([]) as store, PatchedPlannedPreflightFiles(
+                [spec], pricing_source=b'        ["gpt-6.2-sol"] = new(2.00m, 10.00m, 0.10m),\n'
+            ) as files:
+                args = budget_args(store, candidates=[], planned_preflights=[str(files.spec_paths[0])],
+                                   reservations=[], retries=[], ceiling="1", pricing_source=files.pricing_path)
+                if tier == "flex":
+                    with self.assertRaisesRegex(SystemExit, "does not support Flex"):
+                        estimator.calculate_budget_gate(args)
+                else:
+                    report = estimator.calculate_budget_gate(args)
+                    self.assertEqual("2.5", report["candidates"][0]["effectiveInputPricePerMillionUsd"])
 
     def test_planned_preflight_invalid_specs_fail_closed(self) -> None:
         invalid_specs = (
