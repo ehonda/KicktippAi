@@ -133,7 +133,7 @@ jobs:
         if: ${{ inputs.enable_club_elo_source }}
         continue-on-error: ${{ !inputs.context_source_only }}
         timeout-minutes: 2
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
           node-version: '24'
 
